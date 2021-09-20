@@ -94,6 +94,14 @@ func (s *Syncer) SetCallbacks(cb *Callbacks) {
 	s.cb = cb
 }
 
+// DisableDiscoverAccounts disables account discovery. This has an effect only
+// if called before the main Run() executes the account discovery process.
+func (s *Syncer) DisableDiscoverAccounts() {
+	s.mu.Lock()
+	s.discoverAccts = false
+	s.mu.Unlock()
+}
+
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {

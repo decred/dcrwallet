@@ -137,6 +137,12 @@ func (s *Syncer) SetNotifications(ntfns *Notifications) {
 	s.notifications = ntfns
 }
 
+// DisableDiscoverAccounts disables account discovery. This has an effect only
+// if called before the main Run() executes the account discovery process.
+func (s *Syncer) DisableDiscoverAccounts() {
+	s.discoverAccounts = false
+}
+
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
