@@ -972,34 +972,6 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		return err
 	}
 
-	// Determine if the peer sent a header that connects to an unknown
-	// sidechain (i.e. an orphan chain). In that case, re-request headers
-	// to hopefully find the missing ones.
-	//
-	// The header is an orphan if its parent block is not in the mainchain
-	// nor on a previously known side chain.
-	prevInMainChain, _, err := s.wallet.BlockInMainChain(ctx, &firstHeader.PrevBlock)
-	if err != nil {
-		return err
-	}
-	if !prevInMainChain && !s.sidechains.HasSideChainBlock(&firstHeader.PrevBlock) {
-		if err := rp.ReceivedOrphanHeader(); err != nil {
-			return err
-		}
-
-		locators, err := s.wallet.BlockLocators(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if err := rp.HeadersAsync(ctx, locators, &hashStop); err != nil {
-			return err
-		}
-
-		// We requested async headers, so return early and wait for the
-		// next headers msg.
-		return nil
-	}
-
 	newBlocks := make([]*wallet.BlockNode, 0, len(headers))
 	var bestChain []*wallet.BlockNode
 	var matchingTxs map[chainhash.Hash][]*wire.MsgTx
@@ -1007,6 +979,38 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 	err = func() error {
 		defer s.sidechainMu.Unlock()
 		s.sidechainMu.Lock()
+
+		// Determine if the peer sent a header that connects to an
+		// unknown sidechain (i.e. an orphan chain). In that case,
+		// re-request headers to hopefully find the missing ones.
+		//
+		// The header is an orphan if its parent block is not in the
+		// mainchain nor on a previously known side chain.
+		prevInMainChain, _, err := s.wallet.BlockInMainChain(ctx, &firstHeader.PrevBlock)
+		if err != nil {
+			return err
+		}
+		if !prevInMainChain && !s.sidechains.HasSideChainBlock(&firstHeader.PrevBlock) {
+			if err := rp.ReceivedOrphanHeader(); err != nil {
+				return err
+			}
+
+			locators, err := s.wallet.BlockLocators(ctx, nil)
+			if err != nil {
+				return err
+			}
+			if err := rp.HeadersAsync(ctx, locators, &hashStop); err != nil {
+				return err
+			}
+
+			// We requested async headers, so return early and wait
+			// for the next headers msg.
+			//
+			// newBlocks and bestChain are empty at this point, so
+			// the rest of this function continues without
+			// producing side effects.
+			return nil
+		}
 
 		for i := range headers {
 			hash := headers[i].BlockHash()
