@@ -255,13 +255,13 @@ func (w *Wallet) GetAllTSpends(ctx context.Context) []*wire.MsgTx {
 func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
-		return 8
+		return 9
 	case 0x48e7a065: // TestNet2
 		return 6
 	case wire.TestNet3:
-		return 9
+		return 10
 	case wire.SimNet:
-		return 9
+		return 10
 	default:
 		return 1
 	}
