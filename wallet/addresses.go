@@ -141,7 +141,7 @@ func (m *managedAddress) p2shScript() (uint16, []byte) {
 	s := []byte{
 		0:  txscript.OP_HASH160,
 		1:  txscript.OP_DATA_20,
-		22: txscript.OP_EQUALVERIFY,
+		22: txscript.OP_EQUAL,
 	}
 	copy(s[2:22], sh)
 	return 0, s

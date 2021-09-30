@@ -103,12 +103,11 @@ func isReservedAccountNum(acct uint32) bool {
 // particular, it converts all pubkeys to pubkey hash addresses so they are
 // interchangeable by callers.
 func normalizeAddress(addr stdaddr.Address) stdaddr.Address {
-	switch addr := addr.(type) {
-	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
+	// Return public key hash for public keys.
+	if addr, ok := addr.(stdaddr.AddressPubKeyHasher); ok {
 		return addr.AddressPubKeyHash()
-	default:
-		return addr
 	}
+	return addr
 }
 
 // scryptOptions is used to hold the scrypt parameters needed when deriving new

@@ -1990,11 +1990,17 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 
 	result.IsValid = true
 
-	// NOTE: ValidateAddress only sets script type for owned and P2SH, but
-	// perhaps it should regardless of address type and ownership:
-	// ver, scr := addr.PaymentScript()
-	// class, _ := stdscript.ExtractAddrs(ver, scr, s.wallet.ChainParams())
-	// result.ScriptType = pb.ValidateAddressResponse_ScriptType(scProto(class))
+	ver, scr := addr.PaymentScript()
+	class, _ := stdscript.ExtractAddrs(ver, scr, s.wallet.ChainParams())
+	result.ScriptType = pb.ValidateAddressResponse_ScriptType(scProto(class))
+	result.PayToAddrScript = scr
+	if pker, ok := addr.(stdaddr.SerializedPubKeyer); ok {
+		result.PubKey = pker.SerializedPubKey()
+		result.PubKeyAddr = addr.String()
+	}
+	if class == stdscript.STScriptHash {
+		result.IsScript = true
+	}
 
 	ka, err := s.wallet.KnownAddress(ctx, addr)
 	if err != nil {
@@ -2024,15 +2030,9 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
 	case wallet.P2SHAddress:
-		result.IsScript = true
-		version, script := ka.PaymentScript() // addr.PaymentScript()
-		result.PayToAddrScript = script
-
-		// BUG: ka.RedeemScript would only be relevant now since we know the
-		// PaymentScript class (P2SH), addresses, and required sigs.
-		class, addrs := stdscript.ExtractAddrs(version, script, s.wallet.ChainParams())
-		reqSigs := stdscript.DetermineRequiredSigs(version, script)
-
+		version, redeem := ka.RedeemScript()
+		class, addrs := stdscript.ExtractAddrs(version, redeem, s.wallet.ChainParams())
+		reqSigs := stdscript.DetermineRequiredSigs(version, redeem)
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
 			addrStrings[i] = a.String()
@@ -2050,7 +2050,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	switch ka := ka.(type) {
 	case wallet.BIP0044Address:
 		_, branch, child := ka.Path()
-		result.IsInternal = branch == 1
+		result.IsInternal = branch == udb.InternalBranch
 		result.Index = child
 	}
 
