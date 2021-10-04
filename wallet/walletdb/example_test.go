@@ -4,7 +4,8 @@
 // license that can be found in the LICENSE file.
 
 // Test must be updated for API changes.
-//+build disabled
+//go:build disabled
+// +build disabled
 
 package walletdb_test
 
