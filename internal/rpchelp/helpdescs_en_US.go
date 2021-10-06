@@ -959,7 +959,7 @@ var helpDescsEnUS = map[string]string{
 	// ValidateAddressCmd help.
 	"validateaddress--synopsis": "Verify that an address is valid.\n" +
 		"Extra details are returned if the address is controlled by this wallet.\n" +
-		"The following fields are valid only when the address is controlled by this wallet (ismine=true): isscript, pubkey, iscompressed, account, addresses, hex, script, and sigsrequired.\n" +
+		"The following fields are valid only when the address is controlled by this wallet (ismine=true): pubkey, account, addresses, hex, and sigsrequired.\n" +
 		"The following fields are only valid when address has an associated public key: pubkey, iscompressed.\n" +
 		"The following fields are only valid when address is a pay-to-script-hash address: addresses, hex, and script.\n" +
 		"If the address is a multisig address controlled by this wallet, the multisig fields will be left unset if the wallet is locked since the redeem script cannot be decrypted.",
@@ -979,6 +979,10 @@ var helpDescsEnUS = map[string]string{
 	"validateaddressresult-hex":          "The redeem script ",
 	"validateaddressresult-script":       "The class of redeem script for a multisig address",
 	"validateaddressresult-sigsrequired": "The number of required signatures to redeem outputs to the multisig address",
+	"validateaddressresult-accountn": "The account number. This number plus 2 ^ 31 is the HD account the address was derived from. " +
+		"Not available for imported accounts. Only present for BIP0044 derived addresses.",
+	"validateaddressresult-branch": "The HD branch. Only present for BIP0044 derived addresses.",
+	"validateaddressresult-index":  "The HD index. Only present for BIP0044 derived addresses.",
 
 	// ValidatePreDCP0005CFCmd help
 	"validatepredcp0005cf--synopsis": "Validate whether all stored cfilters from before DCP0005 activation are correct according to the expected hardcoded hash",

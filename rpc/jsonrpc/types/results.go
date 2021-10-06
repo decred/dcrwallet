@@ -405,6 +405,9 @@ type ValidateAddressResult struct {
 	Hex          string   `json:"hex,omitempty"`
 	Script       string   `json:"script,omitempty"`
 	SigsRequired int32    `json:"sigsrequired,omitempty"`
+	AccountN     *uint32  `json:"accountn,omitempty"`
+	Branch       *uint32  `json:"branch,omitempty"`
+	Index        *uint32  `json:"index,omitempty"`
 }
 
 // ValidateAddressWalletResult aliases ValidateAddressResult.
