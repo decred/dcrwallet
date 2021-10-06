@@ -5096,16 +5096,26 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 	result := types.ValidateAddressResult{}
 	addr, err := decodeAddress(cmd.Address, w.ChainParams())
 	if err != nil {
+		result.Script = stdscript.STNonStandard.String()
 		// Use result zero value (IsValid=false).
 		return result, nil
 	}
 
-	// We could put whether or not the address is a script here,
-	// by checking the type of "addr", however, the reference
-	// implementation only puts that information if the script is
-	// "ismine", and we follow that behaviour.
 	result.Address = addr.String()
 	result.IsValid = true
+	ver, scr := addr.PaymentScript()
+	class, _ := stdscript.ExtractAddrs(ver, scr, w.ChainParams())
+	result.Script = class.String()
+	if pker, ok := addr.(stdaddr.SerializedPubKeyer); ok {
+		result.PubKey = hex.EncodeToString(pker.SerializedPubKey())
+		result.PubKeyAddr = addr.String()
+	}
+	if class == stdscript.STScriptHash {
+		result.IsScript = true
+	}
+	if _, ok := addr.(stdaddr.Hash160er); ok {
+		result.IsCompressed = true
+	}
 
 	ka, err := w.KnownAddress(ctx, addr)
 	if err != nil {
@@ -5123,7 +5133,6 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 
 	switch ka := ka.(type) {
 	case wallet.PubKeyHashAddress:
-		result.IsCompressed = true
 		pubKey := ka.PubKey()
 		result.PubKey = hex.EncodeToString(pubKey)
 		pubKeyAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(pubKey, w.ChainParams())
@@ -5132,14 +5141,9 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		}
 		result.PubKeyAddr = pubKeyAddr.String()
 	case wallet.P2SHAddress:
-		result.IsScript = true
 		version, script := ka.RedeemScript()
 		result.Hex = hex.EncodeToString(script)
 
-		// This typically shouldn't fail unless an invalid script was
-		// imported.  However, if it fails for any reason, there is no
-		// further information available, so just set the script type
-		// a non-standard and break out now.
 		class, addrs := stdscript.ExtractAddrs(version, script, w.ChainParams())
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
@@ -5153,6 +5157,15 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		if class == stdscript.STMultiSig {
 			result.SigsRequired = int32(stdscript.DetermineRequiredSigs(version, script))
 		}
+	}
+
+	if ka, ok := ka.(wallet.BIP0044Address); ok {
+		acct, branch, child := ka.Path()
+		if ka.AccountKind() != wallet.AccountKindImportedXpub {
+			result.AccountN = &acct
+		}
+		result.Branch = &branch
+		result.Index = &child
 	}
 
 	return result, nil
