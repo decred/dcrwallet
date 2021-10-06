@@ -962,6 +962,7 @@ var helpDescsEnUS = map[string]string{
 	// WalletInfoCmd help.
 	"walletinfo--synopsis":              "Returns global information about the wallet",
 	"walletinforesult-daemonconnected":  "Whether or not the wallet is currently connected to the daemon RPC",
+	"walletinforesult-spv":              "Whether or not wallet is syncing in SPV mode",
 	"walletinforesult-unlocked":         "Whether or not the wallet is unlocked",
 	"walletinforesult-cointype":         "Active coin type. Not available for watching-only wallets.",
 	"walletinforesult-txfee":            "Transaction fee per kB of the serialized tx size in coins",

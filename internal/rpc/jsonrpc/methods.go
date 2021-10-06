@@ -5060,6 +5060,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	n, err := w.NetworkBackend()
 	connected := err == nil
+	_, spv := n.(*spv.Syncer)
 	if connected {
 		if rpc, ok := n.(*dcrd.RPC); ok {
 			err := rpc.Call(ctx, "ping", nil)
@@ -5093,6 +5094,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	return &types.WalletInfoResult{
 		DaemonConnected:  connected,
+		SPV:              spv,
 		Unlocked:         unlocked,
 		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
