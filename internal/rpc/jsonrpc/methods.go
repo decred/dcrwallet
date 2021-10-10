@@ -1291,13 +1291,14 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 
 	// Calculate past median time. Look at the last 11 blocks, starting
 	// with the requested block, which is consistent with dcrd.
+	iBlkHeader := blockHeader // start with the block header for the requested block
 	timestamps := make([]int64, 0, 11)
 	for i := 0; i < cap(timestamps); i++ {
-		timestamps = append(timestamps, blockHeader.Timestamp.Unix())
-		if blockHeader.Height == 0 {
+		timestamps = append(timestamps, iBlkHeader.Timestamp.Unix())
+		if iBlkHeader.Height == 0 {
 			break
 		}
-		blockHeader, err = w.BlockHeader(ctx, &blockHeader.PrevBlock)
+		iBlkHeader, err = w.BlockHeader(ctx, &iBlkHeader.PrevBlock)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for previous block: %v", err)
 		}
