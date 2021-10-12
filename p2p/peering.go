@@ -53,6 +53,10 @@ const connectTimeout = 30 * time.Second
 // that is known to exist at the RemotePeer times out with no matching reply.
 const stallTimeout = 30 * time.Second
 
+// pingInterval is the interval between pings that keeps the connection with a
+// peer alive.
+const pingInterval = 2 * time.Minute
+
 const banThreshold = 100
 
 const invLRUSize = 5000
@@ -400,7 +404,7 @@ func (mr *msgReader) next(pver uint32) bool {
 }
 
 func (rp *RemotePeer) writeMessages(ctx context.Context) error {
-	e := make(chan error, 1)
+	e := make(chan error)
 	go func() {
 		c := rp.c
 		pver := rp.pver
@@ -421,7 +425,13 @@ func (rp *RemotePeer) writeMessages(ctx context.Context) error {
 				m.ack <- struct{}{}
 			}
 			if err != nil {
-				e <- err
+				// e blocking would indicate that either an error
+				// already happened or the context was canceled
+				// and the containing function has already returned.
+				select {
+				case e <- err:
+				default:
+				}
 				return
 			}
 		}
@@ -605,12 +615,6 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 	}()
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		<-ctx.Done()
-		rp.Disconnect(ctx.Err())
-		rp.c.Close()
-		return nil
-	})
 	g.Go(func() (err error) {
 		defer func() {
 			if err != nil && gctx.Err() == nil {
@@ -630,19 +634,20 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 	g.Go(func() error {
 		for {
 			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(2 * time.Minute):
+			case <-gctx.Done():
+				return gctx.Err()
+			case <-time.After(pingInterval):
 				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(15*time.Second))
+				// pingPong may cancel ctx which is the parent
+				// of gctx and cause the next iteration to follow
+				// gctx.Done().
 				rp.pingPong(ctx)
 				cancel()
 			}
 		}
 	})
-	err := g.Wait()
-	if err != nil {
-		rp.Disconnect(err)
-	}
+	rp.Disconnect(g.Wait())
+	rp.c.Close()
 }
 
 // ErrDisconnected describes the error of a remote peer being disconnected by
@@ -856,17 +861,21 @@ func (rp *RemotePeer) pingPong(ctx context.Context) {
 		log.Errorf("Failed to generate random ping nonce: %v", err)
 		return
 	}
+	timeout := func() {
+		if ctx.Err() == context.DeadlineExceeded {
+			err := errors.E(errors.IO, "ping timeout")
+			rp.Disconnect(err)
+		}
+	}
 	select {
 	case <-ctx.Done():
+		timeout()
 		return
 	case rp.outPrio <- &msgAck{wire.NewMsgPing(nonce), nil}:
 	}
 	select {
 	case <-ctx.Done():
-		if ctx.Err() == context.DeadlineExceeded {
-			err := errors.E(errors.IO, "ping timeout")
-			rp.Disconnect(err)
-		}
+		timeout()
 	case pong := <-rp.pongs:
 		if pong.Nonce != nonce {
 			err := errors.E(errors.Protocol, "pong contains nonmatching nonce")
