@@ -53,10 +53,6 @@ const connectTimeout = 30 * time.Second
 // that is known to exist at the RemotePeer times out with no matching reply.
 const stallTimeout = 30 * time.Second
 
-// pingInterval is the interval between pings that keeps the connection with a
-// peer alive.
-const pingInterval = 2 * time.Minute
-
 const banThreshold = 100
 
 const invLRUSize = 5000
@@ -609,6 +605,12 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 	}()
 
 	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		<-ctx.Done()
+		rp.Disconnect(ctx.Err())
+		rp.c.Close()
+		return nil
+	})
 	g.Go(func() (err error) {
 		defer func() {
 			if err != nil && gctx.Err() == nil {
@@ -630,18 +632,17 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
-			case <-time.After(pingInterval):
-				ctx, cancel := context.WithDeadline(ctx, time.Now().Add(15*time.Second))
-				// pingPong may cancel ctx which is the parent
-				// of gctx and cause the next iteration to follow
-				// gctx.Done().
+			case <-time.After(2 * time.Minute):
+				ctx, cancel := context.WithDeadline(gctx, time.Now().Add(15*time.Second))
 				rp.pingPong(ctx)
 				cancel()
 			}
 		}
 	})
-	rp.Disconnect(g.Wait())
-	rp.c.Close()
+	err := g.Wait()
+	if err != nil {
+		rp.Disconnect(err)
+	}
 }
 
 // ErrDisconnected describes the error of a remote peer being disconnected by
@@ -855,21 +856,17 @@ func (rp *RemotePeer) pingPong(ctx context.Context) {
 		log.Errorf("Failed to generate random ping nonce: %v", err)
 		return
 	}
-	timeout := func() {
-		if ctx.Err() == context.DeadlineExceeded {
-			err := errors.E(errors.IO, "ping timeout")
-			rp.Disconnect(err)
-		}
-	}
 	select {
 	case <-ctx.Done():
-		timeout()
 		return
 	case rp.outPrio <- &msgAck{wire.NewMsgPing(nonce), nil}:
 	}
 	select {
 	case <-ctx.Done():
-		timeout()
+		if ctx.Err() == context.DeadlineExceeded {
+			err := errors.E(errors.IO, "ping timeout")
+			rp.Disconnect(err)
+		}
 	case pong := <-rp.pongs:
 		if pong.Nonce != nonce {
 			err := errors.E(errors.Protocol, "pong contains nonmatching nonce")
