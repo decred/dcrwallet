@@ -404,7 +404,7 @@ func (mr *msgReader) next(pver uint32) bool {
 }
 
 func (rp *RemotePeer) writeMessages(ctx context.Context) error {
-	e := make(chan error)
+	e := make(chan error, 1)
 	go func() {
 		c := rp.c
 		pver := rp.pver
@@ -425,13 +425,7 @@ func (rp *RemotePeer) writeMessages(ctx context.Context) error {
 				m.ack <- struct{}{}
 			}
 			if err != nil {
-				// e blocking would indicate that either an error
-				// already happened or the context was canceled
-				// and the containing function has already returned.
-				select {
-				case e <- err:
-				default:
-				}
+				e <- err
 				return
 			}
 		}
