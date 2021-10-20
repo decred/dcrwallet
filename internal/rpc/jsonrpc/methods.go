@@ -1245,6 +1245,17 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 		return nil, errUnloadedWallet
 	}
 
+	// Attempt RPC passthrough if connected to DCRD.
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var resp json.RawMessage
+		err := rpc.Call(ctx, "gettxout", &resp, cmd.Hash, cmd.Verbose)
+		return resp, err
+	}
+
 	blockHash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
@@ -1331,7 +1342,7 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
 		StakeVersion:  blockHeader.StakeVersion,
 		Difficulty:    difficultyRatio(blockHeader.Bits, w.ChainParams()),
-		ChainWork:     fmt.Sprintf("%064x", blockchain.CalcWork(blockHeader.Bits)),
+		ChainWork:     "", // unset because wallet is not equipped to easily calculate the cummulative chainwork
 		PreviousHash:  blockHeader.PrevBlock.String(),
 		NextHash:      nextHashString,
 	}, nil
@@ -1347,6 +1358,13 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, err
+	}
+
+	// Attempt RPC passthrough if connected to DCRD.
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var resp json.RawMessage
+		err := rpc.Call(ctx, "gettxout", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
+		return resp, err
 	}
 
 	blockHash, err := chainhash.NewHashFromStr(cmd.Hash)
@@ -1441,7 +1459,7 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		Bits:          strconv.FormatInt(int64(blockHeader.Bits), 16),
 		SBits:         sbitsFloat,
 		Difficulty:    difficultyRatio(blockHeader.Bits, w.ChainParams()),
-		ChainWork:     fmt.Sprintf("%064x", blockchain.CalcWork(blockHeader.Bits)),
+		ChainWork:     "", // unset because wallet is not equipped to easily calculate the cummulative chainwork
 		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
 		NextHash:      nextHashString,
 	}

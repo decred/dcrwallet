@@ -215,7 +215,7 @@ var helpDescsEnUS = map[string]string{
 	"getblockheaderverboseresult-nonce":             "The block nonce",
 	"getblockheaderverboseresult-bits":              "The bits which represent the block difficulty",
 	"getblockheaderverboseresult-difficulty":        "The proof-of-work difficulty as a multiple of the minimum difficulty",
-	"getblockheaderverboseresult-chainwork":         "The total number of hashes expected to produce the chain up to the block in hex",
+	"getblockheaderverboseresult-chainwork":         "The total number of hashes expected to produce the chain up to the block in hex (not set in SPV mode)",
 	"getblockheaderverboseresult-previousblockhash": "The hash of the previous block",
 	"getblockheaderverboseresult-nextblockhash":     "The hash of the next block (only if there is one)",
 	"getblockheaderverboseresult-size":              "The size of the block in bytes",
