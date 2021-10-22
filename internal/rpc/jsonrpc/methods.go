@@ -1346,7 +1346,7 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 	}
 
 	// The coinbase must be version 3 once the treasury agenda is active.
-	isTreasuryEnabled := blk.Transactions[0].Version == wire.TxVersionTreasury
+	isTreasuryEnabled := blk.Transactions[0].Version >= wire.TxVersionTreasury
 
 	if cmd.VerboseTx == nil || !*cmd.VerboseTx {
 		transactions := blk.Transactions
