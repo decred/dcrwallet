@@ -1252,7 +1252,7 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 	}
 	if rpc, ok := n.(*dcrd.RPC); ok {
 		var resp json.RawMessage
-		err := rpc.Call(ctx, "gettxout", &resp, cmd.Hash, cmd.Verbose)
+		err := rpc.Call(ctx, "getblockheader", &resp, cmd.Hash, cmd.Verbose)
 		return resp, err
 	}
 
@@ -1317,8 +1317,7 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 	sort.Slice(timestamps, func(i, j int) bool {
 		return timestamps[i] < timestamps[j]
 	})
-	medianTimestamp := timestamps[len(timestamps)/2]
-	medianTime := time.Unix(medianTimestamp, 0)
+	medianTime := timestamps[len(timestamps)/2]
 
 	return &dcrdtypes.GetBlockHeaderVerboseResult{
 		Hash:          blockHash.String(),
@@ -1337,7 +1336,7 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interfac
 		Height:        blockHeader.Height,
 		Size:          blockHeader.Size,
 		Time:          blockHeader.Timestamp.Unix(),
-		MedianTime:    medianTime.Unix(),
+		MedianTime:    medianTime,
 		Nonce:         blockHeader.Nonce,
 		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
 		StakeVersion:  blockHeader.StakeVersion,
@@ -1363,7 +1362,7 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 	// Attempt RPC passthrough if connected to DCRD.
 	if rpc, ok := n.(*dcrd.RPC); ok {
 		var resp json.RawMessage
-		err := rpc.Call(ctx, "gettxout", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
+		err := rpc.Call(ctx, "getblock", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
 		return resp, err
 	}
 
