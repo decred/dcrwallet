@@ -1299,6 +1299,24 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		confirmations = int64(confirms(blockHeight, bestHeight))
 	}
 
+	// Calculate past median time. Look at the last 11 blocks, starting
+	// with the requested block, which is consistent with dcrd.
+	timestamps := make([]int64, 0, 11)
+	for iBlkHeader := blockHeader; ; {
+		timestamps = append(timestamps, iBlkHeader.Timestamp.Unix())
+		if iBlkHeader.Height == 0 || len(timestamps) == cap(timestamps) {
+			break
+		}
+		iBlkHeader, err = w.BlockHeader(ctx, &iBlkHeader.PrevBlock)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for previous block: %v", err)
+		}
+	}
+	sort.Slice(timestamps, func(i, j int) bool {
+		return timestamps[i] < timestamps[j]
+	})
+	medianTime := timestamps[len(timestamps)/2]
+
 	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin
 	blockReply := dcrdtypes.GetBlockVerboseResult{
 		Hash:          cmd.Hash,
@@ -1306,6 +1324,7 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		MerkleRoot:    blockHeader.MerkleRoot.String(),
 		StakeRoot:     blockHeader.StakeRoot.String(),
 		PreviousHash:  blockHeader.PrevBlock.String(),
+		MedianTime:    medianTime,
 		Nonce:         blockHeader.Nonce,
 		VoteBits:      blockHeader.VoteBits,
 		FinalState:    hex.EncodeToString(blockHeader.FinalState[:]),
@@ -1326,10 +1345,8 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		NextHash:      nextHashString,
 	}
 
-	// Determine if the treasury rules are active for the block.
-	// All txs in the stake tree must be version 3 once the treasury agenda
-	// is active.
-	isTreasuryEnabled := blk.STransactions[0].Version == wire.TxVersionTreasury
+	// The coinbase must be version 3 once the treasury agenda is active.
+	isTreasuryEnabled := blk.Transactions[0].Version >= wire.TxVersionTreasury
 
 	if cmd.VerboseTx == nil || !*cmd.VerboseTx {
 		transactions := blk.Transactions
@@ -1383,23 +1400,19 @@ func createTxRawResult(chainParams *chaincfg.Params, mtx *wire.MsgTx, blkIdx uin
 	}
 
 	txReply := &dcrdtypes.TxRawResult{
-		Hex:         b.String(),
-		Txid:        mtx.CachedTxHash().String(),
-		Vin:         createVinList(mtx, isTreasuryEnabled),
-		Vout:        createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
-		Version:     int32(mtx.Version),
-		LockTime:    mtx.LockTime,
-		Expiry:      mtx.Expiry,
-		BlockHeight: int64(blkHeader.Height),
-		BlockIndex:  blkIdx,
-	}
-
-	if blkHeader != nil {
-		// This is not a typo, they are identical in bitcoind as well.
-		txReply.Time = blkHeader.Timestamp.Unix()
-		txReply.Blocktime = blkHeader.Timestamp.Unix()
-		txReply.BlockHash = blkHeader.BlockHash().String()
-		txReply.Confirmations = confirmations
+		Hex:           b.String(),
+		Txid:          mtx.CachedTxHash().String(),
+		Version:       int32(mtx.Version),
+		LockTime:      mtx.LockTime,
+		Expiry:        mtx.Expiry,
+		Vin:           createVinList(mtx, isTreasuryEnabled),
+		Vout:          createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
+		BlockHash:     blkHeader.BlockHash().String(),
+		BlockHeight:   int64(blkHeader.Height),
+		BlockIndex:    blkIdx,
+		Confirmations: confirmations,
+		Time:          blkHeader.Timestamp.Unix(),
+		Blocktime:     blkHeader.Timestamp.Unix(), // identical to Time in bitcoind too
 	}
 
 	return txReply, nil
