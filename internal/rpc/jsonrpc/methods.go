@@ -104,6 +104,7 @@ var handlers = map[string]handler{
 	"getbestblockhash":        {fn: (*Server).getBestBlockHash},
 	"getblockcount":           {fn: (*Server).getBlockCount},
 	"getblockhash":            {fn: (*Server).getBlockHash},
+	"getblockheader":          {fn: (*Server).getBlockHeader},
 	"getblock":                {fn: (*Server).getBlock},
 	"getcoinjoinsbyacct":      {fn: (*Server).getcoinjoinsbyacct},
 	"getinfo":                 {fn: (*Server).getInfo},
@@ -1236,6 +1237,116 @@ func (s *Server) getBlockHash(ctx context.Context, icmd interface{}) (interface{
 	return info.Hash.String(), nil
 }
 
+// getBlockHeader implements the getblockheader command.
+func (s *Server) getBlockHeader(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.GetBlockHeaderCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// Attempt RPC passthrough if connected to DCRD.
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var resp json.RawMessage
+		err := rpc.Call(ctx, "getblockheader", &resp, cmd.Hash, cmd.Verbose)
+		return resp, err
+	}
+
+	blockHash, err := chainhash.NewHashFromStr(cmd.Hash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	blockHeader, err := w.BlockHeader(ctx, blockHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// When the verbose flag isn't set, simply return the serialized block
+	// header as a hex-encoded string.
+	if cmd.Verbose == nil || !*cmd.Verbose {
+		var headerBuf bytes.Buffer
+		err := blockHeader.Serialize(&headerBuf)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Could not serialize block header: %v", err)
+		}
+		return hex.EncodeToString(headerBuf.Bytes()), nil
+	}
+
+	// The verbose flag is set, so generate the JSON object and return it.
+
+	// Get next block hash unless there are none.
+	var nextHashString string
+	confirmations := int64(-1)
+	mainChainHasBlock, _, err := w.BlockInMainChain(ctx, blockHash)
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Error checking if block is in mainchain: %v", err)
+	}
+	if mainChainHasBlock {
+		blockHeight := int32(blockHeader.Height)
+		_, bestHeight := w.MainChainTip(ctx)
+		if blockHeight < bestHeight {
+			nextBlockID := wallet.NewBlockIdentifierFromHeight(blockHeight + 1)
+			nextBlockInfo, err := w.BlockInfo(ctx, nextBlockID)
+			if err != nil {
+				return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for next block: %v", err)
+			}
+			nextHashString = nextBlockInfo.Hash.String()
+		}
+		confirmations = int64(confirms(blockHeight, bestHeight))
+	}
+
+	// Calculate past median time. Look at the last 11 blocks, starting
+	// with the requested block, which is consistent with dcrd.
+	iBlkHeader := blockHeader // start with the block header for the requested block
+	timestamps := make([]int64, 0, 11)
+	for i := 0; i < cap(timestamps); i++ {
+		timestamps = append(timestamps, iBlkHeader.Timestamp.Unix())
+		if iBlkHeader.Height == 0 {
+			break
+		}
+		iBlkHeader, err = w.BlockHeader(ctx, &iBlkHeader.PrevBlock)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for previous block: %v", err)
+		}
+	}
+	sort.Slice(timestamps, func(i, j int) bool {
+		return timestamps[i] < timestamps[j]
+	})
+	medianTime := timestamps[len(timestamps)/2]
+
+	return &dcrdtypes.GetBlockHeaderVerboseResult{
+		Hash:          blockHash.String(),
+		Confirmations: confirmations,
+		Version:       blockHeader.Version,
+		MerkleRoot:    blockHeader.MerkleRoot.String(),
+		StakeRoot:     blockHeader.StakeRoot.String(),
+		VoteBits:      blockHeader.VoteBits,
+		FinalState:    hex.EncodeToString(blockHeader.FinalState[:]),
+		Voters:        blockHeader.Voters,
+		FreshStake:    blockHeader.FreshStake,
+		Revocations:   blockHeader.Revocations,
+		PoolSize:      blockHeader.PoolSize,
+		Bits:          strconv.FormatInt(int64(blockHeader.Bits), 16),
+		SBits:         dcrutil.Amount(blockHeader.SBits).ToCoin(),
+		Height:        blockHeader.Height,
+		Size:          blockHeader.Size,
+		Time:          blockHeader.Timestamp.Unix(),
+		MedianTime:    medianTime,
+		Nonce:         blockHeader.Nonce,
+		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
+		StakeVersion:  blockHeader.StakeVersion,
+		Difficulty:    difficultyRatio(blockHeader.Bits, w.ChainParams()),
+		ChainWork:     "", // unset because wallet is not equipped to easily calculate the cummulative chainwork
+		PreviousHash:  blockHeader.PrevBlock.String(),
+		NextHash:      nextHashString,
+	}, nil
+}
+
 // getBlock implements the getblock command.
 func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.GetBlockCmd)
@@ -1246,6 +1357,13 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, err
+	}
+
+	// Attempt RPC passthrough if connected to DCRD.
+	if rpc, ok := n.(*dcrd.RPC); ok {
+		var resp json.RawMessage
+		err := rpc.Call(ctx, "getblock", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
+		return resp, err
 	}
 
 	blockHash, err := chainhash.NewHashFromStr(cmd.Hash)
@@ -1340,7 +1458,7 @@ func (s *Server) getBlock(ctx context.Context, icmd interface{}) (interface{}, e
 		Bits:          strconv.FormatInt(int64(blockHeader.Bits), 16),
 		SBits:         sbitsFloat,
 		Difficulty:    difficultyRatio(blockHeader.Bits, w.ChainParams()),
-		ChainWork:     fmt.Sprintf("%064x", blockchain.CalcWork(blockHeader.Bits)),
+		ChainWork:     "", // unset because wallet is not equipped to easily calculate the cummulative chainwork
 		ExtraData:     hex.EncodeToString(blockHeader.ExtraData[:]),
 		NextHash:      nextHashString,
 	}
