@@ -334,6 +334,10 @@ var helpDescsEnUS = map[string]string{
 	"syncstatusresult-initialblockdownload": "Best guess of whether this wallet is in the initial block download mode used to catch up the blockchain when it is far behind.",
 	"syncstatusresult-headersfetchprogress": "Estimated progress of the headers fetching stage of the current sync process.",
 
+	// GetCurrentNetCmd help.
+	"getcurrentnet--synopsis": "Get Decred network the wallet is connected to.",
+	"getcurrentnet--result0":  "The network identifier",
+
 	// GetInfoCmd help.
 	"getinfo--synopsis": "Returns a JSON object containing various state info.",
 
