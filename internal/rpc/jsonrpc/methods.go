@@ -53,9 +53,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.7.0"
+	jsonrpcSemverString = "8.8.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 7
+	jsonrpcSemverMinor  = 8
 	jsonrpcSemverPatch  = 0
 )
 
@@ -107,6 +107,7 @@ var handlers = map[string]handler{
 	"getblockheader":          {fn: (*Server).getBlockHeader},
 	"getblock":                {fn: (*Server).getBlock},
 	"getcoinjoinsbyacct":      {fn: (*Server).getcoinjoinsbyacct},
+	"getcurrentnet":           {fn: (*Server).getCurrentNet},
 	"getinfo":                 {fn: (*Server).getInfo},
 	"getmasterpubkey":         {fn: (*Server).getMasterPubkey},
 	"getmultisigoutinfo":      {fn: (*Server).getMultisigOutInfo},
@@ -1776,6 +1777,11 @@ func (s *Server) syncStatus(ctx context.Context, icmd interface{}) (interface{},
 		InitialBlockDownload: walletBestBlockTooOld,
 		HeadersFetchProgress: headersFetchProgress,
 	}, nil
+}
+
+// getCurrentNet handles a getcurrentnet request.
+func (s *Server) getCurrentNet(ctx context.Context, icmd interface{}) (interface{}, error) {
+	return s.activeNet.Net, nil
 }
 
 // getInfo handles a getinfo request by returning a structure containing

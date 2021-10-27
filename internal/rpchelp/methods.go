@@ -56,6 +56,7 @@ var Methods = []struct {
 	{"getblockheader", []interface{}{(*dcrdtypes.GetBlockHeaderVerboseResult)(nil)}},
 	{"getblock", []interface{}{(*dcrdtypes.GetBlockVerboseResult)(nil)}},
 	{"getcoinjoinsbyacct", []interface{}{(*map[string]uint32)(nil)}},
+	{"getcurrentnet", []interface{}{(*uint32)(nil)}},
 	{"getinfo", []interface{}{(*types.InfoWalletResult)(nil)}},
 	{"getmasterpubkey", []interface{}{(*string)(nil)}},
 	{"getmultisigoutinfo", []interface{}{(*types.GetMultisigOutInfoResult)(nil)}},

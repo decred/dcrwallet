@@ -1294,6 +1294,7 @@ func init() {
 		{"getblockheader", (*GetBlockHeaderCmd)(nil)},
 		{"getblock", (*GetBlockCmd)(nil)},
 		{"getcfilterv2", (*GetCFilterV2Cmd)(nil)},
+		{"getcurrentnet", (*GetCurrentNetCmd)(nil)},
 		{"getinfo", (*GetInfoCmd)(nil)},
 		{"getpeerinfo", (*GetPeerInfoCmd)(nil)},
 		{"gettxout", (*GetTxOutCmd)(nil)},
@@ -1329,6 +1330,7 @@ type (
 	GetBlockHeaderCmd       dcrdtypes.GetBlockHeaderCmd
 	GetBlockCmd             dcrdtypes.GetBlockCmd
 	GetCFilterV2Cmd         dcrdtypes.GetCFilterV2Cmd
+	GetCurrentNetCmd        dcrdtypes.GetCurrentNetCmd
 	GetInfoCmd              dcrdtypes.GetInfoCmd
 	GetPeerInfoCmd          dcrdtypes.GetPeerInfoCmd
 	GetTxOutCmd             dcrdtypes.GetTxOutCmd
