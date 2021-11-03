@@ -16,7 +16,7 @@ require (
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2-0.20210914212651-723d86274b0d
 	github.com/decred/dcrd/database/v3 v3.0.0-20210914212651-723d86274b0d // indirect
 	github.com/decred/dcrd/dcrec v1.0.1-0.20210914212651-723d86274b0d
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1-0.20210914212651-723d86274b0d
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/decred/dcrd/dcrjson/v4 v4.0.0
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0-20210914212651-723d86274b0d
 	github.com/decred/dcrd/gcs/v3 v3.0.0-20210914212651-723d86274b0d
