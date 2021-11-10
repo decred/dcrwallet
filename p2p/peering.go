@@ -606,8 +606,8 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		<-ctx.Done()
-		rp.Disconnect(ctx.Err())
+		<-gctx.Done()
+		rp.Disconnect(gctx.Err())
 		rp.c.Close()
 		return nil
 	})
