@@ -1499,7 +1499,7 @@ type PurchaseTicketsResponse struct {
 func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 
-	const op errors.Op = "wallet.PurchaseTicketsWithResponse"
+	const op errors.Op = "wallet.PurchaseTickets"
 
 	resp, err := w.purchaseTickets(ctx, op, n, req)
 	if err == nil || !errors.Is(err, errVSPFeeRequiresUTXOSplit) || req.DontSignTx {
