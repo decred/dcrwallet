@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -18,7 +18,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -757,7 +757,8 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			// OP_SSTXCHANGE output.
 			out := record.MsgTx.TxOut[extractRawCreditIndex(k)]
 			if stake.IsSStx(&record.MsgTx) &&
-				txscript.GetScriptClass(out.Version, out.PkScript, true /* Yes treasury */) == txscript.StakeSubChangeTy {
+				(stdscript.IsStakeChangePubKeyHashScript(out.Version, out.PkScript) ||
+					stdscript.IsStakeChangeScriptHashScript(out.Version, out.PkScript)) {
 				vCpy[8] |= 1 << 4
 			}
 
@@ -808,7 +809,8 @@ func hasExpiryFixedUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 			}
 			out := record.MsgTx.TxOut[idx]
 			if stake.IsSStx(&record.MsgTx) &&
-				txscript.GetScriptClass(out.Version, out.PkScript, true /* Yes treasury */) == txscript.StakeSubChangeTy {
+				(stdscript.IsStakeChangePubKeyHashScript(out.Version, out.PkScript) ||
+					stdscript.IsStakeChangeScriptHashScript(out.Version, out.PkScript)) {
 				vCpy[8] |= 1 << 4
 			}
 

@@ -12,6 +12,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -113,10 +114,7 @@ func (c *csppJoin) Confirm() error {
 			in = c.tx.TxIn[index]
 
 			const scriptVersion = 0
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion, outScript, c.wallet.chainParams, true) // Yes treasury
-			if err != nil {
-				return err
-			}
+			_, addrs := stdscript.ExtractAddrs(scriptVersion, outScript, c.wallet.chainParams)
 			if len(addrs) != 1 {
 				continue
 			}

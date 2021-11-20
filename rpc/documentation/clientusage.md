@@ -49,24 +49,24 @@ required to generate Go bindings.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
-	pb "decred.org/dcrwallet/rpc/walletrpc"
-	"golang.org/x/net/context"
+	pb "decred.org/dcrwallet/v2/rpc/walletrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/decred/dcrd/dcrutil"
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 var (
 	certificateFile      = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
-	walletClientCertFile = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "client.pem")
-	walletClientKeyFile  = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "client-key.pem")
+	walletClientCertFile = "client.pem" // must be part of ~/.dcrwallet/clients.pem
+	walletClientKeyFile  = "client-key.pem"
 )
 
 func main() {

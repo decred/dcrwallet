@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2019 The Decred developers
+// Copyright (c) 2016-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -56,16 +56,21 @@ import (
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
 // Public API version constants
 const (
-	semverString = "7.12.0"
+	semverString = "7.13.0"
 	semverMajor  = 7
-	semverMinor  = 12
+	semverMinor  = 13
 	semverPatch  = 0
 )
+
+// The assumed output script version is defined to assist with refactoring to
+// use actual script versions.
+const scriptVersionAssumed = 0
 
 // translateError creates a new gRPC error with an appropriate error code for
 // recognized errors.
@@ -598,15 +603,12 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 func (s *walletServer) ImportScript(ctx context.Context,
 	req *pb.ImportScriptRequest) (*pb.ImportScriptResponse, error) {
 
-	// TODO: Rather than assuming the "default" version, it must be a parameter
+	// TODO: Rather than assuming a script version, it must become a parameter
 	// to the request.
-	sc, addrs, requiredSigs, err := txscript.ExtractPkScriptAddrs(
-		0, req.Script, s.wallet.ChainParams(), true) // Yes treasury
-	if err != nil && req.RequireRedeemable {
-		return nil, status.Errorf(codes.FailedPrecondition,
-			"The script is not redeemable by the wallet")
-	}
-	ownAddrs := 0
+	sc, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, req.Script, s.wallet.ChainParams())
+	requiredSigs := stdscript.DetermineRequiredSigs(scriptVersionAssumed, req.Script)
+	// NOTE: not explicitly disallowing len(addrs) == 0 && requiredSigs == 0
+	var ownAddrs uint16
 	for _, a := range addrs {
 		haveAddr, err := s.wallet.HaveAddress(ctx, a)
 		if err != nil {
@@ -616,7 +618,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 			ownAddrs++
 		}
 	}
-	redeemable := sc == txscript.MultiSigTy && ownAddrs >= requiredSigs
+	redeemable := sc == stdscript.STMultiSig && ownAddrs >= requiredSigs
 	if !redeemable && req.RequireRedeemable {
 		return nil, status.Errorf(codes.FailedPrecondition,
 			"The script is not redeemable by the wallet")
@@ -737,7 +739,7 @@ func (src *scriptChangeSource) ScriptSize() int {
 	return len(src.script)
 }
 
-func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+func makeScriptChangeSource(address string, params *chaincfg.Params) (*scriptChangeSource, error) {
 	destinationAddress, err := stdaddr.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
@@ -779,7 +781,7 @@ func (s *walletServer) SweepAccount(ctx context.Context, req *pb.SweepAccountReq
 		return nil, translateError(err)
 	}
 
-	changeSource, err := makeScriptChangeSource(req.DestinationAddress, 0, s.wallet.ChainParams())
+	changeSource, err := makeScriptChangeSource(req.DestinationAddress, s.wallet.ChainParams())
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -1987,6 +1989,13 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	}
 
 	result.IsValid = true
+
+	// NOTE: ValidateAddress only sets script type for owned and P2SH, but
+	// perhaps it should regardless of address type and ownership:
+	// ver, scr := addr.PaymentScript()
+	// class, _ := stdscript.ExtractAddrs(ver, scr, s.wallet.ChainParams())
+	// result.ScriptType = pb.ValidateAddressResponse_ScriptType(scProto(class))
+
 	ka, err := s.wallet.KnownAddress(ctx, addr)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
@@ -2016,19 +2025,13 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 		result.PubKeyAddr = pubKeyAddr.String()
 	case wallet.P2SHAddress:
 		result.IsScript = true
-		_, script := ka.PaymentScript()
+		version, script := ka.PaymentScript() // addr.PaymentScript()
 		result.PayToAddrScript = script
 
-		// This typically shouldn't fail unless an invalid script was
-		// imported.  However, if it fails for any reason, there is no
-		// further information available, so just set the script type
-		// a non-standard and break out now.
-		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			0, script, s.wallet.ChainParams(), false) // No treasury
-		if err != nil {
-			result.ScriptType = pb.ValidateAddressResponse_NonStandardTy
-			break
-		}
+		// BUG: ka.RedeemScript would only be relevant now since we know the
+		// PaymentScript class (P2SH), addresses, and required sigs.
+		class, addrs := stdscript.ExtractAddrs(version, script, s.wallet.ChainParams())
+		reqSigs := stdscript.DetermineRequiredSigs(version, script)
 
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
@@ -2038,8 +2041,8 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 
 		// Multi-signature scripts also provide the number of required
 		// signatures.
-		result.ScriptType = pb.ValidateAddressResponse_ScriptType(uint32(class))
-		if class == txscript.MultiSigTy {
+		result.ScriptType = pb.ValidateAddressResponse_ScriptType(scProto(class))
+		if class == stdscript.STMultiSig {
 			result.SigsRequired = uint32(reqSigs)
 		}
 	}
@@ -3312,11 +3315,14 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 		// accordingly.
 		var addrs []stdaddr.Address
 		var encodedAddrs []string
-		var scriptClass txscript.ScriptClass
-		var reqSigs int
+		var scriptClass stdscript.ScriptType
+		var reqSigs uint16
 		var commitAmt *dcrutil.Amount
-		if (txType == stake.TxTypeSStx) && (stake.IsStakeSubmissionTxOut(i)) {
-			scriptClass = txscript.StakeSubmissionTy
+		if (txType == stake.TxTypeSStx) && (stake.IsStakeCommitmentTxOut(i)) {
+			// Questionable! This is either "nulldata" or the pseudo-type
+			// "sstxcommitment", not "stakesubmission", which is only the 0th
+			// output of a ticket.
+			scriptClass = stdscript.STStakeSubmissionPubKeyHash
 			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
 				chainParams)
 			if err != nil {
@@ -3335,8 +3341,8 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 			// Ignore the error here since an error means the script
 			// couldn't parse and there is no additional information
 			// about it anyways.
-			scriptClass, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
-				v.Version, v.PkScript, chainParams, true) // Yes treasury
+			scriptClass, addrs = stdscript.ExtractAddrs(v.Version, v.PkScript, chainParams)
+			reqSigs = stdscript.DetermineRequiredSigs(v.Version, v.PkScript)
 			encodedAddrs = make([]string, len(addrs))
 			for j, addr := range addrs {
 				encodedAddrs[j] = addr.String()
@@ -3350,7 +3356,7 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 			Addresses:          encodedAddrs,
 			Script:             v.PkScript,
 			ScriptAsm:          disbuf,
-			ScriptClass:        pb.DecodedTransaction_Output_ScriptClass(scriptClass),
+			ScriptClass:        pb.DecodedTransaction_Output_ScriptClass(scProto(scriptClass)),
 			RequiredSignatures: int32(reqSigs),
 		}
 		if commitAmt != nil {
@@ -3359,6 +3365,59 @@ func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*p
 	}
 
 	return outputs
+}
+
+// api.proto:
+//
+// enum ScriptClass {
+// 	NON_STANDARD = 0;
+// 	PUB_KEY = 1;
+// 	PUB_KEY_HASH = 2;
+// 	SCRIPT_HASH = 3;
+// 	MULTI_SIG = 4;
+// 	NULL_DATA = 5;
+// 	STAKE_SUBMISSION = 6;
+// 	STAKE_GEN = 7;
+// 	STAKE_REVOCATION = 8;
+// 	STAKE_SUB_CHANGE = 9;
+// 	PUB_KEY_ALT = 10;
+// 	PUB_KEY_HASH_ALT = 11;
+// 	TGEN = 12;
+// 	TADD = 13;
+
+func scProto(class stdscript.ScriptType) int32 {
+	switch class {
+	case stdscript.STNonStandard:
+		return 0
+	case stdscript.STPubKeyEcdsaSecp256k1:
+		return 1
+	case stdscript.STPubKeyHashEcdsaSecp256k1:
+		return 2
+	case stdscript.STScriptHash:
+		return 3
+	case stdscript.STMultiSig:
+		return 4
+	case stdscript.STNullData:
+		return 5
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeSubmissionScriptHash:
+		return 6
+	case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
+		return 7
+	case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
+		return 8
+	case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
+		return 9
+	case stdscript.STPubKeyEd25519, stdscript.STPubKeySchnorrSecp256k1:
+		return 10
+	case stdscript.STPubKeyHashEd25519, stdscript.STPubKeyHashSchnorrSecp256k1:
+		return 11
+	case stdscript.STTreasuryGenPubKeyHash, stdscript.STTreasuryGenScriptHash:
+		return 12
+	case stdscript.STTreasuryAdd:
+		return 13
+	}
+
+	return 0
 }
 
 func (s *decodeMessageServer) DecodeRawTransaction(ctx context.Context, req *pb.DecodeRawTransactionRequest) (

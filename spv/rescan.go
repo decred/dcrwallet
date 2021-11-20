@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2018-2019 The Decred developers
+// Copyright (c) 2018-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,7 +8,7 @@ package spv
 import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/gcs/v3/blockcf2"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -53,12 +53,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 
 	LoopOutputs:
 		for i, output := range tx.TxOut {
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				output.Version, output.PkScript,
-				s.wallet.ChainParams(), true) // Yes treasury
-			if err != nil {
-				continue
-			}
+			_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, s.wallet.ChainParams())
 			for _, a := range addrs {
 				if !s.rescanFilter.ExistsAddress(a) {
 					continue
@@ -109,11 +104,7 @@ Txs:
 			}
 		}
 		for _, out := range tx.TxOut {
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-				out.PkScript, s.wallet.ChainParams(), true) // Yes treasury
-			if err != nil {
-				continue
-			}
+			_, addrs := stdscript.ExtractAddrs(out.Version, out.PkScript, s.wallet.ChainParams())
 			for _, a := range addrs {
 				if s.rescanFilter.ExistsAddress(a) {
 					matches = append(matches, tx)

@@ -29,8 +29,8 @@ import (
 	"decred.org/dcrwallet/v2/wallet/txsizes"
 	"decred.org/dcrwallet/v2/wallet/udb"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
 
+	"github.com/decred/dcrd/blockchain/stake/v4"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -45,6 +45,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -73,6 +74,10 @@ var (
 	wtxmgrNamespaceKey    = []byte("wtxmgr")
 	wstakemgrNamespaceKey = []byte("wstakemgr")
 )
+
+// The assumed output script version is defined to assist with refactoring to
+// use actual script versions.
+const scriptVersionAssumed = 0
 
 // StakeDifficultyInfo is a container for stake difficulty information updates.
 type StakeDifficultyInfo struct {
@@ -2340,8 +2345,7 @@ outputs:
 
 		var address string
 		var accountName string
-		_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
-			output.PkScript, net, true) // Yes treasury
+		_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, net)
 		if len(addrs) == 1 {
 			addr := addrs[0]
 			address = addr.String()
@@ -2511,18 +2515,11 @@ func (w *Wallet) ListAddressTransactions(ctx context.Context, pkHashes map[strin
 				detail := &details[i]
 
 				for _, cred := range detail.Credits {
-					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
-					_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-						0, pkScript, w.chainParams, true) // Yes treasury
-					if err != nil || len(addrs) != 1 {
+					if detail.MsgTx.TxOut[cred.Index].Version != scriptVersionAssumed {
 						continue
 					}
-					apkh, ok := addrs[0].(*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0)
-					if !ok {
-						continue
-					}
-					_, ok = pkHashes[string(apkh.Hash160()[:])]
-					if !ok {
+					pkh := stdscript.ExtractPubKeyHashV0(detail.MsgTx.TxOut[cred.Index].PkScript)
+					if _, ok := pkHashes[string(pkh)]; !ok {
 						continue
 					}
 
@@ -3314,12 +3311,11 @@ func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 		}
 		for i := range unspent {
 			output := unspent[i]
-			var outputAcct uint32
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript, w.chainParams, true) // Yes treasury
-			if err == nil && len(addrs) > 0 {
-				outputAcct, err = w.manager.AddrAccount(addrmgrNs, addrs[0])
+			_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
+			if len(addrs) == 0 {
+				continue
 			}
+			outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 			if err == nil {
 				amt, ok := m[outputAcct]
 				if ok {
@@ -3465,11 +3461,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 			// This will be unnecessary once transactions and outputs are
 			// grouped under the associated account in the db.
 			acctName := defaultAccountName
-			sc, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript, w.chainParams, true) // Yes treasury
-			if err != nil {
-				continue
-			}
+			sc, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
 			if len(addrs) > 0 {
 				acct, err := w.manager.AddrAccount(
 					addrmgrNs, addrs[0])
@@ -3510,11 +3502,11 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 			var redeemScript []byte
 		scSwitch:
 			switch sc {
-			case txscript.PubKeyHashTy:
+			case stdscript.STPubKeyHashEcdsaSecp256k1:
 				spendable = true
-			case txscript.PubKeyTy:
+			case stdscript.STPubKeyEcdsaSecp256k1:
 				spendable = true
-			case txscript.ScriptHashTy:
+			case stdscript.STScriptHash:
 				spendable = true
 				if len(addrs) != 1 {
 					return errors.Errorf("invalid address count for pay-to-script-hash output")
@@ -3523,13 +3515,13 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 				if err != nil {
 					return err
 				}
-			case txscript.StakeGenTy:
+			case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
 				spendable = true
-			case txscript.StakeRevocationTy:
+			case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
 				spendable = true
-			case txscript.StakeSubChangeTy:
+			case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
 				spendable = true
-			case txscript.MultiSigTy:
+			case stdscript.STMultiSig:
 				for _, a := range addrs {
 					_, err := w.manager.Address(addrmgrNs, a)
 					if err == nil {
@@ -3542,6 +3534,10 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 				}
 				spendable = true
 			}
+
+			// If address decoding failed, the output is not spendable
+			// regardless of detected script type.
+			spendable = spendable && len(addrs) > 0
 
 			result := &types.ListUnspentResult{
 				TxID:          output.OutPoint.Hash.String(),
@@ -3776,11 +3772,7 @@ func isTreasurySpend(tx *wire.MsgTx) bool {
 func (w *Wallet) hasVotingAuthority(addrmgrNs walletdb.ReadBucket, ticketPurchase *wire.MsgTx) (
 	mine, havePrivKey bool, err error) {
 	out := ticketPurchase.TxOut[0]
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-		out.PkScript, w.chainParams, true) // Yes treasury
-	if err != nil {
-		return false, false, err
-	}
+	_, addrs := stdscript.ExtractAddrs(out.Version, out.PkScript, w.chainParams)
 	for _, a := range addrs {
 		var hash160 *[20]byte
 		switch a := a.(type) {
@@ -4127,21 +4119,16 @@ func (w *Wallet) LockedOutpoints(ctx context.Context, accountName string) ([]dcr
 
 			if !allAccts {
 				// Lookup the associated account for the output.
-				_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-					0, output.PkScript, w.chainParams, true) // Yes treasury
-				if err != nil {
+				_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, w.chainParams)
+				if len(addrs) == 0 {
 					continue
 				}
 				var opAcct string
-				if len(addrs) > 0 {
-					acct, err := w.manager.AddrAccount(
-						addrmgrNs, addrs[0])
+				acct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
+				if err == nil {
+					s, err := w.manager.AccountName(addrmgrNs, acct)
 					if err == nil {
-						s, err := w.manager.AccountName(
-							addrmgrNs, acct)
-						if err == nil {
-							opAcct = s
-						}
+						opAcct = s
 					}
 				}
 				if opAcct != accountName {
@@ -4307,13 +4294,11 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 				for _, cred := range detail.Credits {
 					pkVersion := detail.MsgTx.TxOut[cred.Index].Version
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
-					var outputAcct uint32
-					_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-						pkScript, w.chainParams, true) // Yes treasury
-					if err == nil && len(addrs) > 0 {
-						outputAcct, err = w.manager.AddrAccount(
-							addrmgrNs, addrs[0])
+					_, addrs := stdscript.ExtractAddrs(pkVersion, pkScript, w.chainParams)
+					if len(addrs) == 0 {
+						continue
 					}
+					outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 					if err == nil {
 						acctIndex := int(outputAcct)
 						if outputAcct == udb.ImportedAddrAccount {
@@ -4363,14 +4348,8 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address,
 				for _, cred := range detail.Credits {
 					pkVersion := detail.MsgTx.TxOut[cred.Index].Version
 					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
-					_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-						pkScript, w.chainParams, true) // Yes treasury
-					// An error creating addresses from the output script only
-					// indicates a non-standard script, so ignore this credit.
-					if err != nil {
-						continue
-					}
-					for _, a := range addrs {
+					_, addrs := stdscript.ExtractAddrs(pkVersion, pkScript, w.chainParams)
+					for _, a := range addrs { // no addresses means non-standard credit, ignored
 						if addrStr == a.String() {
 							amount += cred.Amount
 							break
@@ -4588,24 +4567,20 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 			// Either it was already signed or we just signed it.
 			// Find out if it is completely satisfied or still needs more.
 			vm, err := txscript.NewEngine(prevOutScript, tx, i,
-				sanityVerifyFlags, 0, nil)
+				sanityVerifyFlags, scriptVersionAssumed, nil)
 			if err == nil {
 				err = vm.Execute()
 			}
 			if err != nil {
-				multisigNotEnoughSigs := false
-				class, addr, _, _ := txscript.ExtractPkScriptAddrs(
-					0,
-					additionalPrevScripts[txIn.PreviousOutPoint],
-					w.ChainParams(), true) // Yes treasury
-
-				if errors.Is(err, txscript.ErrInvalidStackOperation) &&
-					class == txscript.ScriptHashTy {
-					redeemScript, _ := source.script(addr[0])
-					redeemClass := txscript.GetScriptClass(
-						0, redeemScript, true) // Yes treasury
-					if redeemClass == txscript.MultiSigTy {
-						multisigNotEnoughSigs = true
+				var multisigNotEnoughSigs bool
+				if errors.Is(err, txscript.ErrInvalidStackOperation) {
+					pkScript := additionalPrevScripts[txIn.PreviousOutPoint]
+					class, addr := stdscript.ExtractAddrs(scriptVersionAssumed, pkScript, w.ChainParams())
+					if class == stdscript.STScriptHash && len(addr) > 0 {
+						redeemScript, _ := source.script(addr[0])
+						if stdscript.IsMultiSigScriptV0(redeemScript) {
+							multisigNotEnoughSigs = true
+						}
 					}
 				}
 				// Only report an error for the script engine in the event
@@ -4675,7 +4650,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 	for _, in := range tx.TxIn {
 		// Input is relevant if it contains a saved redeem script or spends a
 		// wallet output.
-		rs := txscript.MultisigRedeemScriptFromScriptSig(in.SignatureScript)
+		rs := stdscript.MultiSigRedeemScriptFromScriptSigV0(in.SignatureScript)
 		if rs != nil && w.manager.ExistsHash160(addrmgrNs,
 			dcrutil.Hash160(rs)) {
 			return true
@@ -4685,11 +4660,7 @@ func (w *Wallet) isRelevantTx(dbtx walletdb.ReadTx, tx *wire.MsgTx) bool {
 		}
 	}
 	for _, out := range tx.TxOut {
-		_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-			out.PkScript, w.chainParams, true) // Yes treasury
-		if err != nil {
-			continue
-		}
+		_, addrs := stdscript.ExtractAddrs(out.Version, out.PkScript, w.chainParams)
 		for _, a := range addrs {
 			var hash160 *[20]byte
 			switch a := a.(type) {
@@ -4757,16 +4728,9 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 			}
 		}
 
-		class, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-			out.PkScript, w.chainParams, true) // Yes treasury
-		if err != nil {
-			continue
-		}
-		var tree int8
-		switch class {
-		case txscript.StakeSubmissionTy, txscript.StakeSubChangeTy,
-			txscript.StakeGenTy, txscript.StakeRevocationTy,
-			txscript.TreasuryGenTy:
+		class, addrs := stdscript.ExtractAddrs(out.Version, out.PkScript, w.chainParams)
+		tree := wire.TxTreeRegular
+		if _, isStake := txrules.StakeSubScriptType(class); isStake {
 			tree = wire.TxTreeStake
 		}
 
@@ -5305,8 +5269,7 @@ func (w *Wallet) getCoinjoinTxsSumbByAcct(ctx context.Context) (map[uint32]int, 
 					if mixDenom != output.Value {
 						continue
 					}
-					_, addrs, _, _ := txscript.ExtractPkScriptAddrs(output.Version,
-						output.PkScript, w.chainParams, true) // Yes treasury
+					_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, w.chainParams)
 					if len(addrs) == 1 {
 						acct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 						// mixed output belongs to wallet.

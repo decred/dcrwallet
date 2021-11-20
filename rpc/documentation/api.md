@@ -1,6 +1,6 @@
 # RPC API Specification
 
-Version: 7.9.x
+Version: 7.13.x
 
 **Note:** This document assumes the reader is familiar with gRPC concepts.
 Refer to the [gRPC Concepts documentation](https://www.grpc.io/docs/guides/concepts.html)
@@ -2291,6 +2291,10 @@ transaction.
     - `PUB_KEY_ALT`: Alternative Pay to PubKey script.
 
     - `PUB_KEY_HASH_ALT`: Alternative Pay to PubKey Hash script.
+
+    - `TGEN`: A treasury generation script.
+
+    - `TADD`: A treasury add script.
 
   - `repeated string addresses`: Addresses found when decoding the output
   script.

@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,8 +9,30 @@ import (
 	"decred.org/dcrwallet/v2/errors"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
+
+// StakeSubScriptType potentially transforms the provided script type by
+// converting the various stake-specific script types to their associated sub
+// type.  It will be returned unmodified otherwise.
+func StakeSubScriptType(scriptType stdscript.ScriptType) (stdscript.ScriptType, bool) {
+	switch scriptType {
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeChangePubKeyHash,
+		stdscript.STStakeGenPubKeyHash, stdscript.STStakeRevocationPubKeyHash,
+		stdscript.STTreasuryGenPubKeyHash:
+
+		return stdscript.STPubKeyHashEcdsaSecp256k1, true
+
+	case stdscript.STStakeSubmissionScriptHash, stdscript.STStakeChangeScriptHash,
+		stdscript.STStakeGenScriptHash, stdscript.STStakeRevocationScriptHash,
+		stdscript.STTreasuryGenScriptHash:
+
+		return stdscript.STScriptHash, true
+	}
+
+	return scriptType, false
+}
 
 // DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
 const DefaultRelayFeePerKb dcrutil.Amount = 1e4
@@ -38,7 +60,7 @@ func IsDustAmount(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.A
 // with default policies.
 func IsDustOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
 	// Unspendable outputs which solely carry data are not checked for dust.
-	if txscript.GetScriptClass(output.Version, output.PkScript, true) == txscript.NullDataTy { // Yes treasury
+	if stdscript.IsNullDataScript(output.Version, output.PkScript) {
 		return false
 	}
 

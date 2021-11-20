@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,6 +15,7 @@ import (
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/internal/compat"
 	"decred.org/dcrwallet/v2/wallet/txauthor"
+	"decred.org/dcrwallet/v2/wallet/txrules"
 	"decred.org/dcrwallet/v2/wallet/txsizes"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v4"
@@ -26,10 +27,17 @@ import (
 	"github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
-const opNonstake = txscript.OP_NOP10
+const (
+	opNonstake = txscript.OP_NOP10
+
+	// The assumed output script version is defined to assist with refactoring
+	// to use actual script versions.
+	scriptVersionAssumed = 0
+)
 
 // Block contains the minimum amount of data to uniquely identify any block on
 // either the best or side chain.
@@ -156,7 +164,7 @@ type Credit struct {
 	wire.OutPoint
 	BlockMeta
 	Amount       dcrutil.Amount
-	PkScript     []byte
+	PkScript     []byte // TODO: script version
 	Received     time.Time
 	FromCoinBase bool
 	HasExpiry    bool
@@ -949,10 +957,9 @@ func (s *Store) fetchAccountForPkScript(addrmgrNs walletdb.ReadBucket,
 	// Neither credVal or unminedCredVal were passed, or if they were, they
 	// didn't have the account set. Figure out the account from the pkScript the
 	// expensive way.
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(0, pkScript, s.chainParams,
-		true) // Yes treasury
-	if err != nil {
-		return 0, err
+	_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, pkScript, s.chainParams)
+	if len(addrs) == 0 {
+		return 0, errors.New("no addresses decoded from pkScript")
 	}
 
 	// Only look at the first address returned. This does not handle
@@ -1311,6 +1318,7 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 	if invalidated {
 		// Write an invalidated credit.  Do not create a utxo for the output,
 		// and do not increment the mined balance.
+		version := rec.MsgTx.TxOut[index].Version
 		pkScript := rec.MsgTx.TxOut[index].PkScript
 		k := keyCredit(&rec.Hash, index, &block.Block)
 		cred := credit{
@@ -1322,11 +1330,11 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 			amount:     dcrutil.Amount(rec.MsgTx.TxOut[index].Value),
 			change:     change,
 			spentBy:    indexedIncidence{index: ^uint32(0)},
-			opCode:     getP2PKHOpCode(pkScript),
+			opCode:     getStakeOpCode(version, pkScript),
 			isCoinbase: compat.IsEitherCoinBaseTx(&rec.MsgTx),
 			hasExpiry:  rec.MsgTx.Expiry != 0,
 		}
-		scTy := pkScriptType(pkScript)
+		scTy := pkScriptType(version, pkScript)
 		scLoc := uint32(rec.MsgTx.PkScriptLocs()[index])
 		v := valueUnspentCredit(&cred, scTy, scLoc, uint32(len(pkScript)),
 			account, DBVersion)
@@ -1341,20 +1349,20 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 	return err
 }
 
-// getP2PKHOpCode returns opNonstake for non-stake transactions, or
-// the stake op code tag for stake transactions.
-func getP2PKHOpCode(pkScript []byte) uint8 {
-	class := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
+// getStakeOpCode returns opNonstake for non-stake transactions, or the stake op
+// code tag for stake transactions. This excludes TADD.
+func getStakeOpCode(version uint16, pkScript []byte) uint8 {
+	class := stdscript.DetermineScriptType(version, pkScript)
 	switch class {
-	case txscript.StakeSubmissionTy:
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeSubmissionScriptHash:
 		return txscript.OP_SSTX
-	case txscript.StakeGenTy:
+	case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
 		return txscript.OP_SSGEN
-	case txscript.StakeRevocationTy:
+	case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
 		return txscript.OP_SSRTX
-	case txscript.StakeSubChangeTy:
+	case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
 		return txscript.OP_SSTXCHANGE
-	case txscript.TreasuryGenTy:
+	case stdscript.STTreasuryGenPubKeyHash, stdscript.STTreasuryGenScriptHash:
 		return txscript.OP_TGEN
 	}
 
@@ -1363,38 +1371,27 @@ func getP2PKHOpCode(pkScript []byte) uint8 {
 
 // pkScriptType determines the general type of pkScript for the purposes of
 // fast extraction of pkScript data from a raw transaction record.
-func pkScriptType(pkScript []byte) scriptType {
-	class := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
+func pkScriptType(ver uint16, pkScript []byte) scriptType {
+	class := stdscript.DetermineScriptType(ver, pkScript)
 	switch class {
-	case txscript.PubKeyHashTy:
+	case stdscript.STPubKeyHashEcdsaSecp256k1:
 		return scriptTypeP2PKH
-	case txscript.PubKeyTy:
+	case stdscript.STPubKeyEcdsaSecp256k1:
 		return scriptTypeP2PK
-	case txscript.ScriptHashTy:
+	case stdscript.STScriptHash:
 		return scriptTypeP2SH
-	case txscript.PubkeyHashAltTy:
+	case stdscript.STPubKeyHashEd25519, stdscript.STPubKeyHashSchnorrSecp256k1:
 		return scriptTypeP2PKHAlt
-	case txscript.PubkeyAltTy:
+	case stdscript.STPubKeyEd25519, stdscript.STPubKeySchnorrSecp256k1:
 		return scriptTypeP2PKAlt
-	case txscript.StakeSubmissionTy:
-		fallthrough
-	case txscript.StakeGenTy:
-		fallthrough
-	case txscript.StakeRevocationTy:
-		fallthrough
-	case txscript.TreasuryGenTy:
-		fallthrough
-	case txscript.StakeSubChangeTy:
-		subClass, err := txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
-		if err != nil {
-			return scriptTypeUnspecified
-		}
-		switch subClass {
-		case txscript.PubKeyHashTy:
-			return scriptTypeSP2PKH
-		case txscript.ScriptHashTy:
-			return scriptTypeSP2SH
-		}
+	case stdscript.STStakeSubmissionPubKeyHash, stdscript.STStakeGenPubKeyHash,
+		stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeChangePubKeyHash,
+		stdscript.STTreasuryGenPubKeyHash:
+		return scriptTypeSP2PKH
+	case stdscript.STStakeSubmissionScriptHash, stdscript.STStakeGenScriptHash,
+		stdscript.STStakeRevocationScriptHash, stdscript.STStakeChangeScriptHash,
+		stdscript.STTreasuryGenScriptHash:
+		return scriptTypeSP2SH
 	}
 
 	return scriptTypeUnspecified
@@ -1403,7 +1400,8 @@ func pkScriptType(pkScript []byte) scriptType {
 func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *BlockMeta,
 	index uint32, change bool, account uint32) (bool, error) {
 
-	opCode := getP2PKHOpCode(rec.MsgTx.TxOut[index].PkScript)
+	scriptVersion, pkScript := rec.MsgTx.TxOut[index].Version, rec.MsgTx.TxOut[index].PkScript
+	opCode := getStakeOpCode(scriptVersion, pkScript)
 	isCoinbase := compat.IsEitherCoinBaseTx(&rec.MsgTx)
 	hasExpiry := rec.MsgTx.Expiry != wire.NoExpiryValue
 
@@ -1417,10 +1415,10 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		if existsRawUnminedCredit(ns, k) != nil {
 			return false, nil
 		}
-		scrType := pkScriptType(rec.MsgTx.TxOut[index].PkScript)
+		scrType := pkScriptType(scriptVersion, pkScript)
 		pkScrLocs := rec.MsgTx.PkScriptLocs()
 		scrLoc := pkScrLocs[index]
-		scrLen := len(rec.MsgTx.TxOut[index].PkScript)
+		scrLen := len(pkScript)
 
 		v := valueUnminedCredit(dcrutil.Amount(rec.MsgTx.TxOut[index].Value),
 			change, opCode, isCoinbase, hasExpiry, scrType, uint32(scrLoc),
@@ -1450,10 +1448,10 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		isCoinbase: isCoinbase,
 		hasExpiry:  rec.MsgTx.Expiry != wire.NoExpiryValue,
 	}
-	scrType := pkScriptType(rec.MsgTx.TxOut[index].PkScript)
+	scrType := pkScriptType(scriptVersion, pkScript)
 	pkScrLocs := rec.MsgTx.PkScriptLocs()
 	scrLoc := pkScrLocs[index]
-	scrLen := len(rec.MsgTx.TxOut[index].PkScript)
+	scrLen := len(pkScript)
 
 	v = valueUnspentCredit(&cred, scrType, uint32(scrLoc), uint32(scrLen),
 		account, DBVersion)
@@ -1700,27 +1698,15 @@ func (s *Store) AddMultisigOut(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *
 	}
 
 	// Otherwise create a full record and insert it.
+	version := rec.MsgTx.TxOut[index].Version
 	p2shScript := rec.MsgTx.TxOut[index].PkScript
-	class, _, _, err := txscript.ExtractPkScriptAddrs(
-		rec.MsgTx.TxOut[index].Version, p2shScript, s.chainParams,
-		true) // Yes treasury
-	if err != nil {
-		return err
-	}
+	class := stdscript.DetermineScriptType(version, p2shScript)
 	tree := wire.TxTreeRegular
-	isStakeType := class == txscript.StakeSubmissionTy ||
-		class == txscript.StakeSubChangeTy ||
-		class == txscript.StakeGenTy ||
-		class == txscript.StakeRevocationTy ||
-		class == txscript.TreasuryGenTy
+	class, isStakeType := txrules.StakeSubScriptType(class)
 	if isStakeType {
-		class, err = txscript.GetStakeOutSubclass(p2shScript, true) // Yes treasury
-		if err != nil {
-			return errors.E(errors.Bug, err)
-		}
 		tree = wire.TxTreeStake
 	}
-	if class != txscript.ScriptHashTy {
+	if class != stdscript.STScriptHash {
 		return errors.E(errors.Invalid, "multisig output must be P2SH")
 	}
 	scriptHash, err := getScriptHashFromP2SHScript(p2shScript)
@@ -1731,15 +1717,18 @@ func (s *Store) AddMultisigOut(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *
 	if err != nil {
 		return err
 	}
-	numPubKeys, requiredSigs, err := txscript.CalcMultiSigStats(multisigScript)
-	if err != nil {
+	if version != 0 {
+		return errors.E(errors.IO, "only version 0 scripts are supported")
+	}
+	multisigDetails := stdscript.ExtractMultiSigScriptDetailsV0(multisigScript, false)
+	if !multisigDetails.Valid {
 		return errors.E(errors.IO, "invalid m-of-n multisig script")
 	}
 	var p2shScriptHash [ripemd160.Size]byte
 	copy(p2shScriptHash[:], scriptHash)
 	val = valueMultisigOut(p2shScriptHash,
-		uint8(requiredSigs),
-		uint8(numPubKeys),
+		uint8(multisigDetails.RequiredSigs),
+		uint8(multisigDetails.NumPubKeys),
 		false,
 		tree,
 		block.Block.Hash,
@@ -2042,7 +2031,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 				isCoinbase := fetchRawCreditIsCoinbase(v)
 				hasExpiry := fetchRawCreditHasExpiry(v, DBVersion)
 
-				scrType := pkScriptType(output.PkScript)
+				scrType := pkScriptType(output.Version, output.PkScript)
 				scrLoc := rec.MsgTx.PkScriptLocs()[i]
 				scrLen := len(rec.MsgTx.TxOut[i].PkScript)
 
@@ -3288,35 +3277,17 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
-
-			switch scriptClass {
-			case txscript.PubKeyHashTy:
+			// Ignore stake P2SH since it can pay to any script, which the
+			// wallet may not recognize.
+			scriptClass := stdscript.DetermineScriptType(scriptVersionAssumed, pkScript)
+			scriptSubClass, _ := txrules.StakeSubScriptType(scriptClass)
+			switch scriptSubClass {
+			case stdscript.STPubKeyHashEcdsaSecp256k1:
 				scriptSize = txsizes.RedeemP2PKHSigScriptSize
-			case txscript.PubKeyTy:
+			case stdscript.STPubKeyEcdsaSecp256k1:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
-			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy, txscript.StakeGenTy,
-				txscript.TreasuryGenTy:
-				scriptClass, err = txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
-				if err != nil {
-					return nil, fmt.Errorf(
-						"failed to extract nested script in stake output: %v",
-						err)
-				}
-
-				// For stake transactions we expect P2PKH and P2SH script class
-				// types only but ignore P2SH script type since it can pay
-				// to any script which the wallet may not recognize.
-				if scriptClass != txscript.PubKeyHashTy {
-					log.Errorf("unexpected nested script class for credit: %v",
-						scriptClass)
-					continue
-				}
-
-				scriptSize = txsizes.RedeemP2PKHSigScriptSize
 			default:
-				log.Errorf("unexpected script class for credit: %v",
-					scriptClass)
+				log.Errorf("unexpected script class for credit: %v", scriptClass)
 				continue
 			}
 
@@ -3420,35 +3391,17 @@ func (s *Store) MakeInputSource(ns, addrmgrNs walletdb.ReadBucket, account uint3
 
 			// Unspent credits are currently expected to be either P2PKH or
 			// P2PK, P2PKH/P2SH nested in a revocation/stakechange/vote output.
-			scriptClass := txscript.GetScriptClass(0, pkScript, true) // Yes treasury
-
-			switch scriptClass {
-			case txscript.PubKeyHashTy:
+			// Ignore stake P2SH since it can pay to any script, which the
+			// wallet may not recognize.
+			scriptClass := stdscript.DetermineScriptType(scriptVersionAssumed, pkScript)
+			scriptSubClass, _ := txrules.StakeSubScriptType(scriptClass)
+			switch scriptSubClass {
+			case stdscript.STPubKeyHashEcdsaSecp256k1:
 				scriptSize = txsizes.RedeemP2PKHSigScriptSize
-			case txscript.PubKeyTy:
+			case stdscript.STPubKeyEcdsaSecp256k1:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
-			case txscript.StakeRevocationTy, txscript.StakeSubChangeTy,
-				txscript.StakeGenTy, txscript.TreasuryGenTy:
-				scriptClass, err = txscript.GetStakeOutSubclass(pkScript, true) // Yes treasury
-				if err != nil {
-					return nil, fmt.Errorf(
-						"failed to extract nested script in stake output: %v",
-						err)
-				}
-
-				// For stake transactions we expect P2PKH and P2SH script class
-				// types only but ignore P2SH script type since it can pay
-				// to any script which the wallet may not recognize.
-				if scriptClass != txscript.PubKeyHashTy {
-					log.Errorf("unexpected nested script class for credit: %v",
-						scriptClass)
-					continue
-				}
-
-				scriptSize = txsizes.RedeemP2PKHSigScriptSize
 			default:
-				log.Errorf("unexpected script class for credit: %v",
-					scriptClass)
+				log.Errorf("unexpected script class for credit: %v", scriptClass)
 				continue
 			}
 

@@ -22,6 +22,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -117,12 +118,7 @@ func parseTicket(ticket *wire.MsgTx, params *chaincfg.Params) (
 	if !stake.IsSStx(ticket) {
 		return fail(fmt.Errorf("%v is not a ticket", ticket))
 	}
-	const scriptVersion = 0
-	_, addrs, _, err := txscript.ExtractPkScriptAddrs(scriptVersion,
-		ticket.TxOut[0].PkScript, params, true) // Yes treasury
-	if err != nil {
-		return fail(fmt.Errorf("cannot parse voting addr: %w", err))
-	}
+	_, addrs := stdscript.ExtractAddrs(ticket.TxOut[0].Version, ticket.TxOut[0].PkScript, params)
 	if len(addrs) != 1 {
 		return fail(fmt.Errorf("cannot parse voting addr"))
 	}

@@ -1054,6 +1054,8 @@ message DecodedTransaction {
 			STAKE_SUB_CHANGE = 9;
 			PUB_KEY_ALT = 10;
 			PUB_KEY_HASH_ALT = 11;
+			TGEN = 12;
+			TADD = 13;
 		}
 		ScriptClass script_class = 7;
 		repeated string addresses = 8;
@@ -1100,6 +1102,8 @@ message ValidateAddressResponse {
 		StakeSubChangeTy = 9;
 		PubkeyAltTy = 10;
 		PubkeyHashAltTy = 11;
+		TreasuryGenTy = 12;
+		TreasuryAddTy = 13;
 	}
 	ScriptType script_type = 8;
 	bytes pay_to_addr_script = 9;

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020 The Decred developers
+// Copyright (c) 2016-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -14,7 +14,7 @@ import (
 	"decred.org/dcrwallet/v2/wallet/udb"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -58,10 +58,8 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 			}
 
 			// Ignore outputs that are not controlled by the account.
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(
-				0, output.PkScript,
-				w.chainParams, true) // Yes treasury
-			if err != nil || len(addrs) == 0 {
+			_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
+			if len(addrs) == 0 {
 				// Cannot determine which account this belongs
 				// to without a valid address.  TODO: Fix this
 				// by saving outputs per account, or accounts

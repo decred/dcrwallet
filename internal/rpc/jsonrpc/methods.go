@@ -47,6 +47,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -63,6 +64,10 @@ const (
 	// sstxCommitmentString is the string to insert when a verbose
 	// transaction output's pkscript type is a ticket commitment.
 	sstxCommitmentString = "sstxcommitment"
+
+	// The assumed output script version is defined to assist with refactoring
+	// to use actual script versions.
+	scriptVersionAssumed = 0
 )
 
 // confirms returns the number of confirmations for a transaction in a block at
@@ -439,7 +444,7 @@ func (s *Server) addMultiSigAddress(ctx context.Context, icmd interface{}) (inte
 	if err != nil {
 		return nil, err
 	}
-	script, err := txscript.MultiSigScript(cmd.NRequired, pubKeyAddrs...)
+	script, err := stdscript.MultiSigScriptV0(cmd.NRequired, pubKeyAddrs...)
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +618,7 @@ func (s *Server) createMultiSig(ctx context.Context, icmd interface{}) (interfac
 	if err != nil {
 		return nil, err
 	}
-	script, err := txscript.MultiSigScript(cmd.NRequired, pubKeys...)
+	script, err := stdscript.MultiSigScriptV0(cmd.NRequired, pubKeys...)
 	if err != nil {
 		return nil, err
 	}
@@ -909,7 +914,7 @@ func (s *Server) fundRawTransaction(ctx context.Context, icmd interface{}) (inte
 	var changeSource txauthor.ChangeSource
 	if changeAddress != "" {
 		var err error
-		changeSource, err = makeScriptChangeSource(changeAddress, 0, w.ChainParams())
+		changeSource, err = makeScriptChangeSource(changeAddress, w.ChainParams())
 		if err != nil {
 			return nil, err
 		}
@@ -1634,7 +1639,7 @@ func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap
 		// accordingly.
 		var addrs []stdaddr.Address
 		var scriptClass string
-		var reqSigs int
+		var reqSigs uint16
 		var commitAmt *dcrutil.Amount
 		if txType == stake.TxTypeSStx && (i%2 != 0) {
 			scriptClass = sstxCommitmentString
@@ -1659,10 +1664,9 @@ func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap
 			// Ignore the error here since an error means the script
 			// couldn't parse and there is no additional information
 			// about it anyways.
-			var sc txscript.ScriptClass
-			sc, addrs, reqSigs, _ = txscript.ExtractPkScriptAddrs(
-				v.Version, v.PkScript, chainParams,
-				isTreasuryEnabled)
+			var sc stdscript.ScriptType
+			sc, addrs = stdscript.ExtractAddrs(v.Version, v.PkScript, chainParams)
+			reqSigs = stdscript.DetermineRequiredSigs(v.Version, v.PkScript)
 			scriptClass = sc.String()
 		}
 
@@ -2220,12 +2224,7 @@ func (s *Server) getMultisigOutInfo(ctx context.Context, icmd interface{}) (inte
 	}
 
 	// Get the list of pubkeys required to sign.
-	_, pubkeyAddrs, _, err := txscript.ExtractPkScriptAddrs(
-		0, p2shOutput.RedeemScript,
-		w.ChainParams(), true) // Yes treasury
-	if err != nil {
-		return nil, err
-	}
+	_, pubkeyAddrs := stdscript.ExtractAddrs(scriptVersionAssumed, p2shOutput.RedeemScript, w.ChainParams())
 	pubkeys := make([]string, 0, len(pubkeyAddrs))
 	for _, pka := range pubkeyAddrs {
 		switch pka := pka.(type) {
@@ -2704,8 +2703,8 @@ func (s *Server) getTxOut(ctx context.Context, icmd interface{}) (interface{}, e
 	// Get further info about the script.  Ignore the error here since an
 	// error means the script couldn't parse and there is no additional
 	// information about it anyways.
-	scriptClass, addrs, reqSigs, _ := txscript.ExtractPkScriptAddrs(
-		0, utxo.PkScript, s.activeNet, true) // Yes treasury
+	scriptClass, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, utxo.PkScript, s.activeNet)
+	reqSigs := stdscript.DetermineRequiredSigs(scriptVersionAssumed, utxo.PkScript)
 	addresses := make([]string, len(addrs))
 	for i, addr := range addrs {
 		addresses[i] = addr.String()
@@ -3005,12 +3004,7 @@ func (s *Server) listReceivedByAddress(ctx context.Context, icmd interface{}) (i
 			for _, cred := range tx.Credits {
 				pkVersion := tx.MsgTx.TxOut[cred.Index].Version
 				pkScript := tx.MsgTx.TxOut[cred.Index].PkScript
-				_, addrs, _, err := txscript.ExtractPkScriptAddrs(pkVersion,
-					pkScript, w.ChainParams(), true) // Yes treasury
-				if err != nil {
-					// Non standard script, skip.
-					continue
-				}
+				_, addrs := stdscript.ExtractAddrs(pkVersion, pkScript, w.ChainParams())
 				for _, addr := range addrs {
 					addrStr := addr.String()
 					addrData, ok := allAddrData[addrStr]
@@ -3962,9 +3956,8 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd interface{}) (inter
 	if err != nil {
 		return nil, err
 	}
-	sc := txscript.GetScriptClass(0,
-		p2shOutput.RedeemScript, true) // Yes treasury
-	if sc != txscript.MultiSigTy {
+	sc := stdscript.DetermineScriptType(scriptVersionAssumed, p2shOutput.RedeemScript)
+	if sc != stdscript.STMultiSig {
 		return nil, errors.E("P2SH redeem script is not multisig")
 	}
 	msgTx := wire.NewMsgTx()
@@ -4208,10 +4201,10 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 				BlockHeight: -1,
 				Status:      status.String(),
 			}
-			_, addrs, _, err := txscript.ExtractPkScriptAddrs(out.Version,
-				out.PkScript, w.ChainParams(), true) // Yes treasury
-			if err != nil {
-				return false, err
+
+			_, addrs := stdscript.ExtractAddrs(out.Version, out.PkScript, w.ChainParams())
+			if len(addrs) == 0 {
+				return false, errors.New("unable to decode ticket pkScript")
 			}
 			info.VotingAddress = addrs[0].String()
 			if h != nil {
@@ -4955,7 +4948,7 @@ func (src *scriptChangeSource) ScriptSize() int {
 	return len(src.script)
 }
 
-func makeScriptChangeSource(address string, version uint16, params *chaincfg.Params) (*scriptChangeSource, error) {
+func makeScriptChangeSource(address string, params *chaincfg.Params) (*scriptChangeSource, error) {
 	destinationAddress, err := stdaddr.DecodeAddress(address, params)
 	if err != nil {
 		return nil, err
@@ -5010,7 +5003,7 @@ func (s *Server) sweepAccount(ctx context.Context, icmd interface{}) (interface{
 		return nil, err
 	}
 
-	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress, 0, w.ChainParams())
+	changeSource, err := makeScriptChangeSource(cmd.DestinationAddress, w.ChainParams())
 	if err != nil {
 		return nil, err
 	}
@@ -5088,31 +5081,25 @@ func (s *Server) validateAddress(ctx context.Context, icmd interface{}) (interfa
 		result.PubKeyAddr = pubKeyAddr.String()
 	case wallet.P2SHAddress:
 		result.IsScript = true
-		_, script := ka.RedeemScript()
+		version, script := ka.RedeemScript()
 		result.Hex = hex.EncodeToString(script)
 
 		// This typically shouldn't fail unless an invalid script was
 		// imported.  However, if it fails for any reason, there is no
 		// further information available, so just set the script type
 		// a non-standard and break out now.
-		class, addrs, reqSigs, err := txscript.ExtractPkScriptAddrs(
-			0, script, w.ChainParams(), true) // Yes treasury
-		if err != nil {
-			result.Script = txscript.NonStandardTy.String()
-			break
-		}
-
+		class, addrs := stdscript.ExtractAddrs(version, script, w.ChainParams())
 		addrStrings := make([]string, len(addrs))
 		for i, a := range addrs {
 			addrStrings[i] = a.String()
 		}
 		result.Addresses = addrStrings
+		result.Script = class.String()
 
 		// Multi-signature scripts also provide the number of required
 		// signatures.
-		result.Script = class.String()
-		if class == txscript.MultiSigTy {
-			result.SigsRequired = int32(reqSigs)
+		if class == stdscript.STMultiSig {
+			result.SigsRequired = int32(stdscript.DetermineRequiredSigs(version, script))
 		}
 	}
 
