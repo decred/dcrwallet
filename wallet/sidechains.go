@@ -73,10 +73,10 @@ func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.Fi
 // duplicateNode checks if n, or another node which represents the same block,
 // is already contained in the tree.
 func (t *sidechainRootedTree) duplicateNode(n *BlockNode) bool {
-	if *t.root.Hash == *n.Hash {
-		return true
+	old, ok := t.root, *t.root.Hash == *n.Hash
+	if !ok {
+		old, ok = t.children[*n.Hash]
 	}
-	old, ok := t.children[*n.Hash]
 
 	// Copy the cfilter to the older node if it doesn't exist there yet.
 	// This happens when we received sidechains that are about to become a
