@@ -241,7 +241,7 @@ func (s *Server) Stop() {
 // method.  Each of these must be checked beforehand (the method is already
 // known) and handled accordingly.
 func (s *Server) handlerClosure(ctx context.Context, request *dcrjson.Request) lazyHandler {
-	log.Infof("RPC method %q invoked by %v", request.Method, remoteAddr(ctx))
+	log.Debugf("RPC method %q invoked by %v", request.Method, remoteAddr(ctx))
 	return lazyApplyHandler(s, ctx, request)
 }
 
@@ -386,7 +386,7 @@ out:
 			}
 
 			if req.Method == "authenticate" {
-				log.Infof("RPC method authenticate invoked by %s",
+				log.Debugf("RPC method authenticate invoked by %s",
 					remoteAddr(ctx))
 				switch {
 				case wsc.authenticated:
@@ -419,7 +419,7 @@ out:
 
 			switch req.Method {
 			case "stop":
-				log.Infof("RPC method stop invoked by %s", remoteAddr(ctx))
+				log.Debugf("RPC method stop invoked by %s", remoteAddr(ctx))
 				resp := makeResponse(req.ID,
 					"dcrwallet stopping.", nil)
 				mresp, err := json.Marshal(resp)
@@ -576,7 +576,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 		// Drop it.
 		return
 	case "stop":
-		log.Infof("RPC method stop invoked by %s", r.RemoteAddr)
+		log.Debugf("RPC method stop invoked by %s", r.RemoteAddr)
 		stop = true
 		res = "dcrwallet stopping"
 	default:
