@@ -2,6 +2,8 @@
 
 set -ex
 
-go version
+GO=${GO:-go}
 
-go test -short -vet=all "$@" ./...
+${GO} version
+
+${GO} test -short -vet=all "$@" ./...
