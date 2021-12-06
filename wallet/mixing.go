@@ -11,8 +11,8 @@ import (
 	"net"
 	"time"
 
-	"decred.org/cspp"
-	"decred.org/cspp/coinjoin"
+	"decred.org/cspp/v2"
+	"decred.org/cspp/v2/coinjoin"
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/wallet/txauthor"
 	"decred.org/dcrwallet/v2/wallet/txrules"
