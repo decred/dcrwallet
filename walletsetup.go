@@ -194,17 +194,14 @@ func createSimulationWallet(ctx context.Context, cfg *config) error {
 
 // promptHDPublicKey prompts the user for an extended public key.
 func promptHDPublicKey(reader *bufio.Reader) (string, error) {
-	for {
-		fmt.Print("Enter HD wallet public key: ")
-		keyString, err := reader.ReadString('\n')
-		if err != nil {
-			return "", err
-		}
-
-		keyStringTrimmed := strings.TrimSpace(keyString)
-
-		return keyStringTrimmed, nil
+	fmt.Print("Enter HD wallet public key: ")
+	keyString, err := reader.ReadString('\n')
+	if err != nil {
+		return "", err
 	}
+
+	keyStringTrimmed := strings.TrimSpace(keyString)
+	return keyStringTrimmed, nil
 }
 
 // createWatchingOnlyWallet creates a watching only wallet using the passed
