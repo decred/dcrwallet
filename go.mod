@@ -3,7 +3,7 @@ module decred.org/dcrwallet/v2
 go 1.16
 
 require (
-	decred.org/cspp/v2 v2.0.0-20211122173608-ee00e4952d5f
+	decred.org/cspp/v2 v2.0.0-20211207170141-a6b5f958a91f
 	github.com/decred/dcrd/addrmgr/v2 v2.0.0
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.0.0
