@@ -915,7 +915,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				// Get policy for tspend, falling back to any
 				// policy for the Pi key.
 				tspendHash := v.TxHash()
-				tspendVote := w.TSpendPolicy(&tspendHash)
+				tspendVote := w.TSpendPolicy(&tspendHash, ticketHash)
 				if tspendVote == stake.TreasuryVoteInvalid {
 					continue
 				}

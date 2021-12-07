@@ -379,12 +379,14 @@ type TicketInfoResult struct {
 type TreasuryPolicyResult struct {
 	Key    string `json:"key"`
 	Policy string `json:"policy"`
+	Ticket string `json:"ticket,omitempty"`
 }
 
 // TSpendPolicyResult models objects returned by the tspendpolicy command.
 type TSpendPolicyResult struct {
 	Hash   string `json:"hash"`
 	Policy string `json:"policy"`
+	Ticket string `json:"ticket,omitempty"`
 }
 
 // ValidateAddressResult models the data returned by the wallet server

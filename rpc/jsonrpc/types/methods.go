@@ -915,7 +915,8 @@ type SetDisapprovePercentCmd struct {
 // TreasuryPolicyCmd defines the parameters for the treasurypolicy JSON-RPC
 // command.
 type TreasuryPolicyCmd struct {
-	Key *string
+	Key    *string
+	Ticket *string
 }
 
 // SetTreasuryPolicyCmd defines the parameters for the settreasurypolicy
@@ -923,12 +924,14 @@ type TreasuryPolicyCmd struct {
 type SetTreasuryPolicyCmd struct {
 	Key    string
 	Policy string
+	Ticket *string
 }
 
 // TSpendPolicyCmd defines the parameters for the tspendpolicy JSON-RPC
 // command.
 type TSpendPolicyCmd struct {
-	Hash *string
+	Hash   *string
+	Ticket *string
 }
 
 // SetTSpendPolicyCmd defines the parameters for the settspendpolicy
@@ -936,6 +939,7 @@ type TSpendPolicyCmd struct {
 type SetTSpendPolicyCmd struct {
 	Hash   string
 	Policy string
+	Ticket *string
 }
 
 // SetTxFeeCmd defines the settxfee JSON-RPC command.

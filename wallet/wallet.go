@@ -119,7 +119,9 @@ type Wallet struct {
 	subsidyCache       *blockchain.SubsidyCache
 	tspends            map[chainhash.Hash]wire.MsgTx
 	tspendPolicy       map[chainhash.Hash]stake.TreasuryVoteT
-	tspendKeyPolicy    map[string]stake.TreasuryVoteT // [pikey]vote_policy
+	tspendKeyPolicy    map[string]stake.TreasuryVoteT // keyed by politeia key
+	vspTSpendPolicy    map[udb.VSPTSpend]stake.TreasuryVoteT
+	vspTSpendKeyPolicy map[udb.VSPTreasuryKey]stake.TreasuryVoteT
 
 	// Start up flags/settings
 	gapLimit        uint32
@@ -343,12 +345,24 @@ func (w *Wallet) readDBTicketVoteBits(dbtx walletdb.ReadTx, ticketHash *chainhas
 	return tvb, hasSavedPrefs
 }
 
-func (w *Wallet) readDBTreasuryPolicies(dbtx walletdb.ReadTx) (map[chainhash.Hash]stake.TreasuryVoteT, error) {
-	return udb.TSpendPolicies(dbtx)
+func (w *Wallet) readDBTreasuryPolicies(dbtx walletdb.ReadTx) (
+	map[chainhash.Hash]stake.TreasuryVoteT, map[udb.VSPTSpend]stake.TreasuryVoteT, error) {
+	a, err := udb.TSpendPolicies(dbtx)
+	if err != nil {
+		return nil, nil, err
+	}
+	b, err := udb.VSPTSpendPolicies(dbtx)
+	return a, b, err
 }
 
-func (w *Wallet) readDBTreasuryKeyPolicies(dbtx walletdb.ReadTx) (map[string]stake.TreasuryVoteT, error) {
-	return udb.TreasuryKeyPolicies(dbtx)
+func (w *Wallet) readDBTreasuryKeyPolicies(dbtx walletdb.ReadTx) (
+	map[string]stake.TreasuryVoteT, map[udb.VSPTreasuryKey]stake.TreasuryVoteT, error) {
+	a, err := udb.TreasuryKeyPolicies(dbtx)
+	if err != nil {
+		return nil, nil, err
+	}
+	b, err := udb.VSPTreasuryKeyPolicies(dbtx)
+	return a, b, err
 }
 
 // VoteBits returns the vote bits that are described by the currently set agenda
@@ -532,12 +546,19 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 }
 
 // TreasuryKeyPolicy returns a vote policy for provided Pi key. If there is
-// no policy return TreasuryVoteInvalid.
-func (w *Wallet) TreasuryKeyPolicy(pikey []byte) stake.TreasuryVoteT {
+// no policy this method returns TreasuryVoteInvalid.
+// A non-nil ticket hash may be used by a VSP to return per-ticket policies.
+func (w *Wallet) TreasuryKeyPolicy(pikey []byte, ticket *chainhash.Hash) stake.TreasuryVoteT {
 	w.stakeSettingsLock.Lock()
 	defer w.stakeSettingsLock.Unlock()
 
-	// Zero value means abstain, just return as is.
+	// Zero value is abstain/invalid, just return as is.
+	if ticket != nil {
+		return w.vspTSpendKeyPolicy[udb.VSPTreasuryKey{
+			Ticket:      *ticket,
+			TreasuryKey: string(pikey),
+		}]
+	}
 	return w.tspendKeyPolicy[string(pikey)]
 }
 
@@ -545,30 +566,52 @@ func (w *Wallet) TreasuryKeyPolicy(pikey []byte) stake.TreasuryVoteT {
 // particular tspend transaction, that policy is returned.  Otherwise, if the
 // tspend is known, any policy for the treasury key which signs the tspend is
 // returned.
-func (w *Wallet) TSpendPolicy(hash *chainhash.Hash) stake.TreasuryVoteT {
+// A non-nil ticket hash may be used by a VSP to return per-ticket policies.
+func (w *Wallet) TSpendPolicy(tspendHash, ticketHash *chainhash.Hash) stake.TreasuryVoteT {
 	w.stakeSettingsLock.Lock()
 	defer w.stakeSettingsLock.Unlock()
 
-	if policy, ok := w.tspendPolicy[*hash]; ok {
+	// Policy preferences for specific tspends override key policies.
+	if ticketHash != nil {
+		policy, ok := w.vspTSpendPolicy[udb.VSPTSpend{
+			Ticket: *ticketHash,
+			TSpend: *tspendHash,
+		}]
+		if ok {
+			return policy
+		}
+	}
+	if policy, ok := w.tspendPolicy[*tspendHash]; ok {
 		return policy
 	}
 
 	// If this tspend is known, the pi key can be extracted from it and its
 	// policy is returned.
-	tspend, ok := w.tspends[*hash]
+	tspend, ok := w.tspends[*tspendHash]
 	if !ok {
 		return 0 // invalid/abstain
 	}
 	pikey := tspend.TxIn[0].SignatureScript[66 : 66+secp256k1.PubKeyBytesLenCompressed]
 
 	// Zero value means abstain, just return as is.
+	if ticketHash != nil {
+		policy, ok := w.vspTSpendKeyPolicy[udb.VSPTreasuryKey{
+			Ticket:      *ticketHash,
+			TreasuryKey: string(pikey),
+		}]
+		if ok {
+			return policy
+		}
+	}
 	return w.tspendKeyPolicy[string(pikey)]
 }
 
 // TreasuryKeyPolicy records the voting policy for treasury spend transactions
-// by a particular key.
+// by a particular key, and possibly for a particular ticket being voted on by a
+// VSP.
 type TreasuryKeyPolicy struct {
 	PiKey  []byte
+	Ticket *chainhash.Hash // nil unless for per-ticket VSP policies
 	Policy stake.TreasuryVoteT
 }
 
@@ -584,13 +627,23 @@ func (w *Wallet) TreasuryKeyPolicies() []TreasuryKeyPolicy {
 			Policy: policy,
 		})
 	}
+	for tuple, policy := range w.vspTSpendKeyPolicy {
+		ticketHash := tuple.Ticket // copy
+		pikey := []byte(tuple.TreasuryKey)
+		policies = append(policies, TreasuryKeyPolicy{
+			PiKey:  pikey,
+			Ticket: &ticketHash,
+			Policy: policy,
+		})
+	}
 	return policies
 }
 
 // SetTreasuryKeyPolicy sets a tspend vote policy for a specific Politeia
 // instance key.
+// A non-nil ticket hash may be used by a VSP to set per-ticket policies.
 func (w *Wallet) SetTreasuryKeyPolicy(ctx context.Context, pikey []byte,
-	policy stake.TreasuryVoteT) error {
+	policy stake.TreasuryVoteT, ticketHash *chainhash.Hash) error {
 
 	switch policy {
 	case stake.TreasuryVoteInvalid, stake.TreasuryVoteNo, stake.TreasuryVoteYes:
@@ -603,10 +656,28 @@ func (w *Wallet) SetTreasuryKeyPolicy(ctx context.Context, pikey []byte,
 	w.stakeSettingsLock.Lock()
 
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		if ticketHash != nil {
+			return udb.SetVSPTreasuryKeyPolicy(dbtx, ticketHash,
+				pikey, policy)
+		}
 		return udb.SetTreasuryKeyPolicy(dbtx, pikey, policy)
 	})
 	if err != nil {
 		return err
+	}
+
+	if ticketHash != nil {
+		k := udb.VSPTreasuryKey{
+			Ticket:      *ticketHash,
+			TreasuryKey: string(pikey),
+		}
+		if policy == stake.TreasuryVoteInvalid {
+			delete(w.vspTSpendKeyPolicy, k)
+			return nil
+		}
+
+		w.vspTSpendKeyPolicy[k] = policy
+		return nil
 	}
 
 	if policy == stake.TreasuryVoteInvalid {
@@ -620,8 +691,9 @@ func (w *Wallet) SetTreasuryKeyPolicy(ctx context.Context, pikey []byte,
 
 // SetTSpendPolicy sets a tspend vote policy for a specific tspend transaction
 // hash.
-func (w *Wallet) SetTSpendPolicy(ctx context.Context, hash *chainhash.Hash,
-	policy stake.TreasuryVoteT) error {
+// A non-nil ticket hash may be used by a VSP to set per-ticket policies.
+func (w *Wallet) SetTSpendPolicy(ctx context.Context, tspendHash *chainhash.Hash,
+	policy stake.TreasuryVoteT, ticketHash *chainhash.Hash) error {
 
 	switch policy {
 	case stake.TreasuryVoteInvalid, stake.TreasuryVoteNo, stake.TreasuryVoteYes:
@@ -634,18 +706,36 @@ func (w *Wallet) SetTSpendPolicy(ctx context.Context, hash *chainhash.Hash,
 	w.stakeSettingsLock.Lock()
 
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		return udb.SetTSpendPolicy(dbtx, hash, policy)
+		if ticketHash != nil {
+			return udb.SetVSPTSpendPolicy(dbtx, ticketHash,
+				tspendHash, policy)
+		}
+		return udb.SetTSpendPolicy(dbtx, tspendHash, policy)
 	})
 	if err != nil {
 		return err
 	}
 
-	if policy == stake.TreasuryVoteInvalid {
-		delete(w.tspendPolicy, *hash)
+	if ticketHash != nil {
+		k := udb.VSPTSpend{
+			Ticket: *ticketHash,
+			TSpend: *tspendHash,
+		}
+		if policy == stake.TreasuryVoteInvalid {
+			delete(w.vspTSpendPolicy, k)
+			return nil
+		}
+
+		w.vspTSpendPolicy[k] = policy
 		return nil
 	}
 
-	w.tspendPolicy[*hash] = policy
+	if policy == stake.TreasuryVoteInvalid {
+		delete(w.tspendPolicy, *tspendHash)
+		return nil
+	}
+
+	w.tspendPolicy[*tspendHash] = policy
 	return nil
 }
 
@@ -5121,14 +5211,16 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		db: db,
 
 		// StakeOptions
-		votingEnabled:   cfg.VotingEnabled,
-		addressReuse:    cfg.AddressReuse,
-		ticketAddress:   cfg.VotingAddress,
-		poolAddress:     cfg.PoolAddress,
-		poolFees:        cfg.PoolFees,
-		tspends:         make(map[chainhash.Hash]wire.MsgTx),
-		tspendPolicy:    make(map[chainhash.Hash]stake.TreasuryVoteT),
-		tspendKeyPolicy: make(map[string]stake.TreasuryVoteT),
+		votingEnabled:      cfg.VotingEnabled,
+		addressReuse:       cfg.AddressReuse,
+		ticketAddress:      cfg.VotingAddress,
+		poolAddress:        cfg.PoolAddress,
+		poolFees:           cfg.PoolFees,
+		tspends:            make(map[chainhash.Hash]wire.MsgTx),
+		tspendPolicy:       make(map[chainhash.Hash]stake.TreasuryVoteT),
+		tspendKeyPolicy:    make(map[string]stake.TreasuryVoteT),
+		vspTSpendPolicy:    make(map[udb.VSPTSpend]stake.TreasuryVoteT),
+		vspTSpendKeyPolicy: make(map[udb.VSPTreasuryKey]stake.TreasuryVoteT),
 
 		// LoaderOptions
 		gapLimit:                cfg.GapLimit,
@@ -5158,6 +5250,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	var vb stake.VoteBits
 	var tspendPolicy map[chainhash.Hash]stake.TreasuryVoteT
 	var treasuryKeyPolicy map[string]stake.TreasuryVoteT
+	var vspTSpendPolicy map[udb.VSPTSpend]stake.TreasuryVoteT
+	var vspTreasuryKeyPolicy map[udb.VSPTreasuryKey]stake.TreasuryVoteT
 	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrNamespaceKey)
 		lastAcct, err := w.manager.LastAccount(ns)
@@ -5209,11 +5303,11 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		vb = w.readDBVoteBits(tx)
 
-		tspendPolicy, err = w.readDBTreasuryPolicies(tx)
+		tspendPolicy, vspTSpendPolicy, err = w.readDBTreasuryPolicies(tx)
 		if err != nil {
 			return err
 		}
-		treasuryKeyPolicy, err = w.readDBTreasuryKeyPolicies(tx)
+		treasuryKeyPolicy, vspTreasuryKeyPolicy, err = w.readDBTreasuryKeyPolicies(tx)
 		if err != nil {
 			return err
 		}
@@ -5228,6 +5322,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	w.defaultVoteBits = vb
 	w.tspendPolicy = tspendPolicy
 	w.tspendKeyPolicy = treasuryKeyPolicy
+	w.vspTSpendPolicy = vspTSpendPolicy
+	w.vspTSpendKeyPolicy = vspTreasuryKeyPolicy
 
 	w.stakePoolColdAddrs, err = decodeStakePoolColdExtKey(cfg.StakePoolColdExtKey,
 		cfg.Params)

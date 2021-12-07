@@ -817,11 +817,13 @@ var helpDescsEnUS = map[string]string{
 	"settreasurypolicy--synopsis": "Set a voting policy for treasury spends by a particular key",
 	"settreasurypolicy-key":       "Treasury key to set policy for",
 	"settreasurypolicy-policy":    "Voting policy for a treasury key (invalid/abstain, yes, or no)",
+	"settreasurypolicy-ticket":    "Ticket hash to set a per-ticket treasury key policy",
 
 	// SetTSpendPolicyCmd help.
 	"settspendpolicy--synopsis": "Set a voting policy for a treasury spend transaction",
 	"settspendpolicy-hash":      "Hash of treasury spend transaction to set policy for",
 	"settspendpolicy-policy":    "Voting policy for a tspend transaction (invalid/abstain, yes, or no)",
+	"settspendpolicy-ticket":    "Ticket hash to set a per-ticket tspend approval policy",
 
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
@@ -926,6 +928,7 @@ var helpDescsEnUS = map[string]string{
 	// TreasuryPolicyCmd help.
 	"treasurypolicy--synopsis":   "Return voting policies for treasury spend transactions by key",
 	"treasurypolicy-key":         "Return the policy for a particular key",
+	"treasurypolicy-ticket":      "Return policies used by a specific ticket hash",
 	"treasurypolicy--condition0": "no key provided",
 	"treasurypolicy--condition1": "key specified",
 	"treasurypolicy--result0":    "Array of all non-abstaining voting policies",
@@ -933,10 +936,12 @@ var helpDescsEnUS = map[string]string{
 
 	"treasurypolicyresult-key":    "Treasury key associated with a policy",
 	"treasurypolicyresult-policy": "Voting policy description (abstain, yes, or no)",
+	"treasurypolicyresult-ticket": "Ticket hash of a per-ticket treasury key approval policy",
 
 	// TSpendPolicyCmd help.
 	"tspendpolicy--synopsis":   "Return voting policies for treasury spend transactions",
 	"tspendpolicy-hash":        "Return the policy for a particular tspend hash",
+	"tspendpolicy-ticket":      "Return policies used by a specific ticket hash",
 	"tspendpolicy--condition0": "no tspend hash provided",
 	"tspendpolicy--condition1": "tspend hash specified",
 	"tspendpolicy--result0":    "Array of all non-abstaining policies for known tspends",
@@ -944,6 +949,7 @@ var helpDescsEnUS = map[string]string{
 
 	"tspendpolicyresult-hash":   "Treasury spend transaction hash",
 	"tspendpolicyresult-policy": "Voting policy description (abstain, yes, or no)",
+	"tspendpolicyresult-ticket": "Ticket hash of a per-ticket tspend approval policy",
 
 	// UnlockAccountCmd help.
 	"unlockaccount--synopsis":  "Unlock an individually-encrypted account",
