@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	certificateFile      = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "testnet3", "rpc.cert")
+	certificateFile      = filepath.Join(dcrutil.AppDataDir("dcrwallet", false), "rpc.cert")
 	walletClientCertFile = "client.pem" // must be part of ~/.dcrwallet/clients.pem
 	walletClientKeyFile  = "client-key.pem"
 )
@@ -85,16 +85,45 @@ func main() {
 	}
 
 	wsClient := pb.NewWalletServiceClient(conn)
-	validateAddrRequest := &pb.ValidateAddressRequest{
-		Address: "TcpEWwGdCN3RCNAQUhBn8f2Xdko2JzcQSQs", // ValidateAddress only sets ScriptType for owned and P2SH addresses.
+
+	for _, script := range importScripts {
+		// NOTE: These scripts will forever be imported into your
+		// testing wallet.
+		scriptB, err := hex.DecodeString(script)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		importScriptRequest := &pb.ImportScriptRequest{
+			Script: scriptB,
+		}
+		_, err = wsClient.ImportScript(context.Background(), importScriptRequest)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
-	validateAddrResp, err := wsClient.ValidateAddress(context.Background(), validateAddrRequest)
+
+	// Add an owned address to validated addresses.
+	nextAddressResp, err := wsClient.NextAddress(context.Background(), new(pb.NextAddressRequest))
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(validateAddrResp.ScriptType) // unset / non-standard unless wallet-owned AND P2SH!
-	fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(validateAddrResp))
+	validateAddrs = append(validateAddrs, nextAddressResp.Address)
+
+	for _, addr := range validateAddrs {
+		validateAddrRequest := &pb.ValidateAddressRequest{
+			Address: addr,
+		}
+		validateAddrResp, err := wsClient.ValidateAddress(context.Background(), validateAddrRequest)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(validateAddrResp.ScriptType)
+		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(validateAddrResp))
+	}
 }
 
 var txns = []string{
@@ -113,4 +142,30 @@ var txns = []string{
 	"0100000002793d7447b9b4463cb069c684afadc757225b6d21cb395208cb8740244bf8598a0200000000ffffffff793d7447b9b4463cb069c684afadc757225b6d21cb395208cb8740244bf8598a0300000000ffffffff057aee520600000000000018baa914c8148420843952f6085ce051c66c66e538eed5cd8700000000000000000000206a1ec667be7328c77abff2f9f35d2aad91cc80a9c4fdc2880300000000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac00000000000000000000206a1e2b51ac564b85c04d874f1075960fc17d86e3777de47a4f06000000000058000000000000000000001abd76a914000000000000000000000000000000000000000088ac000000002011050002c2880300000000000c110500070000006a4730440220227d7b5cec71179918fc982a8b05bb5e4fe2267f8a7f584322cfdbd989943267022046a921072177590120d7a2365952d151ecc89dc627b65da43056f20646383002012103130967a676b0762272729278a78afbeb234b0a1831c51e857395ab565baee24ce47a4f06000000000c110500070000006a47304402205e5b12a9f11b5bd65e56ec7d21e306dedf79a717527567028121a326d5ccc02d02202f58a2e6ec9d29aa4a3bcd2b25e00aa1844f05abf3a3e2e55bad05f96b30c96e012103130967a676b0762272729278a78afbeb234b0a1831c51e857395ab565baee24c",
 	// solo ticket
 	"01000000016db59a8f8e1c9db0a963b08a30f02f1cea95ddd430303a8d9859ee730c01d8650000000000ffffffff03a9d396620200000000001aba76a914fd5e20128a2e5c4bd9abf93386912b627951e5c488ac00000000000000000000206a1e899eb23ed3b51cfe839f708678af833daa5f28794ddf966202000000004e000000000000000000001abd76a914000000000000000000000000000000000000000088ac0000000090720c00014ddf966202000000ffffff7fffffffff6b483045022100e04b03b2844ade2ab84847902dac3ccd6022bc23dc012a11390a59046c59186902202c0f6bddfa4b4c2494f40bfc8a7ec07ab570c4be6d66fa10b48555deb66148d101210248be5d2501e3a9ed3079138a48e943c12e78da56ed752caf590c510f1ce3c929",
+}
+
+var importScripts = []string{
+	// TSPEND
+	"c376a914d17043c104a57393aa7353e1510e39eab811e3db88ac",
+	// 2 of 2 multisig
+	"522103d484eb60ad03549e731ae9045281f8ee14ff6ea11b697f32cde3d8a18992261b210342b0b9c0ecb53cb9761beb0d010bbf08b5049d2a4d3bea5d3a1d95eb664931cb52ae",
+	// NonStandard
+	"01",
+}
+
+var validateAddrs = []string{
+	"TcpEWwGdCN3RCNAQUhBn8f2Xdko2JzcQSQs",
+
+	"TkKkYvSrnu8orwhtedcJGkD7guarvZUbUAtjr4iKqD9Y8pNEf8iHu", // PubKeyEcdsaSecp256k1V0
+	"Tsp18L8qTcjzigYXrD5GSdwDmhVYBpKmfUL",                   // PubKeyHashEcdsaSecp256k1V0
+	"TkKnVfd6EvzEYAqiELWstkASHgVyYH8JK3gNvAxUX79C9CrnsV8W6", // PubKeyEd25519V0
+	"TedZCnJ5uQ8z7VzKqdBhP1WP2RBYaaoCiUe",                   // PubKeyHashEd25519V0
+	"TkKpSQoKgxqfDPyXp3RTWk7ktTR69zn19vU1zHCdD18r9bMTvDKT3", // PubKeySchnorrSecp256k1V0
+	"TSs3jHQMbbZGPyftUh4cgaALzgDZhfXGtxn",                   // PubKeyHashSchnorrSecp256k1V0
+	"TcvVou7ooM4rJRWNeJYwehJ9fQq1HTc5pbK",                   // ScriptHashV0
+
+	// These are owned imported scripts.
+	"TcfdqCrK2fiFJBZnGj5N6xs6rMsbQBsJBYf", // TSPEND
+	"TcrzaAVMbFURm1PpukWru8yE2uBTjvQePoa", // 2 of 2 multisig
+	"TckSpBht36nMZgnDDjv7xaHUrgCyJpxQiLA", // NonStandard
 }
