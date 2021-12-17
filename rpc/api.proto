@@ -52,6 +52,7 @@ service WalletService {
 	rpc NextAccount (NextAccountRequest) returns (NextAccountResponse);
 	rpc NextAddress (NextAddressRequest) returns (NextAddressResponse);
 	rpc ImportPrivateKey (ImportPrivateKeyRequest) returns (ImportPrivateKeyResponse);
+	rpc ImportExtendedPublicKey (ImportExtendedPublicKeyRequest) returns (ImportExtendedPublicKeyResponse);
 	rpc ImportScript(ImportScriptRequest) returns (ImportScriptResponse);
 	rpc FundTransaction (FundTransactionRequest) returns (FundTransactionResponse);
 	rpc UnspentOutputs (UnspentOutputsRequest) returns (stream UnspentOutputResponse);
@@ -280,6 +281,15 @@ message ImportPrivateKeyRequest {
 	int32 scan_from = 5;
 }
 message ImportPrivateKeyResponse {
+}
+
+message ImportExtendedPublicKeyRequest {
+	string xpub = 1;
+	string account_name = 2;
+	bool rescan = 3;
+	int32 scan_from = 4;
+}
+message ImportExtendedPublicKeyResponse {
 }
 
 message ImportScriptRequest {

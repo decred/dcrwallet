@@ -62,9 +62,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.13.0"
+	semverString = "7.14.0"
 	semverMajor  = 7
-	semverMinor  = 13
+	semverMinor  = 14
 	semverPatch  = 0
 )
 
@@ -598,6 +598,31 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 	}
 
 	return &pb.ImportPrivateKeyResponse{}, nil
+}
+
+func (s *walletServer) ImportExtendedPublicKey(ctx context.Context, req *pb.ImportExtendedPublicKeyRequest) (
+	*pb.ImportExtendedPublicKeyResponse, error) {
+
+	xpub, err := hdkeychain.NewKeyFromString(req.Xpub, s.wallet.ChainParams())
+	if err != nil {
+		return nil, err
+	}
+
+	n, err := s.requireNetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.wallet.ImportXpubAccount(ctx, req.AccountName, xpub)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	if req.Rescan {
+		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+	}
+
+	return &pb.ImportExtendedPublicKeyResponse{}, nil
 }
 
 func (s *walletServer) ImportScript(ctx context.Context,
