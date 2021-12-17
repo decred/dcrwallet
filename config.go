@@ -55,6 +55,7 @@ const (
 	defaultAccountGapLimit         = wallet.DefaultAccountGapLimit
 	defaultDisableCoinTypeUpgrades = false
 	defaultCircuitLimit            = 32
+	defaultMixSplitLimit           = 10
 
 	// ticket buyer options
 	defaultBalanceToMaintainAbsolute = 0
@@ -164,6 +165,7 @@ type config struct {
 	TicketSplitAccount string `long:"ticketsplitaccount" description:"Account to derive fresh addresses from for mixed ticket splits; uses mixedaccount if unset"`
 	ChangeAccount      string `long:"changeaccount" description:"Account used to derive unmixed CoinJoin outputs in CoinShuffle++ protocol"`
 	MixChange          bool   `long:"mixchange" description:"Use CoinShuffle++ to mix change account outputs into mix account"`
+	MixSplitLimit      int    `long:"mixsplitlimit" description:"Connection limit to CoinShuffle++ server per change amount"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 
@@ -363,6 +365,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 		CircuitLimit:            defaultCircuitLimit,
+		MixSplitLimit:           defaultMixSplitLimit,
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{

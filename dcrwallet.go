@@ -164,7 +164,8 @@ func run(ctx context.Context) error {
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets)
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets,
+		cfg.MixSplitLimit)
 	loader.DialCSPPServer = cfg.dialCSPPServer
 
 	// Stop any services started by the loader after the shutdown procedure is

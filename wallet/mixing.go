@@ -39,12 +39,16 @@ var splitPoints = [...]dcrutil.Amount{
 	1 << 18, // 000.00262144
 }
 
-var splitSems = [len(splitPoints)]chan struct{}{}
+type mixSemaphores struct {
+	splitSems [len(splitPoints)]chan struct{}
+}
 
-func init() {
-	for i := range splitSems {
-		splitSems[i] = make(chan struct{}, 10)
+func newMixSemaphores(n int) mixSemaphores {
+	var m mixSemaphores
+	for i := range m.splitSems {
+		m.splitSems[i] = make(chan struct{}, n)
 	}
+	return m
 }
 
 var (
@@ -169,8 +173,8 @@ SplitPoints:
 	select {
 	case <-ctx.Done():
 		return errors.E(op, ctx.Err())
-	case splitSems[i] <- struct{}{}:
-		defer func() { <-splitSems[i] }()
+	case w.mixSems.splitSems[i] <- struct{}{}:
+		defer func() { <-w.mixSems.splitSems[i] }()
 	default:
 		return errThrottledMixRequest
 	}

@@ -156,6 +156,9 @@ type Wallet struct {
 	passphraseTimeoutMu     sync.Mutex
 	passphraseTimeoutCancel chan struct{}
 
+	// Mix rate limiting
+	mixSems mixSemaphores
+
 	NtfnServer *NotificationServer
 
 	chainParams *chaincfg.Params
@@ -175,6 +178,7 @@ type Config struct {
 
 	GapLimit                uint32
 	AccountGapLimit         int
+	MixSplitLimit           int
 	DisableCoinTypeUpgrades bool
 
 	StakePoolColdExtKey string
@@ -5238,6 +5242,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		recentlyPublished: make(map[chainhash.Hash]struct{}),
 
 		addressBuffers: make(map[uint32]*bip0044AccountData),
+
+		mixSems: newMixSemaphores(cfg.MixSplitLimit),
 	}
 
 	// Open database managers
