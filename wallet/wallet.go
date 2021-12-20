@@ -3336,6 +3336,7 @@ func (w *Wallet) UnspentOutput(ctx context.Context, op wire.OutPoint, includeMem
 type AccountProperties struct {
 	AccountNumber             uint32
 	AccountName               string
+	AccountType               uint8
 	LastUsedExternalIndex     uint32
 	LastUsedInternalIndex     uint32
 	LastReturnedExternalIndex uint32

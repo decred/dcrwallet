@@ -758,12 +758,20 @@ func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpt
 
 func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
 	accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+	var accountType uint8
+	if err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		props, err := w.manager.AccountProperties(ns, account)
+		if err != nil {
+			return err
+		}
+		accountType = props.AccountType
+		return nil
+	}); err != nil {
+		return nil, errors.E(op, err)
+	}
 	// Imported voting accounts must not be used for change.
-	//
-	// TODO: For now, all accounts above the imported account are voting
-	// accounts. This may change in the future. Check the account type
-	// rather than using the number.
-	if account > udb.ImportedAddrAccount {
+	if udb.IsImportedVoting(accountType) {
 		return nil, errors.E(op, errors.Invalid, "cannot use voting accounts for change addresses")
 	}
 

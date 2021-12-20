@@ -217,6 +217,7 @@ func unseal(key keyType, ciphertext []byte) ([]byte, error) {
 type AccountProperties = struct {
 	AccountNumber             uint32
 	AccountName               string
+	AccountType               uint8
 	LastUsedExternalIndex     uint32
 	LastUsedInternalIndex     uint32
 	LastReturnedExternalIndex uint32
@@ -224,6 +225,12 @@ type AccountProperties = struct {
 	ImportedKeyCount          uint32
 	AccountEncrypted          bool
 	AccountUnlocked           bool
+}
+
+// IsImportedVoting compares a uint8 to the internal importedVoting type and
+// returns if the value represents an imported voting account.
+func IsImportedVoting(acctType uint8) bool {
+	return acctType == uint8(importedVoting)
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
@@ -569,7 +576,7 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		if err != nil {
 			return nil, err
 		}
-		props.AccountName = acctInfo.acctName
+		props.AccountName, props.AccountType = acctInfo.acctName, uint8(acctInfo.acctType)
 		a, err := fetchDBAccount(ns, account, DBVersion)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
