@@ -21,6 +21,7 @@ require (
 	github.com/decred/dcrd/gcs/v3 v3.0.0
 	github.com/decred/dcrd/hdkeychain/v3 v3.0.1
 	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0
+	github.com/decred/dcrd/rpcclient/v7 v7.0.0
 	github.com/decred/dcrd/txscript/v4 v4.0.0
 	github.com/decred/dcrd/wire v1.5.0
 	github.com/decred/go-socks v1.1.0
