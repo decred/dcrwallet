@@ -9,3 +9,4 @@ rpc/tools/bin/
 *.sw*
 rpc/grpc_example/grpc_example
 rpc/grpc_example/*.pem
+rpc/rpc_example/rpc_example

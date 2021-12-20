@@ -64,6 +64,8 @@ github.com/decred/dcrd/hdkeychain/v3 v3.0.1/go.mod h1:rDCdqwGkcTfEyRheG1g8Wc38ap
 github.com/decred/dcrd/lru v1.1.0/go.mod h1:mxKOwFd7lFjN2GZYsiz/ecgqR6kkYAl+0pz0tEMk218=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0 h1:WzG2IARR6OghjhWdxfUbXSPE4GEF2hZlCE5y2L/45f4=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0/go.mod h1:1ILDxMKVS/qY71MylpZzuEX4O0u1SON4RPKbaZP71K0=
+github.com/decred/dcrd/rpcclient/v7 v7.0.0 h1:1XuGWpyjOPMscpwSDuumWTnfLl94LbIqg+5X6uCPYeY=
+github.com/decred/dcrd/rpcclient/v7 v7.0.0/go.mod h1:k4UDXFt0iwTRhKzdMGJbz/0wD/1lIKrQ5iYWyY7w8R4=
 github.com/decred/dcrd/txscript/v4 v4.0.0-20210415215133-96b98390a9a9/go.mod h1:LBGwMZRfpS50huRsc0Bihy7w2Sl9vK3TNqv8nhCRj0U=
 github.com/decred/dcrd/txscript/v4 v4.0.0 h1:BwaBUCMCmg58MCYoBhxVjL8ZZKUIfoJuxu/djmh8h58=
 github.com/decred/dcrd/txscript/v4 v4.0.0/go.mod h1:OJtxNc5RqwQyfrRnG2gG8uMeNPo8IAJp+TD1UKXkqk8=
