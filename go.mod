@@ -6,11 +6,11 @@ require (
 	decred.org/cspp/v2 v2.0.0-20211207170141-a6b5f958a91f
 	github.com/decred/dcrd/addrmgr/v2 v2.0.0
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
-	github.com/decred/dcrd/blockchain/standalone/v2 v2.0.0
-	github.com/decred/dcrd/blockchain/v4 v4.0.0-20211120053236-81ae286f2347
+	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
+	github.com/decred/dcrd/blockchain/v4 v4.0.0
 	github.com/decred/dcrd/certgen v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
-	github.com/decred/dcrd/chaincfg/v3 v3.1.0
+	github.com/decred/dcrd/chaincfg/v3 v3.1.1
 	github.com/decred/dcrd/connmgr/v3 v3.1.0
 	github.com/decred/dcrd/crypto/blake256 v1.0.0
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.1
@@ -19,7 +19,7 @@ require (
 	github.com/decred/dcrd/dcrjson/v4 v4.0.0
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
 	github.com/decred/dcrd/gcs/v3 v3.0.0
-	github.com/decred/dcrd/hdkeychain/v3 v3.0.1
+	github.com/decred/dcrd/hdkeychain/v3 v3.1.0
 	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0
 	github.com/decred/dcrd/rpcclient/v7 v7.0.0
 	github.com/decred/dcrd/txscript/v4 v4.0.0
