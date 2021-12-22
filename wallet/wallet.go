@@ -3336,6 +3336,7 @@ func (w *Wallet) UnspentOutput(ctx context.Context, op wire.OutPoint, includeMem
 type AccountProperties struct {
 	AccountNumber             uint32
 	AccountName               string
+	AccountType               uint8
 	LastUsedExternalIndex     uint32
 	LastUsedInternalIndex     uint32
 	LastReturnedExternalIndex uint32
@@ -3762,6 +3763,92 @@ func (w *Wallet) ImportScript(ctx context.Context, rs []byte) error {
 		return errors.E(op, err)
 	}
 	return nil
+}
+
+// VotingXprivFromSeed derives a voting xpriv from a byte seed.
+func (w *Wallet) VotingXprivFromSeed(seed []byte) (*hdkeychain.ExtendedKey, error) {
+	return votingXprivFromSeed(seed, w.ChainParams())
+}
+
+// votingXprivFromSeed derives a voting xpriv from a byte seed. The key is at
+// the same path as the zeroth slip0044 account key for seed.
+func votingXprivFromSeed(seed []byte, params *chaincfg.Params) (*hdkeychain.ExtendedKey, error) {
+	const op errors.Op = "wallet.VotingXprivFromSeed"
+
+	seedSize := len(seed)
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
+		return nil, errors.E(errors.Invalid, errors.New("invalid seed length"))
+	}
+
+	// Generate the BIP0044 HD key structure to ensure the provided seed
+	// can generate the required structure with no issues.
+	coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, err := udb.HDKeysFromSeed(seed, params)
+	if err != nil {
+		return nil, err
+	}
+	coinTypeLegacyKeyPriv.Zero()
+	coinTypeSLIP0044KeyPriv.Zero()
+	acctKeyLegacyPriv.Zero()
+
+	return acctKeySLIP0044Priv, nil
+}
+
+// ImportVotingAccount imports a voting account to the wallet. A password and
+// unique name must be supplied. The xpriv must be for the current running
+// network.
+func (w *Wallet) ImportVotingAccount(ctx context.Context, xpriv *hdkeychain.ExtendedKey,
+	passphrase []byte, name string) (uint32, error) {
+	const op errors.Op = "wallet.ImportVotingAccount"
+	var accountN uint32
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		var err error
+		accountN, err = w.manager.ImportVotingAccount(dbtx, xpriv, passphrase, name)
+		if err != nil {
+			return err
+		}
+		return err
+	})
+	if err != nil {
+		return 0, errors.E(op, err)
+	}
+
+	xpub := xpriv.Neuter()
+
+	extKey, intKey, err := deriveBranches(xpub)
+	if err != nil {
+		return 0, errors.E(op, err)
+	}
+
+	// Internal addresses are used in signing messages and are not expected
+	// to be found used on chain.
+	if n, err := w.NetworkBackend(); err == nil {
+		extAddrs, err := deriveChildAddresses(extKey, 0, w.gapLimit, w.chainParams)
+		if err != nil {
+			return 0, errors.E(op, err)
+		}
+		err = n.LoadTxFilter(ctx, false, extAddrs, nil)
+		if err != nil {
+			return 0, errors.E(op, err)
+		}
+	}
+
+	defer w.addressBuffersMu.Unlock()
+	w.addressBuffersMu.Lock()
+	albExternal := addressBuffer{
+		branchXpub:  extKey,
+		lastUsed:    ^uint32(0),
+		cursor:      0,
+		lastWatched: w.gapLimit - 1,
+	}
+	albInternal := albExternal
+	albInternal.branchXpub = intKey
+	w.addressBuffers[accountN] = &bip0044AccountData{
+		xpub:        xpub,
+		albExternal: albExternal,
+		albInternal: albInternal,
+	}
+
+	return accountN, nil
 }
 
 func (w *Wallet) ImportXpubAccount(ctx context.Context, name string, xpub *hdkeychain.ExtendedKey) error {

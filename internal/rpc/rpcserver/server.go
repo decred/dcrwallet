@@ -680,6 +680,89 @@ func (s *walletServer) ImportScript(ctx context.Context,
 	return &pb.ImportScriptResponse{P2ShAddress: p2sh.String(), Redeemable: redeemable}, nil
 }
 
+func (s *walletServer) ImportVotingAccountFromSeed(ctx context.Context, req *pb.ImportVotingAccountFromSeedRequest) (
+	*pb.ImportVotingAccountFromSeedResponse, error) {
+
+	defer func() {
+		zero(req.Passphrase)
+		zero(req.Seed)
+	}()
+
+	seedSize := len(req.Seed)
+	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid seed length")
+	}
+
+	if req.ScanFrom < 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Attempted to scan from a negative block height")
+	}
+
+	if req.ScanFrom > 0 && req.Rescan {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Passed a rescan height without rescan set")
+	}
+
+	if req.DiscoverFrom < 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Attempted to discover usage from a negative block height")
+	}
+
+	if req.DiscoverFrom > 0 && req.DiscoverUsage {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Passed a discover usage height without discover usage set")
+	}
+
+	var (
+		n   wallet.NetworkBackend
+		err error
+	)
+	if req.DiscoverUsage || req.Rescan {
+		n, err = s.requireNetworkBackend()
+		if err != nil {
+			return nil, status.Errorf(codes.Unknown, "Unable to retrieve network backend. Error: %v", err)
+		}
+	}
+
+	acctKeyPriv, err := s.wallet.VotingXprivFromSeed(req.Seed)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	accountN, err := s.wallet.ImportVotingAccount(ctx, acctKeyPriv, req.Passphrase, req.Name)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	if req.DiscoverUsage {
+		startBlock := s.wallet.ChainParams().GenesisHash
+		if req.DiscoverFrom != 0 {
+			blockID := wallet.NewBlockIdentifierFromHeight(req.DiscoverFrom)
+			b, err := s.wallet.BlockInfo(ctx, blockID)
+			if err != nil {
+				return nil, translateError(err)
+			}
+			startBlock = b.Hash
+		}
+
+		gapLimit := s.wallet.GapLimit()
+		if req.DiscoverGapLimit != 0 {
+			gapLimit = uint32(req.DiscoverGapLimit)
+		}
+
+		err = s.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, false, gapLimit)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if req.Rescan {
+		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+	}
+
+	return &pb.ImportVotingAccountFromSeedResponse{Account: accountN}, nil
+}
+
 func (s *walletServer) Balance(ctx context.Context, req *pb.BalanceRequest) (
 	*pb.BalanceResponse, error) {
 

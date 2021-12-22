@@ -18,6 +18,7 @@ import (
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
@@ -465,6 +466,257 @@ func TestManagerImports(t *testing.T) {
 	tc.watchingOnly = true
 
 	testImports(tc)
+}
+
+// TestImportVotingAccount tests that importing voting accounts works properly.
+//
+// This function expects the manager is already locked when called and returns
+// with the manager locked.
+func TestImportVotingAccount(t *testing.T) {
+	ctx := context.Background()
+	db, mgr, _, _, teardown, err := cloneDB("import_voting_account.kv")
+	defer teardown()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mgr.Close()
+	privTestNet, err := hdkeychain.NewKeyFromString("tprvZUo1ZuEfLLFWg9kt"+
+		"EaXHf3HKq2EdfwY5pXFZ2rbg6HFzeaoJDp1qFZnuuuN6iUAG9EyNF4sH4RmJ"+
+		"b395XWYpdqQoXRoKkV88HZwgq95KfiK", chaincfg.TestNet3Params())
+	if err != nil {
+		t.Fatalf("unable to parse xpriv: %v", err)
+	}
+	account1 := "account 1"
+
+	tests := []struct {
+		name, pass, acctName string
+		want                 uint32
+		wantErr              *errors.Error
+		watchingOnly, unlock bool
+	}{{
+		name:         "ok watching only",
+		acctName:     account1,
+		pass:         "abc",
+		want:         ImportedAddrAccount + 1,
+		watchingOnly: true,
+	}, {
+		name:     "ok locked",
+		acctName: "account 2",
+		pass:     "abc",
+		want:     ImportedAddrAccount + 2,
+	}, {
+		name:     "ok unlocked",
+		acctName: "account 3",
+		pass:     "abc",
+		unlock:   true,
+		want:     ImportedAddrAccount + 3,
+	}, {
+		name:     "name taken",
+		acctName: account1,
+		pass:     "abc",
+		wantErr:  &errors.Error{Kind: errors.Exist},
+	}, {
+		name:     "no password",
+		acctName: "account 4",
+		wantErr:  &errors.Error{Kind: errors.Passphrase},
+	}, {
+		name:    "no name",
+		pass:    "abc",
+		wantErr: &errors.Error{Kind: errors.Invalid},
+	}}
+
+	for i, test := range tests {
+		tc := &testContext{
+			t:            t,
+			db:           db,
+			manager:      mgr,
+			create:       true,
+			watchingOnly: test.watchingOnly,
+		}
+		prefix := testNamePrefix(tc)
+		prefix = fmt.Sprintf("%s ImportVotingAccount #%d (%s)", prefix,
+			i, test.name)
+		err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
+			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
+			if test.unlock {
+				if err := tc.manager.Unlock(ns, privPassphrase); err != nil {
+					tc.t.Fatalf("%s: Unlock: unexpected error: %v", prefix, err)
+				}
+				tc.unlocked = true
+				defer func() {
+					if err := tc.manager.Lock(); err != nil {
+						tc.t.Fatalf("%s: Lock: unexpected error: %v",
+							prefix, err)
+					}
+					tc.unlocked = false
+				}()
+			}
+			pass := []byte(test.pass)
+			got, err := tc.manager.ImportVotingAccount(tx, privTestNet,
+				pass, test.acctName)
+			if test.wantErr != nil {
+				if err == nil {
+					tc.t.Fatalf("%s: wanted error %v but got none",
+						prefix, test.wantErr)
+				}
+				kind := err.(*errors.Error).Kind
+				if !test.wantErr.Is(kind) {
+					tc.t.Fatalf("%s: wanted error %v but got %v",
+						prefix, test.wantErr, kind)
+				}
+				return nil
+			}
+			if err != nil {
+				tc.t.Fatalf("%s: unexpected error: %v", prefix, err)
+			}
+			if got != test.want {
+				tc.t.Fatalf("%s: wanted account number %d but got %d", prefix,
+					test.want, got)
+			}
+
+			if err := tc.manager.UnlockAccount(tx, got, pass); err != nil {
+				tc.t.Fatalf("%s: Unlock: unexpected error: %v", prefix, err)
+			}
+			defer tc.manager.mtx.Unlock()
+			tc.manager.mtx.Lock()
+			acctInfo, err := tc.manager.loadAccountInfo(ns, got)
+			if err != nil {
+				tc.t.Fatalf("%s: unexpected error: %v", prefix, err)
+			}
+			// Enusure the account type is importedVoting.
+			if acctInfo.acctType != importedVoting {
+				tc.t.Fatalf("%s: wanted account type %v but got %v", prefix,
+					importedVoting, acctInfo.acctType)
+			}
+			// Enusure xpriv is the same.
+			if acctInfo.acctKeyPriv.String() != privTestNet.String() {
+				tc.t.Fatalf("%s: wanted account xpriv %v but got %v", prefix,
+					privTestNet, acctInfo.acctKeyPriv)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+}
+
+// TestImportAccount tests that importing accounts works properly.
+//
+// This function expects the manager is already locked when called and returns
+// with the manager locked.
+func TestImportAccount(t *testing.T) {
+	ctx := context.Background()
+	db, mgr, _, _, teardown, err := cloneDB("import_account.kv")
+	defer teardown()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer mgr.Close()
+	privTestNet, err := hdkeychain.NewKeyFromString("tprvZUo1ZuEfLLFWg9kt"+
+		"EaXHf3HKq2EdfwY5pXFZ2rbg6HFzeaoJDp1qFZnuuuN6iUAG9EyNF4sH4RmJ"+
+		"b395XWYpdqQoXRoKkV88HZwgq95KfiK", chaincfg.TestNet3Params())
+	if err != nil {
+		t.Fatalf("unable to parse xpriv: %v", err)
+	}
+	account1 := "account 1"
+
+	tests := []struct {
+		name, acctName              string
+		want                        uint32
+		wantErr                     *errors.Error
+		watchingOnly, discoverUsage bool
+	}{{
+		name:         "ok watching only",
+		acctName:     account1,
+		want:         ImportedAddrAccount + 1,
+		watchingOnly: true,
+	}, {
+		name:     "ok",
+		acctName: "account 2",
+		want:     ImportedAddrAccount + 2,
+	}, {
+		name:     "name taken",
+		acctName: account1,
+		wantErr:  &errors.Error{Kind: errors.Exist},
+	}, {
+		name:          "address exists",
+		acctName:      "account 3",
+		discoverUsage: true,
+		wantErr:       &errors.Error{Kind: errors.Exist},
+	}, {
+		name:    "no name",
+		wantErr: &errors.Error{Kind: errors.Invalid},
+	}}
+
+	for i, test := range tests {
+		tc := &testContext{
+			t:            t,
+			db:           db,
+			manager:      mgr,
+			create:       true,
+			watchingOnly: test.watchingOnly,
+		}
+		prefix := testNamePrefix(tc)
+		prefix = fmt.Sprintf("%s importAccount #%d (%s)", prefix,
+			i, test.name)
+		err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
+			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
+			if err := tc.manager.Unlock(ns, privPassphrase); err != nil {
+				tc.t.Fatalf("%s: Unlock: unexpected error: %v", prefix, err)
+			}
+			tc.unlocked = true
+			defer func() {
+				if err := tc.manager.Lock(); err != nil {
+					tc.t.Fatalf("%s: Lock: unexpected error: %v",
+						prefix, err)
+				}
+				tc.unlocked = false
+			}()
+			if test.discoverUsage {
+				err = mgr.SyncAccountToAddrIndex(ns, ImportedAddrAccount+1, 0, ExternalBranch)
+				if err != nil {
+					return err
+				}
+			}
+			got, err := tc.manager.importAccount(tx, actBIP0044,
+				privTestNet, test.acctName)
+			if test.wantErr != nil {
+				if err == nil {
+					tc.t.Fatalf("%s: wanted error %v but got none",
+						prefix, test.wantErr)
+				}
+				kind := err.(*errors.Error).Kind
+				if !test.wantErr.Is(kind) {
+					tc.t.Fatalf("%s: wanted error %v but got %v",
+						prefix, test.wantErr, kind)
+				}
+				return nil
+			}
+			if err != nil {
+				tc.t.Fatalf("%s: unexpected error: %v", prefix, err)
+			}
+			if got != test.want {
+				tc.t.Fatalf("%s: wanted account number %d but got %d", prefix,
+					test.want, got)
+			}
+			defer tc.manager.mtx.Unlock()
+			tc.manager.mtx.Lock()
+			acctInfo, err := tc.manager.loadAccountInfo(ns, got)
+			if err != nil {
+				tc.t.Fatalf("%s: unexpected error: %v", prefix, err)
+			}
+			// Enusure xpriv is the same.
+			if acctInfo.acctKeyPriv.String() != privTestNet.String() {
+				tc.t.Fatalf("%s: wanted account xpriv %v but got %v", prefix,
+					privTestNet, acctInfo.acctKeyPriv)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
 }
 
 // testChangePassphrase ensures changes both the public and private passphrases

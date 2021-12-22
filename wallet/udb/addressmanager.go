@@ -136,6 +136,7 @@ func scryptOptionsForNet(net wire.CurrencyNet) *scryptOptions {
 // when the address manager is locked.
 type accountInfo struct {
 	acctName string
+	acctType accountType
 
 	// The account key is used to derive the branches which in turn derive
 	// the internal and external addresses.
@@ -216,6 +217,7 @@ func unseal(key keyType, ciphertext []byte) ([]byte, error) {
 type AccountProperties = struct {
 	AccountNumber             uint32
 	AccountName               string
+	AccountType               uint8
 	LastUsedExternalIndex     uint32
 	LastUsedInternalIndex     uint32
 	LastReturnedExternalIndex uint32
@@ -223,6 +225,12 @@ type AccountProperties = struct {
 	ImportedKeyCount          uint32
 	AccountEncrypted          bool
 	AccountUnlocked           bool
+}
+
+// IsImportedVoting compares a uint8 to the internal importedVoting type and
+// returns if the value represents an imported voting account.
+func IsImportedVoting(acctType uint8) bool {
+	return acctType == uint8(importedVoting)
 }
 
 // defaultNewSecretKey returns a new secret key.  See newSecretKey.
@@ -499,6 +507,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		}
 
 		acctInfo.acctName = row.name
+		acctInfo.acctType = row.accountType()
 		acctInfo.acctKeyEncrypted = row.privKeyEncrypted
 		acctInfo.acctKeyPub = acctKeyPub
 		acctInfo.uniqueKey = row.uniqueKey
@@ -567,7 +576,7 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 		if err != nil {
 			return nil, err
 		}
-		props.AccountName = acctInfo.acctName
+		props.AccountName, props.AccountType = acctInfo.acctName, uint8(acctInfo.acctType)
 		a, err := fetchDBAccount(ns, account, DBVersion)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
@@ -1541,8 +1550,9 @@ func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
-	// A watching-only address manager can't be unlocked.
-	if m.watchingOnly {
+	// A watching-only address manager can only be locked/unlocked for
+	// imported accounts.
+	if m.watchingOnly && account < ImportedAddrAccount {
 		return errors.E(errors.WatchingOnly,
 			"cannot unlock watching wallet")
 	}
@@ -1599,8 +1609,9 @@ func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
-	// A watching-only address manager can't be locked.
-	if m.watchingOnly {
+	// A watching-only address manager can only be locked/unlocked for
+	// imported accounts.
+	if m.watchingOnly && account < ImportedAddrAccount {
 		return errors.E(errors.WatchingOnly,
 			"cannot lock watching wallet")
 	}
@@ -1626,7 +1637,7 @@ func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
 // account private keys.
 //
 // If the passphrase has zero length, the private keys are re-encrypted with the
-// manager's global passphrase.
+// manager's global passphrase. Cannot be zero length for watching-only wallets.
 func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32,
 	passphrase []byte) error {
 
@@ -1635,10 +1646,18 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 
-	// A watching-only address manager stores no privkeys.
+	// A watching-only address manager can only be locked/unlocked for
+	// imported accounts.
 	if m.watchingOnly {
-		return errors.E(errors.WatchingOnly,
-			"cannot set passphrase for watching wallet")
+		if account < ImportedAddrAccount {
+			return errors.E(errors.WatchingOnly,
+				"cannot set passphrase for watching wallet")
+		}
+		// Watching-only wallets must have a passphrase supplied.
+		if len(passphrase) == 0 {
+			return errors.E(errors.Passphrase,
+				"watching-only imported accounts must have a passprase")
+		}
 	}
 
 	acctInfo, err := m.loadAccountInfo(ns, account)
@@ -1725,6 +1744,11 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 
 func (m *Manager) removeAccountPassphrase(ns walletdb.ReadWriteBucket, account uint32,
 	acctInfo *accountInfo) error {
+
+	if m.watchingOnly {
+		return errors.E(errors.WatchingOnly,
+			"cannot remove passphrase for watching wallet")
+	}
 
 	if m.locked {
 		return errors.E(errors.Locked, "wallet must be unlocked "+
@@ -2111,6 +2135,149 @@ func (m *Manager) NewAccount(ns walletdb.ReadWriteBucket, name string) (uint32, 
 	return account, nil
 }
 
+// ImportVotingAccount imports an account for use with voting into the manager
+// based on the given account name. If an account with the same name already
+// exists, ErrDuplicateAccount will be returned. A password must be supplied.
+// The acctKeyPriv must be for the current network.
+func (m *Manager) ImportVotingAccount(dbtx walletdb.ReadWriteTx, acctKeyPriv *hdkeychain.ExtendedKey,
+	passphrase []byte, name string) (uint32, error) {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	// Ensure passphrase is included.
+	if len(passphrase) == 0 {
+		return 0, errors.E(errors.Passphrase, errors.New("passphrase must be specified"))
+	}
+
+	account, err := m.importAccount(dbtx, importedVoting, acctKeyPriv, name)
+	if err != nil {
+		return 0, err
+	}
+	// Encrypt the account xpriv with a new key.
+	kdfp, err := kdf.NewArgon2idParams(rand.Reader)
+	if err != nil {
+		return 0, err
+	}
+	plaintext := []byte(acctKeyPriv.String())
+	key := argon2idKey(passphrase, kdfp)
+	ciphertext, err := seal(rand.Reader, key, plaintext)
+	zero(plaintext)
+	if err != nil {
+		return 0, err
+	}
+
+	// Record the KDF parameters.
+	ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+	acctKey := uint32ToBytes(account)
+	vars := ns.NestedReadWriteBucket(acctVarsBucketName).
+		NestedReadWriteBucket(acctKey)
+	err = putAccountKDFVar(vars, acctVarKDF, kdfp)
+	if err != nil {
+		return 0, err
+	}
+
+	// Write a new account row with the new xpriv ciphertext.
+	dbAcct, err := fetchDBAccount(ns, account, DBVersion)
+	if err != nil {
+		return 0, err
+	}
+	switch a := dbAcct.(type) {
+	case *dbBIP0044Account:
+		a.privKeyEncrypted = ciphertext
+		a.rawData = a.serializeRow()
+		err := putAccountRow(ns, account, &a.dbAccountRow)
+		if err != nil {
+			return 0, err
+		}
+	default:
+		return 0, errors.Errorf("unknown account type %T", a)
+	}
+
+	return account, nil
+}
+
+// importAccount imports a private extended key as an account with name. The
+// returned account number is one plus the last used imported index. The
+// manager must be unlocked in order for keys to be encrypted properly.
+func (m *Manager) importAccount(dbtx walletdb.ReadWriteTx, acctType accountType,
+	acctKeyPriv *hdkeychain.ExtendedKey, name string) (uint32, error) {
+	if err := ValidateAccountName(name); err != nil {
+		return 0, err
+	}
+
+	if !acctKeyPriv.IsPrivate() {
+		return 0, errors.E(errors.Invalid, "extended key must be an xpriv")
+	}
+
+	ns := dbtx.ReadWriteBucket(waddrmgrBucketKey)
+
+	// Check that account with the same name does not exist
+	_, err := fetchAccountByName(ns, name)
+	if err == nil {
+		return 0, errors.E(errors.Exist, errors.Errorf("account named %q already exists", name))
+	}
+
+	// Check that this key is not already known to the wallet by checking
+	// if we have the address of the first index of the external branch.
+	acctKeyPub := acctKeyPriv.Neuter()
+	branchKeyPub, err := acctKeyPub.Child(ExternalBranch)
+	if err != nil {
+		return 0, errors.E(errors.Invalid, err, "undable to derive external branch")
+	}
+	idxKeyPub, err := branchKeyPub.Child(0)
+	if err != nil {
+		return 0, errors.E(errors.Invalid, err, "undable to derive index")
+	}
+
+	addressID := stdaddr.Hash160(idxKeyPub.SerializedPubKey())
+	if existsAddress(ns, addressID) {
+		return 0, errors.E(errors.Exist, "address belonging to this key already exists in the database")
+	}
+
+	// Reserve the next account number to use as the internal account
+	// identifier.
+	account, err := fetchLastImportedAccount(ns)
+	if err != nil {
+		return 0, err
+	}
+	account++
+
+	// Encrypt the default account keys with the associated crypto keys.
+	apes := acctKeyPub.String()
+	acctPubEnc, err := m.cryptoKeyPub.Encrypt([]byte(apes))
+	if err != nil {
+		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account pubkey: %v", err))
+	}
+	apes = acctKeyPriv.String()
+	acctPrivEnc, err := m.cryptoKeyPriv.Encrypt([]byte(apes))
+	if err != nil {
+		return 0, errors.E(errors.Crypto, errors.Errorf("encrypt account privkey: %v", err))
+	}
+
+	// Record account to the database
+	err = putLastImportedAccount(ns, account)
+	if err != nil {
+		return 0, err
+	}
+	a := &dbBIP0044Account{
+		pubKeyEncrypted:           acctPubEnc,
+		privKeyEncrypted:          acctPrivEnc,
+		lastUsedExternalIndex:     ^uint32(0),
+		lastUsedInternalIndex:     ^uint32(0),
+		lastReturnedExternalIndex: ^uint32(0),
+		lastReturnedInternalIndex: ^uint32(0),
+		name:                      name,
+	}
+	a.acctType = acctType
+	a.rawData = a.serializeRow()
+	err = putNewBIP0044Account(ns, account, a)
+	if err != nil {
+		return 0, err
+	}
+
+	return account, nil
+}
+
 // RecordDerivedAddress adds an address derived from an account key to the
 // wallet's database.  The branch and child parameters should not have any
 // hardened offset applied.
@@ -2324,10 +2491,6 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key 
 func (m *Manager) HavePrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (bool, error) {
 	defer m.mtx.RUnlock()
 	m.mtx.RLock()
-
-	if m.watchingOnly {
-		return false, nil
-	}
 
 	id, err := addressID(normalizeAddress(addr))
 	if err != nil {
@@ -2604,6 +2767,85 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 	return params.LegacyCoinType, params.SLIP0044CoinType
 }
 
+// HDKeysFromSeed creates legacy and slip0044 coin keys and accout zero keys
+// from seed. Keys are zeroed upon any error.
+func HDKeysFromSeed(seed []byte, params *chaincfg.Params) (coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv *hdkeychain.ExtendedKey, err error) {
+	// fail will zero any successfully created keys before returning.
+	fail := func(err error) (*hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, *hdkeychain.ExtendedKey, error) {
+		zero := func(hdkey *hdkeychain.ExtendedKey) {
+			if hdkey != nil {
+				hdkey.Zero()
+			}
+		}
+		zero(coinTypeLegacyKeyPriv)
+		zero(coinTypeSLIP0044KeyPriv)
+		zero(acctKeyLegacyPriv)
+		zero(acctKeySLIP0044Priv)
+		return nil, nil, nil, nil, err
+	}
+
+	// Derive the master extended key from the seed.
+	root, err := hdkeychain.NewMaster(seed, params)
+	if err != nil {
+		return fail(err)
+	}
+
+	// Derive the cointype keys according to BIP0044.
+	legacyCoinType, slip0044CoinType := CoinTypes(params)
+	coinTypeLegacyKeyPriv, err = deriveCoinTypeKey(root, legacyCoinType)
+	if err != nil {
+		return fail(err)
+	}
+	coinTypeSLIP0044KeyPriv, err = deriveCoinTypeKey(root, slip0044CoinType)
+	if err != nil {
+		return fail(err)
+	}
+
+	// Derive the account key for the first account according to BIP0044.
+	acctKeyLegacyPriv, err = deriveAccountKey(coinTypeLegacyKeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	acctKeySLIP0044Priv, err = deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
+	if err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+
+	// Ensure the branch keys can be derived for the provided seed according
+	// to BIP0044.
+	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
+		// The seed is unusable if the any of the children in the
+		// required hierarchy can't be derived due to invalid child.
+		if errors.Is(err, hdkeychain.ErrInvalidChild) {
+			return fail(errors.E(errors.Seed, hdkeychain.ErrUnusableSeed))
+		}
+
+		return fail(err)
+	}
+	return coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, nil
+}
+
 // createAddressManager creates a new address manager in the given namespace.
 // The seed must conform to the standards described in hdkeychain.NewMaster and
 // will be used to create the master root node from which all hierarchical
@@ -2634,68 +2876,12 @@ func createAddressManager(ns walletdb.ReadWriteBucket, seed, pubPassphrase, priv
 
 	// Generate the BIP0044 HD key structure to ensure the provided seed
 	// can generate the required structure with no issues.
-
-	// Derive the master extended key from the seed.
-	root, err := hdkeychain.NewMaster(seed, chainParams)
-	if err != nil {
-		return err
-	}
-
-	// Derive the cointype keys according to BIP0044.
-	legacyCoinType, slip0044CoinType := CoinTypes(chainParams)
-	coinTypeLegacyKeyPriv, err := deriveCoinTypeKey(root, legacyCoinType)
+	coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, err := HDKeysFromSeed(seed, chainParams)
 	if err != nil {
 		return err
 	}
 	defer coinTypeLegacyKeyPriv.Zero()
-	coinTypeSLIP0044KeyPriv, err := deriveCoinTypeKey(root, slip0044CoinType)
-	if err != nil {
-		return err
-	}
 	defer coinTypeSLIP0044KeyPriv.Zero()
-
-	// Derive the account key for the first account according to BIP0044.
-	acctKeyLegacyPriv, err := deriveAccountKey(coinTypeLegacyKeyPriv, 0)
-	if err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-	acctKeySLIP0044Priv, err := deriveAccountKey(coinTypeSLIP0044KeyPriv, 0)
-	if err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-
-	// Ensure the branch keys can be derived for the provided seed according
-	// to BIP0044.
-	if err := checkBranchKeys(acctKeyLegacyPriv); err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
-	if err := checkBranchKeys(acctKeySLIP0044Priv); err != nil {
-		// The seed is unusable if the any of the children in the
-		// required hierarchy can't be derived due to invalid child.
-		if errors.Is(err, hdkeychain.ErrInvalidChild) {
-			return errors.E(errors.Seed, hdkeychain.ErrUnusableSeed)
-		}
-
-		return err
-	}
 
 	// The address manager needs the public extended key for the account.
 	acctKeyLegacyPub := acctKeyLegacyPriv.Neuter()

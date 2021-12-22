@@ -37,6 +37,8 @@ var dbUpgradeTests = [...]struct {
 	// No upgrade test for V9, it is a fix for V8 and the previous test still applies
 	// TODO: V10 upgrade test
 	{verifyV12Upgrade, "v11.db.gz"},
+	// TODO: V13-24 tests
+	{verifyV25Upgrade, "v24.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -540,5 +542,29 @@ func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func verifyV25Upgrade(t *testing.T, db walletdb.DB) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	const wantVer = 25
+	_, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
+	if err != nil {
+		t.Fatalf("Open after Upgrade failed: %v", err)
+	}
+	if err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
+		metadataBucket := tx.ReadBucket(unifiedDBMetadata{}.rootBucketKey())
+
+		dbVer, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+		if err != nil {
+			return err
+		}
+		if dbVer != wantVer {
+			return fmt.Errorf("wanted version %d but got %d", wantVer, dbVer)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

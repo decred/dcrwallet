@@ -50,6 +50,7 @@ type accountType uint8
 const (
 	actBIP0044Legacy accountType = iota
 	actBIP0044
+	importedVoting
 )
 
 // dbAccountRow houses information stored about an account in the database.
@@ -95,7 +96,7 @@ type dbBIP0044Account struct {
 	uniqueKey                 *kdf.Argon2idParams
 }
 
-func (a *dbBIP0044Account) accountType() accountType { return actBIP0044 }
+func (a *dbBIP0044Account) accountType() accountType { return a.dbAccountRow.acctType }
 func (a *dbBIP0044Account) rowData() []byte          { return a.dbAccountRow.rawData }
 
 func (a *dbBIP0044Account) serializeRow() []byte {
@@ -795,7 +796,7 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) 
 
 	accountID := uint32ToBytes(account)
 	switch row.acctType {
-	case actBIP0044Legacy:
+	case actBIP0044Legacy, importedVoting:
 		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
 	}
 
@@ -817,7 +818,7 @@ func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (d
 			return nil, errors.E(err)
 		}
 		return deserializeBIP0044AccountRow(accountID, row, dbVersion)
-	case actBIP0044:
+	case actBIP0044, importedVoting:
 		bucketKey := uint32ToBytes(account)
 		varsBucket := ns.NestedReadBucket(acctVarsBucketName).
 			NestedReadBucket(bucketKey)
