@@ -187,16 +187,25 @@ const (
 	// vsp host ane vsp pubkey buckets to the db.
 	vspHostVersion = 23
 
-	// vspTreasuryPoliciesVersion is the 23rd version of the database.  It
+	// vspTreasuryPoliciesVersion is the 24th version of the database.  It
 	// adds top-level buckets for recording the voting policies
 	// treasury-spending transactions for specific customer's tickets served
 	// by a VSP.
 	vspTreasuryPoliciesVersion = 24
 
+	// importVotingAccount is the 25th version of the database. This version
+	// indicates that importing a new account type has been enabled. This
+	// account facilitates voting using a special account where the private
+	// key from indexes of the internal branch are shared with a vsp. The
+	// new type is not recognized by previous wallet versions. This version
+	// only updates the db version number so that previous versions will
+	// error on startup.
+	importVotingAccountVersion = 25
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = vspTreasuryPoliciesVersion
+	DBVersion = importVotingAccountVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -226,6 +235,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	tspendHashPolicyVersion - 1:           tspendHashPolicyUpgrade,
 	vspHostVersion - 1:                    vspHostVersionUpgrade,
 	vspTreasuryPoliciesVersion - 1:        vspTreasuryPoliciesUpgrade,
+	importVotingAccountVersion - 1:        importVotingAccountUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1638,6 +1648,25 @@ func vspTreasuryPoliciesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	_, err = tx.CreateTopLevelBucket(vspTspendPolicyBucketKey)
 	if err != nil {
 		return errors.E(errors.IO, err)
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func importVotingAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 24
+	const newVersion = 25
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 24 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "importVotingAccountUpgrade inappropriately called")
 	}
 
 	// Write the new database version.
