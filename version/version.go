@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2021 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -35,6 +35,12 @@ var PreRelease = "pre"
 // for official releases.  It must only contain characters from the semantic
 // version alphabet.
 var BuildMetadata = ""
+
+func init() {
+	if BuildMetadata == "" {
+		BuildMetadata = vcsCommitID()
+	}
+}
 
 // String returns the application version as a properly formed string per the
 // semantic versioning 2.0.0 spec (https://semver.org/).
