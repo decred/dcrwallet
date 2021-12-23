@@ -4440,6 +4440,7 @@ type AccountTotalReceivedResult struct {
 func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([]AccountTotalReceivedResult, error) {
 	const op errors.Op = "wallet.TotalReceivedForAccounts"
 	var results []AccountTotalReceivedResult
+	resultIdxs := make(map[uint32]int)
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -4451,6 +4452,7 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 			if err != nil {
 				return err
 			}
+			resultIdxs[account] = len(resultIdxs)
 			results = append(results, AccountTotalReceivedResult{
 				AccountNumber: account,
 				AccountName:   accountName,
@@ -4481,10 +4483,7 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 					}
 					outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 					if err == nil {
-						acctIndex := int(outputAcct)
-						if outputAcct == udb.ImportedAddrAccount {
-							acctIndex = len(results) - 1
-						}
+						acctIndex := resultIdxs[outputAcct]
 						res := &results[acctIndex]
 						res.TotalReceived += cred.Amount
 						res.LastConfirmation = confirms(
