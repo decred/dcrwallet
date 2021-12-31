@@ -742,6 +742,11 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (stdaddr.Address, error) {
 	const op errors.Op = "wallet.NewExternalAddress"
 
+	// Imported voting accounts must not be used for normal transactions.
+	if err := w.notVotingAcct(ctx, op, account); err != nil {
+		return nil, err
+	}
+
 	accountName, _ := w.AccountName(ctx, account)
 	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
 		accountName, account, udb.ExternalBranch, callOpts...)
@@ -749,15 +754,21 @@ func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpt
 
 // NewInternalAddress returns an internal address.
 func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpts ...NextAddressCallOption) (stdaddr.Address, error) {
-	const op errors.Op = "wallet.NewExternalAddress"
+	const op errors.Op = "wallet.NewInternalAddress"
+
+	// Imported voting accounts must not be used for normal transactions.
+	if err := w.notVotingAcct(ctx, op, account); err != nil {
+		return nil, err
+	}
 
 	accountName, _ := w.AccountName(ctx, account)
 	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
 		accountName, account, udb.InternalBranch, callOpts...)
 }
 
-func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
-	accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+// notVotingAcct errors if an account is a special voting type. This account
+// should not be used to receive funds.
+func (w *Wallet) notVotingAcct(ctx context.Context, op errors.Op, account uint32) error {
 	var accountType uint8
 	if err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
@@ -768,11 +779,20 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 		accountType = props.AccountType
 		return nil
 	}); err != nil {
-		return nil, errors.E(op, err)
+		return errors.E(op, err)
 	}
-	// Imported voting accounts must not be used for change.
 	if udb.IsImportedVoting(accountType) {
-		return nil, errors.E(op, errors.Invalid, "cannot use voting accounts for change addresses")
+		return errors.E(op, errors.Invalid, "cannot use voting accounts for normal transactions")
+	}
+	return nil
+}
+
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
+	accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+
+	// Imported voting accounts must not be used for change.
+	if err := w.notVotingAcct(ctx, op, account); err != nil {
+		return nil, err
 	}
 
 	// Addresses can not be generated for the imported account, so as a
