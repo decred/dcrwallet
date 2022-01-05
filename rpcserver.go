@@ -29,8 +29,10 @@ import (
 	"decred.org/dcrwallet/v2/internal/rpc/rpcserver"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 // openRPCKeyPair creates or loads the RPC TLS keypair specified by the
@@ -408,7 +410,15 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 	}
 	err = handler(srv, ss)
 	if err != nil && ok {
-		grpcLog.Errorf("Streaming method %s invoked by %s errored: %v",
+		logf := grpcLog.Errorf
+		if status.Code(err) == codes.Canceled && done(ss.Context()) {
+			// Canceled contexts in streaming calls are expected
+			// when client-initiated, so only log them with debug
+			// level to reduce clutter.
+			logf = grpcLog.Debugf
+		}
+
+		logf("Streaming method %s invoked by %s errored: %v",
 			info.FullMethod, p.Addr.String(), err)
 	}
 	return err
