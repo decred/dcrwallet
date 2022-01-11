@@ -2123,7 +2123,8 @@ func newVoteScript(voteBits stake.VoteBits) ([]byte, error) {
 // is voting on.
 func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 	blockHeight int32, blockHash *chainhash.Hash, voteBits stake.VoteBits,
-	subsidyCache *blockchain.SubsidyCache, params *chaincfg.Params) (*wire.MsgTx, error) {
+	subsidyCache *blockchain.SubsidyCache, params *chaincfg.Params,
+	dcp0010Active bool) (*wire.MsgTx, error) {
 
 	// Parse the ticket purchase transaction to determine the required output
 	// destinations for vote rewards or revocations.
@@ -2131,7 +2132,8 @@ func createUnsignedVote(ticketHash *chainhash.Hash, ticketPurchase *wire.MsgTx,
 		stake.TxSStxStakeOutputInfo(ticketPurchase)
 
 	// Calculate the subsidy for votes at this height.
-	subsidy := subsidyCache.CalcStakeVoteSubsidy(int64(blockHeight))
+	subsidy := subsidyCache.CalcStakeVoteSubsidyV2(int64(blockHeight),
+		dcp0010Active)
 
 	// Calculate the output values from this vote using the subsidy.
 	voteRewardValues := stake.CalculateRewards(ticketValues,

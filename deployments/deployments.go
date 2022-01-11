@@ -4,7 +4,15 @@
 
 package deployments
 
-import "github.com/decred/dcrd/wire"
+import (
+	"context"
+
+	"decred.org/dcrwallet/v2/errors"
+	"decred.org/dcrwallet/v2/rpc/client/dcrd"
+	"github.com/decred/dcrd/chaincfg/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	"github.com/decred/dcrd/wire"
+)
 
 // HardcodedDeployment specifies hardcoded block heights that a deployment
 // activates at.  If the value is negative, the deployment is either inactive or
@@ -63,4 +71,48 @@ func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 		activationHeight = d.SimNetActivationHeight
 	}
 	return activationHeight >= 0 && height >= activationHeight
+}
+
+const (
+	lockedinStatus = "lockedin"
+	activeStatus   = "active"
+)
+
+// DCP0010Active returns whether the consensus rules for the next block with the
+// current chain tip height requires the subsidy split as specified in DCP0010.
+// DCP0010 is always active on simnet, and requires the RPC syncer to detect
+// activation on mainnet and testnet3.
+func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
+	syncer interface{}) (bool, error) {
+
+	net := params.Net
+	rcai := int32(params.RuleChangeActivationInterval)
+
+	if net == wire.SimNet {
+		return true, nil
+	}
+	if net != wire.MainNet && net != wire.TestNet3 {
+		return false, nil
+	}
+	rpc, ok := syncer.(*dcrd.RPC)
+	if !ok {
+		return false, errors.E(errors.Bug, "DCP0010 activation check requires RPC syncer")
+	}
+	var resp dcrdtypes.GetBlockChainInfoResult
+	err := rpc.Call(ctx, "getblockchaininfo", &resp)
+	if err != nil {
+		return false, err
+	}
+	d, ok := resp.Deployments[chaincfg.VoteIDChangeSubsidySplit]
+	if !ok {
+		return false, nil
+	}
+	switch {
+	case d.Status == lockedinStatus && height == int32(d.Since)+rcai-1:
+		return true, nil
+	case d.Status == activeStatus:
+		return true, nil
+	default:
+		return false, nil
+	}
 }

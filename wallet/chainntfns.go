@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	"decred.org/dcrwallet/v2/deployments"
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/wallet/txrules"
 	"decred.org/dcrwallet/v2/wallet/udb"
@@ -817,6 +818,11 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	if err != nil {
 		return errors.E(op, err)
 	}
+	dcp0010Active, err := deployments.DCP0010Active(ctx, blockHeight,
+		w.chainParams, n)
+	if err != nil {
+		return errors.E(op, err)
+	}
 
 	// TODO The behavior of this is not quite right if tons of blocks
 	// are coming in quickly, because the transaction store will end up
@@ -894,7 +900,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			// Dealwith consensus votes
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
 				blockHeight, blockHash, ticketVoteBits, w.subsidyCache,
-				w.chainParams)
+				w.chainParams, dcp0010Active)
 			if err != nil {
 				log.Errorf("Failed to create vote transaction for ticket "+
 					"hash %v: %v", ticketHash, err)
