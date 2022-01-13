@@ -5247,19 +5247,28 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 		return nil, errUnloadedWallet
 	}
 
-	n, err := w.NetworkBackend()
-	connected := err == nil
-	_, spv := n.(*spv.Syncer)
-	if connected {
-		if rpc, ok := n.(*dcrd.RPC); ok {
-			err := rpc.Call(ctx, "ping", nil)
-			if ctx.Err() != nil {
-				return nil, ctx.Err()
-			}
-			if err != nil {
-				log.Warnf("Ping failed on connected daemon client: %v", err)
-				connected = false
-			}
+	var connected, spvMode bool
+	switch n, _ := w.NetworkBackend(); rpc := n.(type) {
+	case *spv.Syncer:
+		spvMode = true
+		connected = len(rpc.GetRemotePeers()) > 0
+	case *dcrd.RPC:
+		err := rpc.Call(ctx, "ping", nil)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if err != nil {
+			log.Warnf("Ping failed on connected daemon client: %v", err)
+		} else {
+			connected = true
+		}
+	case nil:
+		log.Warnf("walletInfo - no network backend")
+	default:
+		log.Errorf("walletInfo - invalid network backend (%T).", n)
+		return nil, &dcrjson.RPCError{
+			Code:    dcrjson.ErrRPCMisc,
+			Message: "invalid network backend",
 		}
 	}
 
@@ -5283,7 +5292,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd interface{}) (interface{},
 
 	return &types.WalletInfoResult{
 		DaemonConnected:  connected,
-		SPV:              spv,
+		SPV:              spvMode,
 		Unlocked:         unlocked,
 		CoinType:         coinType,
 		TxFee:            fi.ToCoin(),
