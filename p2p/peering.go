@@ -504,6 +504,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 	rp.initHeight = rversion.LastBlock
 	rp.services = rversion.Services
 	rp.ua = rversion.UserAgent
+	c.SetReadDeadline(time.Time{})
 
 	// Negotiate protocol down to compatible version
 	if uint32(rversion.ProtocolVersion) < minPver {
@@ -513,26 +514,11 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 		rp.pver = uint32(rversion.ProtocolVersion)
 	}
 
-	// Send the verack
+	// Send the verack.  The received verack is ignored.
 	err = mw.write(ctx, wire.NewMsgVerAck(), rp.pver)
 	if err != nil {
 		return nil, errors.E(op, errors.IO, err)
 	}
-
-	// Wait until a verack is received
-	err = c.SetReadDeadline(time.Now().Add(3 * time.Second))
-	if err != nil {
-		return nil, errors.E(op, errors.IO, err)
-	}
-	msg, _, err = wire.ReadMessage(c, Pver, lp.chainParams.Net)
-	if err != nil {
-		return nil, errors.E(op, errors.IO, err)
-	}
-	_, ok = msg.(*wire.MsgVerAck)
-	if !ok {
-		return nil, errors.E(op, errors.Protocol, "did not receive verack")
-	}
-	c.SetReadDeadline(time.Time{})
 
 	rp.out = make(chan *msgAck)
 	rp.outPrio = make(chan *msgAck)
