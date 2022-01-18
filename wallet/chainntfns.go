@@ -299,7 +299,7 @@ func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, p
 		// height and the required amount from the pool.
 		feeNeeded := txrules.StakePoolTicketFee(dcrutil.Amount(
 			tx.TxOut[0].Value), fees, blockHeight, w.poolFees,
-			w.chainParams)
+			w.chainParams, false)
 		if commitAmt < feeNeeded {
 			log.Warnf("User %s submitted ticket %v which "+
 				"has less fees than are required to use this "+

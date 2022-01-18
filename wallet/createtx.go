@@ -16,7 +16,9 @@ import (
 
 	"decred.org/cspp/v2"
 	"decred.org/cspp/v2/coinjoin"
+	"decred.org/dcrwallet/v2/deployments"
 	"decred.org/dcrwallet/v2/errors"
+	"decred.org/dcrwallet/v2/rpc/client/dcrd"
 	"decred.org/dcrwallet/v2/wallet/txauthor"
 	"decred.org/dcrwallet/v2/wallet/txrules"
 	"decred.org/dcrwallet/v2/wallet/txsizes"
@@ -1362,8 +1364,10 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// do so now.
 	var vspFee dcrutil.Amount
 	if poolAddress != nil {
+		// poolAddress is only used with the legacy stakepool
+		const dcp0010Active = false
 		vspFee = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			tipHeight, poolFees, w.ChainParams())
+			tipHeight, poolFees, w.ChainParams(), dcp0010Active)
 	}
 
 	// After tickets are created and published, watch for future
@@ -1407,8 +1411,22 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return nil, err
 		}
+		// In SPV mode, DCP0010 is assumed to have activated.  This
+		// results in a larger fee calculation for the purposes of UTXO
+		// selection.  In RPC mode the actual activation can be
+		// determined.
+		dcp0010Active := true
+		switch n := n.(type) {
+		case *dcrd.RPC:
+			dcp0010Active, err = deployments.DCP0010Active(ctx,
+				int32(tipHeight), w.chainParams, n)
+			if err != nil {
+				return nil, err
+			}
+		}
 		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			int32(tipHeight), feePrice, w.ChainParams())
+			int32(tipHeight), feePrice, w.chainParams,
+			dcp0010Active)
 
 		// Reserve outputs for number of buys.
 		vspFeeCredits = make([][]Input, 0, req.Count)

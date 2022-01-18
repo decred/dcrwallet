@@ -24,7 +24,7 @@ func TestStakePoolTicketFee(t *testing.T) {
 	}
 	for i, test := range tests {
 		poolFeeAmt := StakePoolTicketFee(test.StakeDiff, test.Fee, test.Height,
-			test.PoolFee, params)
+			test.PoolFee, params, false)
 		if poolFeeAmt != test.Expected {
 			t.Errorf("Test %d: Got %v: Want %v", i, poolFeeAmt, test.Expected)
 		}

@@ -3383,7 +3383,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 			Dialer: s.cfg.Dial,
 			Wallet: w,
 			Policy: vsp.Policy{
-				MaxFee:     0.1e8,
+				MaxFee:     0.2e8,
 				FeeAcct:    account,
 				ChangeAcct: changeAccount,
 			},

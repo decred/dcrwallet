@@ -375,7 +375,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		},
 
 		VSPOpts: vspOptions{
-			MaxFee: cfgutil.NewAmountFlag(0.1e8),
+			MaxFee: cfgutil.NewAmountFlag(0.2e8),
 		},
 	}
 

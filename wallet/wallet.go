@@ -1621,8 +1621,18 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		return nil, err
 	}
 	_, height := w.MainChainTip(ctx)
+	dcp0010Active := true
+	switch n := n.(type) {
+	case *dcrd.RPC:
+		dcp0010Active, err = deployments.DCP0010Active(ctx,
+			height, w.chainParams, n)
+		if err != nil {
+			return nil, err
+		}
+	}
 	relayFee := w.RelayFee()
-	vspFee := txrules.StakePoolTicketFee(sdiff, relayFee, height, feePercent, w.chainParams)
+	vspFee := txrules.StakePoolTicketFee(sdiff, relayFee, height,
+		feePercent, w.chainParams, dcp0010Active)
 	a := &authorTx{
 		outputs:            make([]*wire.TxOut, 0, 2),
 		account:            req.SourceAccount,
