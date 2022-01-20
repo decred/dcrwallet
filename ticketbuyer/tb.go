@@ -315,9 +315,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 			log.Infof("Purchased ticket %v at stake difficulty %v", hash, sdiff)
 		}
 	}
-	if err != nil {
-		log.Errorf("BUY: %v", err)
-	}
 	return err
 }
 
