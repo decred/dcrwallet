@@ -28,7 +28,6 @@ type Policy struct {
 
 type Client struct {
 	Wallet *wallet.Wallet
-	Policy Policy
 	*client
 
 	mu   sync.Mutex
@@ -47,10 +46,6 @@ type Config struct {
 
 	// Wallet specifies a loaded wallet.
 	Wallet *wallet.Wallet
-
-	// Default policy for fee payments unless another is provided by the
-	// caller.
-	Policy Policy
 }
 
 func New(cfg Config) (*Client, error) {
@@ -73,7 +68,6 @@ func New(cfg Config) (*Client, error) {
 
 	v := &Client{
 		Wallet: cfg.Wallet,
-		Policy: cfg.Policy,
 		client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
 	}
@@ -124,7 +118,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := c.Process(ctx, hash, nil)
+			err := c.Process(ctx, hash, nil, policy)
 			if err != nil {
 				log.Error(err)
 			}
@@ -136,8 +130,8 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 }
 
 // ProcessTicket attempts to process a given ticket based on the hash provided.
-func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error {
-	err := c.Process(ctx, hash, nil)
+func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash, policy Policy) error {
+	err := c.Process(ctx, hash, nil, policy)
 	if err != nil {
 		return err
 	}
@@ -216,13 +210,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 // with the inputs and the fee and change outputs before returning without an
 // error.  The fee transaction is also recorded as unpublised in the wallet, and
 // the fee hash is associated with the ticket.
-func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
-	return c.ProcessWithPolicy(ctx, ticketHash, feeTx, c.Policy)
-}
-
-// ProcessWithPolicy is the same as Process but allows a fee payment policy to
-// be specified, instead of using the client's default policy.
-func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
+func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
 	policy Policy) error {
 
 	vspTicket, err := c.Wallet.VSPTicketInfo(ctx, ticketHash)

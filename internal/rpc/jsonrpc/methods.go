@@ -3366,9 +3366,9 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 	var vspHost string
 	var vspPubKey string
 	var vspClient *vsp.Client
-	if s.cfg.VSPHost != "" || s.cfg.VSPPubKey != "" {
-		vspHost = s.cfg.VSPHost
-		vspPubKey = s.cfg.VSPPubKey
+	if s.cfg.VSPOpts.Host != "" || s.cfg.VSPOpts.PubKey != "" {
+		vspHost = s.cfg.VSPOpts.Host
+		vspPubKey = s.cfg.VSPOpts.PubKey
 		if vspPubKey == "" {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"vsp pubkey can not be null")
@@ -3382,11 +3382,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 			PubKey: vspPubKey,
 			Dialer: s.cfg.Dial,
 			Wallet: w,
-			Policy: vsp.Policy{
-				MaxFee:     0.2e8,
-				FeeAcct:    account,
-				ChangeAcct: changeAccount,
-			},
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
@@ -3415,7 +3410,14 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 	}
 
 	if vspClient != nil {
-		request.VSPFeePaymentProcess = vspClient.Process
+		policy := vsp.Policy{
+			MaxFee:     0.2e8,
+			FeeAcct:    account,
+			ChangeAcct: changeAccount,
+		}
+		request.VSPFeePaymentProcess = func(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
+			return vspClient.Process(ctx, ticketHash, feeTx, policy)
+		}
 		request.VSPFeeProcess = vspClient.FeePercentage
 	}
 
@@ -3467,6 +3469,10 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 // start managing it for the set vsp client from the config.
 func (s *Server) processUnmanagedTicket(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.ProcessUnmanagedTicketCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
 
 	var ticketHash *chainhash.Hash
 	if cmd.TicketHash != nil {
@@ -3478,7 +3484,7 @@ func (s *Server) processUnmanagedTicket(ctx context.Context, icmd interface{}) (
 	} else {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "ticket hash must be provided")
 	}
-	vspHost := s.cfg.VSPHost
+	vspHost := s.cfg.VSPOpts.Host
 	if vspHost == "" {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "vsphost must be set in options")
 	}
@@ -3487,7 +3493,30 @@ func (s *Server) processUnmanagedTicket(ctx context.Context, icmd interface{}) (
 		return nil, err
 	}
 
-	err = vspClient.ProcessTicket(ctx, ticketHash)
+	purchaseAcct, err := w.AccountNumber(ctx, s.cfg.VSPOpts.PurchaseAccount)
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid purchaseaccount set in options")
+	}
+
+	var changeAcct uint32
+	changeAccountName := s.cfg.VSPOpts.ChangeAccount
+	if changeAccountName == "" && s.cfg.CSPPServer == "" {
+		log.Warnf("Change account not set, using "+
+			"purchase account %q", s.cfg.VSPOpts.PurchaseAccount)
+		changeAcct = purchaseAcct
+	} else {
+		changeAcct, err = w.AccountNumber(ctx, changeAccountName)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "invalid changeaccount set in options")
+		}
+	}
+
+	policy := vsp.Policy{
+		MaxFee:     s.cfg.VSPOpts.MaxFee,
+		FeeAcct:    purchaseAcct,
+		ChangeAcct: changeAcct,
+	}
+	err = vspClient.ProcessTicket(ctx, ticketHash, policy)
 	if err != nil {
 		return nil, err
 	}
