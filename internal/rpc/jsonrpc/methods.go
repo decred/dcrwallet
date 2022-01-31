@@ -3820,6 +3820,11 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 
 	var ticketHash *chainhash.Hash
 	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		if len(*cmd.Ticket) != chainhash.HashSize {
+			err := fmt.Errorf("invalid ticket hash length, expected %d got %d",
+				chainhash.HashSize, len(*cmd.Ticket))
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 		var err error
 		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
 		if err != nil {
