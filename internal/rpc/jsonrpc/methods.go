@@ -3936,6 +3936,12 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 		return nil, errUnloadedWallet
 	}
 
+	if len(cmd.Hash) != chainhash.HashSize {
+		err := fmt.Errorf("invalid tspend hash length, expected %d got %d",
+			chainhash.HashSize, len(cmd.Hash))
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
@@ -3943,6 +3949,11 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 
 	var ticketHash *chainhash.Hash
 	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		if len(*cmd.Ticket) != chainhash.HashSize {
+			err := fmt.Errorf("invalid ticket hash length, expected %d got %d",
+				chainhash.HashSize, len(*cmd.Ticket))
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 		var err error
 		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
 		if err != nil {
