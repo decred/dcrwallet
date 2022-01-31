@@ -927,6 +927,16 @@ type SetTreasuryPolicyCmd struct {
 	Ticket *string
 }
 
+// NewSetTreasuryPolicyCmd returns a new instance which can be used to issue a settreasurypolicy
+// JSON-RPC command.
+func NewSetTreasuryPolicyCmd(key string, policy string, ticket *string) *SetTreasuryPolicyCmd {
+	return &SetTreasuryPolicyCmd{
+		Key:    key,
+		Policy: policy,
+		Ticket: ticket,
+	}
+}
+
 // TSpendPolicyCmd defines the parameters for the tspendpolicy JSON-RPC
 // command.
 type TSpendPolicyCmd struct {
@@ -940,6 +950,16 @@ type SetTSpendPolicyCmd struct {
 	Hash   string
 	Policy string
 	Ticket *string
+}
+
+// NewSetTSpendPolicyCmd returns a new instance which can be used to issue a settspendpolicy
+// JSON-RPC command.
+func NewSetTSpendPolicyCmd(hash string, policy string, ticket *string) *SetTSpendPolicyCmd {
+	return &SetTSpendPolicyCmd{
+		Hash:   hash,
+		Policy: policy,
+		Ticket: ticket,
+	}
 }
 
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
