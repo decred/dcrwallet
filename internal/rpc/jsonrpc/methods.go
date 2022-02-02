@@ -4628,9 +4628,9 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 
-	vspHost := s.cfg.VSPHost
-	if vspHost == "" {
-		return nil, nil
+	vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
+	if err != nil {
+		return nil, err
 	}
 	vspClient, err := loader.LookupVSP(vspHost)
 	if err != nil {
