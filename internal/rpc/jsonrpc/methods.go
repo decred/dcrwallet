@@ -4628,23 +4628,42 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 
-	vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
-	if err != nil {
-		return nil, err
-	}
-	vspClient, err := loader.LookupVSP(vspHost)
-	if err != nil {
-		return nil, err
-	}
+	// Update voting preferences on VSPs if required.
 	if ticketHash != nil {
+		vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
+		if err != nil {
+			if errors.Is(err, errors.NotExist) {
+				// Ticket is not registered with a VSP, nothing more to do here.
+				return nil, nil
+			}
+			return nil, err
+		}
+		vspClient, err := loader.LookupVSP(vspHost)
+		if err != nil {
+			return nil, err
+		}
 		err = vspClient.SetVoteChoice(ctx, ticketHash, choice)
 		return nil, err
 	}
 	var firstErr error
 	err = w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		vspHost, err := w.VSPHostForTicket(ctx, hash)
+		if err != nil && firstErr == nil {
+			if errors.Is(err, errors.NotExist) {
+				// Ticket is not registered with a VSP, nothing more to do here.
+				return nil
+			}
+			firstErr = err
+			return nil
+		}
+		vspClient, err := loader.LookupVSP(vspHost)
+		if err != nil && firstErr == nil {
+			firstErr = err
+			return nil
+		}
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
-		err := vspClient.SetVoteChoice(ctx, hash, choice)
+		err = vspClient.SetVoteChoice(ctx, hash, choice)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
