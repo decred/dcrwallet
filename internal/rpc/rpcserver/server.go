@@ -4067,6 +4067,9 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		_ = vspClient.SetVoteChoice(ctx, hash, choices...)
 		return nil
 	})
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "ForUnspentUnexpiredTickets failed. Error: %v", err)
+	}
 
 	return &pb.SetVspdVoteChoicesResponse{}, nil
 }

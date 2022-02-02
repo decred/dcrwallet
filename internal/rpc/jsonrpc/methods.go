@@ -4650,6 +4650,9 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	return nil, firstErr
 }
 
