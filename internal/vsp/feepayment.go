@@ -882,17 +882,21 @@ func (fp *feePayment) submitPayment() (err error) {
 		Request   []byte `json:"request"`
 	}
 	requestBody, err := json.Marshal(&struct {
-		Timestamp   int64             `json:"timestamp"`
-		TicketHash  string            `json:"tickethash"`
-		FeeTx       json.Marshaler    `json:"feetx"`
-		VotingKey   string            `json:"votingkey"`
-		VoteChoices map[string]string `json:"votechoices"`
+		Timestamp      int64             `json:"timestamp"`
+		TicketHash     string            `json:"tickethash"`
+		FeeTx          json.Marshaler    `json:"feetx"`
+		VotingKey      string            `json:"votingkey"`
+		VoteChoices    map[string]string `json:"votechoices"`
+		TSpendPolicy   map[string]string `json:"tspendpolicy"`
+		TreasuryPolicy map[string]string `json:"treasurypolicy"`
 	}{
-		Timestamp:   time.Now().Unix(),
-		TicketHash:  fp.ticketHash.String(),
-		FeeTx:       txMarshaler(feeTx),
-		VotingKey:   votingKey,
-		VoteChoices: voteChoices,
+		Timestamp:      time.Now().Unix(),
+		TicketHash:     fp.ticketHash.String(),
+		FeeTx:          txMarshaler(feeTx),
+		VotingKey:      votingKey,
+		VoteChoices:    voteChoices,
+		TSpendPolicy:   w.TSpendPolicyForTicket(&fp.ticketHash),
+		TreasuryPolicy: w.TreasuryKeyPolicyForTicket(&fp.ticketHash),
 	})
 	if err != nil {
 		return err
