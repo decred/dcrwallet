@@ -5,9 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pb "decred.org/dcrwallet/v2/rpc/walletrpc"
 	"google.golang.org/grpc"
@@ -24,20 +29,27 @@ var (
 )
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func run() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	serverCAs := x509.NewCertPool()
 	serverCert, err := ioutil.ReadFile(certificateFile)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	if !serverCAs.AppendCertsFromPEM(serverCert) {
-		fmt.Printf("no certificates found in %s\n", certificateFile)
-		return
+		return fmt.Errorf("no certificates found in %s\n", certificateFile)
 	}
 	keypair, err := tls.LoadX509KeyPair(walletClientCertFile, walletClientKeyFile)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	creds := credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{keypair},
@@ -45,8 +57,7 @@ func main() {
 	})
 	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	defer conn.Close()
 	c := pb.NewWalletServiceClient(conn)
@@ -55,33 +66,34 @@ func main() {
 		AccountNumber:         0,
 		RequiredConfirmations: 1,
 	}
-	balanceResponse, err := c.Balance(context.Background(), balanceRequest)
+	balanceResponse, err := c.Balance(ctx, balanceRequest)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
 	fmt.Println("Spendable balance: ", dcrutil.Amount(balanceResponse.Spendable))
 
-	decodedTx := func(tx string) {
+	decodedTx := func(tx string) error {
 		rawTx, _ := hex.DecodeString(tx)
 		dmClient := pb.NewDecodeMessageServiceClient(conn)
 		decodeRequest := &pb.DecodeRawTransactionRequest{
 			SerializedTransaction: rawTx,
 		}
-		decodeResponse, err := dmClient.DecodeRawTransaction(context.Background(), decodeRequest)
+		decodeResponse, err := dmClient.DecodeRawTransaction(ctx, decodeRequest)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 
 		// tj, _ := json.MarshalIndent(decodeResponse.Transaction, "", "   ")
 		// fmt.Println(string(tj))
 		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(decodeResponse.Transaction))
+		return nil
 	}
 
 	for _, tx := range txns {
-		decodedTx(tx)
+		if err := decodedTx(tx); err != nil {
+			return err
+		}
 	}
 
 	wsClient := pb.NewWalletServiceClient(conn)
@@ -91,39 +103,98 @@ func main() {
 		// testing wallet.
 		scriptB, err := hex.DecodeString(script)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 		importScriptRequest := &pb.ImportScriptRequest{
 			Script: scriptB,
 		}
-		_, err = wsClient.ImportScript(context.Background(), importScriptRequest)
+		_, err = wsClient.ImportScript(ctx, importScriptRequest)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 	}
 
-	// Add an owned address to validated addresses.
-	nextAddressResp, err := wsClient.NextAddress(context.Background(), new(pb.NextAddressRequest))
-	if err != nil {
-		fmt.Println(err)
-		return
+	const acctName = "testing_acct"
+	var (
+		seed     [32]byte
+		acctPass = []byte("pass123")
+		acctN    uint32
+	)
+	seed[31] = 1
+
+	// Import a voting account from seed.
+	importVAFSRequest := &pb.ImportVotingAccountFromSeedRequest{
+		Seed:       seed[:],
+		Name:       acctName,
+		Passphrase: acctPass,
 	}
-	validateAddrs = append(validateAddrs, nextAddressResp.Address)
+	importVAFSReqResp, err := wsClient.ImportVotingAccountFromSeed(ctx, importVAFSRequest)
+	if err != nil {
+		if status.Code(err) != codes.AlreadyExists {
+			return err
+		}
+		acctsResp, err := wsClient.Accounts(ctx, &pb.AccountsRequest{})
+		if err != nil {
+			return err
+		}
+		var found bool
+		for _, acct := range acctsResp.Accounts {
+			if acct.AccountName == acctName {
+				found = true
+				acctN = acct.AccountNumber
+			}
+		}
+		if !found {
+			return errors.New("testing account not found")
+		}
+	} else {
+		acctN = importVAFSReqResp.Account
+	}
+
+	fmt.Println("Testing account number is", acctN)
+	fmt.Println()
+
+	// Add requests for addresses from the voting account which should fail.
+	nextAddrs = append(nextAddrs,
+		nextAddr{name: "imported voting account external", acct: acctN, branch: 0, wantErr: true},
+		nextAddr{name: "imported voting account internal", acct: acctN, branch: 1, wantErr: true})
+
+	for _, addr := range nextAddrs {
+		// Add an owned address to validated addresses.
+		nextAddrReq := &pb.NextAddressRequest{
+			Account:   addr.acct,
+			Kind:      addr.branch,
+			GapPolicy: pb.NextAddressRequest_GAP_POLICY_IGNORE,
+		}
+		nextAddressResp, err := wsClient.NextAddress(context.Background(), nextAddrReq)
+		if addr.wantErr {
+			if err != nil {
+				continue
+			}
+			return fmt.Errorf("nextAddrs: expected error for %s", addr.name)
+		}
+		if err != nil {
+			return err
+		}
+		validateAddrs = append(validateAddrs, nextAddressResp.Address)
+	}
+
+	fmt.Println("ValidateAddress...")
+	fmt.Println()
 
 	for _, addr := range validateAddrs {
 		validateAddrRequest := &pb.ValidateAddressRequest{
 			Address: addr,
 		}
-		validateAddrResp, err := wsClient.ValidateAddress(context.Background(), validateAddrRequest)
+		validateAddrResp, err := wsClient.ValidateAddress(ctx, validateAddrRequest)
 		if err != nil {
-			fmt.Println(err)
-			return
+			return err
 		}
 		fmt.Println(validateAddrResp.ScriptType)
 		fmt.Println(prototext.MarshalOptions{Multiline: true}.Format(validateAddrResp))
 	}
+
+	return nil
 }
 
 var txns = []string{
@@ -168,4 +239,17 @@ var validateAddrs = []string{
 	"TcfdqCrK2fiFJBZnGj5N6xs6rMsbQBsJBYf", // TSPEND
 	"TcrzaAVMbFURm1PpukWru8yE2uBTjvQePoa", // 2 of 2 multisig
 	"TckSpBht36nMZgnDDjv7xaHUrgCyJpxQiLA", // NonStandard
+
+	"TsSAzyUaa2KSytEuu1hiGdeYJqu4om63ZQb", // Address at imported account/0/0
 }
+
+type nextAddr struct {
+	name    string
+	acct    uint32
+	branch  pb.NextAddressRequest_Kind
+	wantErr bool
+}
+
+var nextAddrs = []nextAddr{{
+	name: "default external",
+}}
