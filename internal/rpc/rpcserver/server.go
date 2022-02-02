@@ -4064,7 +4064,13 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		if err != nil {
 			return nil
 		}
-		_ = vspClient.SetVoteChoice(ctx, hash, choices...)
+		ticketHost, err := s.wallet.VSPHostForTicket(ctx, hash)
+		if err != nil {
+			return err
+		}
+		if ticketHost == vspHost {
+			_ = vspClient.SetVoteChoice(ctx, hash, choices...)
+		}
 		return nil
 	})
 	if err != nil {
