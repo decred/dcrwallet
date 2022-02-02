@@ -456,7 +456,7 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 // new votebits after each change is made are returned.
 // If a ticketHash is provided, agenda choices are only set for that ticket and
 // the new votebits for that ticket is returned.
-func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Hash, choices ...AgendaChoice) (voteBits uint16, err error) {
+func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Hash, choices []AgendaChoice) (voteBits uint16, err error) {
 	const op errors.Op = "wallet.SetAgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {

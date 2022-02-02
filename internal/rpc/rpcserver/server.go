@@ -3342,7 +3342,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -4069,7 +4069,10 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 			return err
 		}
 		if ticketHost == vspHost {
-			_ = vspClient.SetVoteChoice(ctx, hash, choices...)
+			tSpendChoices := s.wallet.TSpendPolicyForTicket(hash)
+			treasuryChoices := s.wallet.TreasuryKeyPolicyForTicket(hash)
+
+			_ = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
 		}
 		return nil
 	})

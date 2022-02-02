@@ -292,10 +292,12 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	return nil
 }
 
-// SetVoteChoice takes the provided AgendaChoices and ticket hash, checks the
-// status of the ticket from the connected vsp.  The status provides the
-// current vote choice so we can just update from there if need be.
-func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choices ...wallet.AgendaChoice) error {
+// SetVoteChoice takes the provided consensus, tspend and treasury key voting
+// preferences, and checks if they match the status of the specified ticket from
+// the connected VSP. The status provides the current voting preferences so we
+// can just update from there if need be.
+func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash,
+	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
 	// Retrieve current voting preferences from VSP.
 	status, err := c.status(ctx, hash)
@@ -311,6 +313,7 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 	// VSP preferences to determine if VSP needs to be updated.
 	update := false
 
+	// Check consensus vote choices.
 	for _, newChoice := range choices {
 		vspChoice, ok := status.VoteChoices[newChoice.AgendaID]
 		if !ok {
@@ -323,13 +326,41 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choice
 		}
 	}
 
+	// Apply the above changes to the two checks below.
+
+	// Check tspend policies.
+	for newTSpend, newChoice := range tspendPolicy {
+		vspChoice, ok := status.TSpendPolicy[newTSpend]
+		if !ok {
+			update = true
+			break
+		}
+		if vspChoice != newChoice {
+			update = true
+			break
+		}
+	}
+
+	// Check treasury policies.
+	for newKey, newChoice := range treasuryPolicy {
+		vspChoice, ok := status.TSpendPolicy[newKey]
+		if !ok {
+			update = true
+			break
+		}
+		if vspChoice != newChoice {
+			update = true
+			break
+		}
+	}
+
 	if !update {
 		log.Debugf("VSP already has correct vote choices for ticket %s", hash)
 		return nil
 	}
 
 	log.Debugf("Updating vote choices on VSP for ticket %s", hash)
-	err = c.setVoteChoices(ctx, hash, choices)
+	err = c.setVoteChoices(ctx, hash, choices, tspendPolicy, treasuryPolicy)
 	if err != nil {
 		return err
 	}
