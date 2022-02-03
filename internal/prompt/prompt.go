@@ -17,7 +17,7 @@ import (
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/walletseed"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 // ProvideSeed is used to prompt for the wallet seed which maybe required during
@@ -53,7 +53,7 @@ func ProvidePrivPassphrase() ([]byte, error) {
 	prompt := "Enter the private passphrase of your wallet: "
 	for {
 		fmt.Print(prompt)
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return nil, err
 		}
@@ -125,8 +125,8 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 		var pass []byte
 		var err error
 		fd := int(os.Stdin.Fd())
-		if terminal.IsTerminal(fd) {
-			pass, err = terminal.ReadPassword(fd)
+		if term.IsTerminal(fd) {
+			pass, err = term.ReadPassword(fd)
 		} else {
 			pass, err = reader.ReadBytes('\n')
 			if errors.Is(err, io.EOF) {
@@ -147,7 +147,7 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 		}
 
 		fmt.Print("Confirm passphrase: ")
-		confirm, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		confirm, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return nil, err
 		}
