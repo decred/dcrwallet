@@ -3820,6 +3820,11 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 
 	var ticketHash *chainhash.Hash
 	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		if len(*cmd.Ticket) != chainhash.MaxHashStringSize {
+			err := fmt.Errorf("invalid ticket hash length, expected %d got %d",
+				chainhash.MaxHashStringSize, len(*cmd.Ticket))
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 		var err error
 		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
 		if err != nil {
@@ -3931,6 +3936,12 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 		return nil, errUnloadedWallet
 	}
 
+	if len(cmd.Hash) != chainhash.MaxHashStringSize {
+		err := fmt.Errorf("invalid tspend hash length, expected %d got %d",
+			chainhash.MaxHashStringSize, len(cmd.Hash))
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
 	hash, err := chainhash.NewHashFromStr(cmd.Hash)
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
@@ -3938,6 +3949,11 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 
 	var ticketHash *chainhash.Hash
 	if cmd.Ticket != nil && *cmd.Ticket != "" {
+		if len(*cmd.Ticket) != chainhash.MaxHashStringSize {
+			err := fmt.Errorf("invalid ticket hash length, expected %d got %d",
+				chainhash.MaxHashStringSize, len(*cmd.Ticket))
+			return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+		}
 		var err error
 		ticketHash, err = chainhash.NewHashFromStr(*cmd.Ticket)
 		if err != nil {
