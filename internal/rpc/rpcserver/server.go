@@ -3342,7 +3342,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			ChoiceID: c.ChoiceId,
 		}
 	}
-	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices)
+	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices...)
 	if err != nil {
 		return nil, translateError(err)
 	}

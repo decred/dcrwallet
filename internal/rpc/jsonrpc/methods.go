@@ -4650,7 +4650,7 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 			ChoiceID: cmd.ChoiceID,
 		},
 	}
-	_, err := w.SetAgendaChoices(ctx, ticketHash, choice)
+	_, err := w.SetAgendaChoices(ctx, ticketHash, choice...)
 	if err != nil {
 		return nil, err
 	}
