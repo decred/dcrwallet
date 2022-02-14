@@ -4641,7 +4641,7 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		return nil, err
 	}
 	var firstErr error
-	err = vspClient.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	err = w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
 		err := vspClient.SetVoteChoice(ctx, hash, choice)

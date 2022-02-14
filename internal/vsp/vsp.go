@@ -18,8 +18,6 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-const requiredConfs = 6 + 2
-
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 type Policy struct {
@@ -93,47 +91,11 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 	return resp.FeePercentage, nil
 }
 
-// ForUnspentUnexpiredTickets performs a function on every unexpired and unspent
-// ticket from the wallet.
-func (c *Client) ForUnspentUnexpiredTickets(ctx context.Context,
-	f func(hash *chainhash.Hash) error) error {
-
-	w := c.Wallet
-	params := w.ChainParams()
-
-	iter := func(ticketSummaries []*wallet.TicketSummary, _ *wire.BlockHeader) (bool, error) {
-		for _, ticketSummary := range ticketSummaries {
-			switch ticketSummary.Status {
-			case wallet.TicketStatusLive:
-			case wallet.TicketStatusImmature:
-			case wallet.TicketStatusUnspent:
-			default:
-				continue
-			}
-
-			ticketHash := *ticketSummary.Ticket.Hash
-			err := f(&ticketHash)
-			if err != nil {
-				return false, err
-			}
-		}
-
-		return false, nil
-	}
-
-	_, blockHeight := w.MainChainTip(ctx)
-	startBlockNum := blockHeight -
-		int32(params.TicketExpiry+uint32(params.TicketMaturity)-requiredConfs)
-	startBlock := wallet.NewBlockIdentifierFromHeight(startBlockNum)
-	endBlock := wallet.NewBlockIdentifierFromHeight(blockHeight)
-	return w.GetTickets(ctx, iter, startBlock, endBlock)
-}
-
 // ProcessUnprocessedTickets processes all tickets that don't currently have
 // any association with a VSP.
 func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 	var wg sync.WaitGroup
-	c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	c.Wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip tickets which have a fee tx already associated with
 		// them; they are already processed by some vsp.
 		_, err := c.Wallet.VSPFeeHashForTicket(ctx, hash)
@@ -187,7 +149,7 @@ func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error 
 // tracking after seed restores, and is only performed on unspent and unexpired
 // tickets.
 func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
-	err := c.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	err := c.Wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
 		if err != nil && !errors.Is(err, errors.NotExist) {
