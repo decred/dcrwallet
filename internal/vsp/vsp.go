@@ -334,25 +334,39 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 // status of the ticket from the connected vsp.  The status provides the
 // current vote choice so we can just update from there if need be.
 func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash, choices ...wallet.AgendaChoice) error {
+
+	// Retrieve current voting preferences from VSP.
 	status, err := c.status(ctx, hash)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return err
 		}
+		log.Errorf("Could not check status of VSP ticket %s: %v", hash, err)
 		return nil
 	}
-	setVoteChoices := status.VoteChoices
+
+	// Check for any mismatch between the provided voting preferences and the
+	// VSP preferences to determine if VSP needs to be updated.
 	update := false
-	for agenda, choice := range setVoteChoices {
-		for _, newChoice := range choices {
-			if agenda == newChoice.AgendaID && choice != newChoice.ChoiceID {
-				update = true
-			}
+
+	for _, newChoice := range choices {
+		vspChoice, ok := status.VoteChoices[newChoice.AgendaID]
+		if !ok {
+			update = true
+			break
+		}
+		if vspChoice != newChoice.ChoiceID {
+			update = true
+			break
 		}
 	}
+
 	if !update {
+		log.Debugf("VSP already has correct vote choices for ticket %s", hash)
 		return nil
 	}
+
+	log.Debugf("Updating vote choices on VSP for ticket %s", hash)
 	err = c.setVoteChoices(ctx, hash, choices)
 	if err != nil {
 		return err
