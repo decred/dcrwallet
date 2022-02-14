@@ -3811,6 +3811,9 @@ func (s *Server) setDisapprovePercent(ctx context.Context, icmd interface{}) (in
 
 // setTreasuryPolicy saves the voting policy for treasury spends by a particular
 // key, and optionally, setting the key policy used by a specific ticket.
+//
+// If a VSP host is configured in the application settings, the voting
+// preferences will also be set with the VSP.
 func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SetTreasuryPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3854,6 +3857,16 @@ func (s *Server) setTreasuryPolicy(ctx context.Context, icmd interface{}) (inter
 	}
 
 	err = w.SetTreasuryKeyPolicy(ctx, pikey, policy, ticketHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update voting preferences on VSPs if required.
+	policyMap := map[string]string{
+		cmd.Key: cmd.Policy,
+	}
+	err = s.updateVSPVoteChoices(ctx, w, ticketHash, nil, nil, policyMap)
+
 	return nil, err
 }
 
@@ -3929,6 +3942,9 @@ func (s *Server) tspendPolicy(ctx context.Context, icmd interface{}) (interface{
 
 // setTSpendPolicy saves the voting policy for a particular tspend transaction
 // hash, and optionally, setting the tspend policy used by a specific ticket.
+//
+// If a VSP host is configured in the application settings, the voting
+// preferences will also be set with the VSP.
 func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.SetTSpendPolicyCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -3975,6 +3991,15 @@ func (s *Server) setTSpendPolicy(ctx context.Context, icmd interface{}) (interfa
 	}
 
 	err = w.SetTSpendPolicy(ctx, hash, policy, ticketHash)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update voting preferences on VSPs if required.
+	policyMap := map[string]string{
+		cmd.Hash: cmd.Policy,
+	}
+	err = s.updateVSPVoteChoices(ctx, w, ticketHash, nil, policyMap, nil)
 	return nil, err
 }
 
@@ -4635,34 +4660,42 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		ticketHash = hash
 	}
 
-	choice := wallet.AgendaChoice{
-		AgendaID: cmd.AgendaID,
-		ChoiceID: cmd.ChoiceID,
+	choice := []wallet.AgendaChoice{
+		{
+			AgendaID: cmd.AgendaID,
+			ChoiceID: cmd.ChoiceID,
+		},
 	}
-	_, err := w.SetAgendaChoices(ctx, ticketHash, choice)
+	_, err := w.SetAgendaChoices(ctx, ticketHash, choice...)
 	if err != nil {
 		return nil, err
 	}
 
 	// Update voting preferences on VSPs if required.
+	err = s.updateVSPVoteChoices(ctx, w, ticketHash, choice, nil, nil)
+	return nil, err
+}
+
+func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, ticketHash *chainhash.Hash,
+	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 	if ticketHash != nil {
 		vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
 		if err != nil {
 			if errors.Is(err, errors.NotExist) {
 				// Ticket is not registered with a VSP, nothing more to do here.
-				return nil, nil
+				return nil
 			}
-			return nil, err
+			return err
 		}
 		vspClient, err := loader.LookupVSP(vspHost)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		err = vspClient.SetVoteChoice(ctx, ticketHash, choice)
-		return nil, err
+		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
+		return err
 	}
 	var firstErr error
-	err = w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		vspHost, err := w.VSPHostForTicket(ctx, hash)
 		if err != nil && firstErr == nil {
 			if errors.Is(err, errors.NotExist) {
@@ -4679,16 +4712,16 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		}
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
-		err = vspClient.SetVoteChoice(ctx, hash, choice)
+		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return nil, firstErr
+	return firstErr
 }
 
 // signMessage signs the given message with the private key for the given

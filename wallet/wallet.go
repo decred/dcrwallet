@@ -549,6 +549,30 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 	return voteBits, nil
 }
 
+// TreasuryKeyPolicyForTicket returns all of the treasury key policies set for a
+// single ticket. It does not consider the global wallet setting.
+func (w *Wallet) TreasuryKeyPolicyForTicket(ticketHash *chainhash.Hash) map[string]string {
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	policies := make(map[string]string)
+	for key, value := range w.vspTSpendKeyPolicy {
+		if key.Ticket.IsEqual(ticketHash) {
+			var choice string
+			switch value {
+			case stake.TreasuryVoteYes:
+				choice = "yes"
+			case stake.TreasuryVoteNo:
+				choice = "no"
+			default:
+				choice = "abstain"
+			}
+			policies[key.TreasuryKey] = choice
+		}
+	}
+	return policies
+}
+
 // TreasuryKeyPolicy returns a vote policy for provided Pi key. If there is
 // no policy this method returns TreasuryVoteInvalid.
 // A non-nil ticket hash may be used by a VSP to return per-ticket policies.
@@ -564,6 +588,30 @@ func (w *Wallet) TreasuryKeyPolicy(pikey []byte, ticket *chainhash.Hash) stake.T
 		}]
 	}
 	return w.tspendKeyPolicy[string(pikey)]
+}
+
+// TSpendPolicyForTicket returns all of the tspend policies set for a single
+// ticket. It does not consider the global wallet setting.
+func (w *Wallet) TSpendPolicyForTicket(ticketHash *chainhash.Hash) map[string]string {
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	policies := make(map[string]string)
+	for key, value := range w.vspTSpendPolicy {
+		if key.Ticket.IsEqual(ticketHash) {
+			var choice string
+			switch value {
+			case stake.TreasuryVoteYes:
+				choice = "yes"
+			case stake.TreasuryVoteNo:
+				choice = "no"
+			default:
+				choice = "abstain"
+			}
+			policies[key.TSpend.String()] = choice
+		}
+	}
+	return policies
 }
 
 // TSpendPolicy returns a vote policy for a tspend.  If a policy is set for a

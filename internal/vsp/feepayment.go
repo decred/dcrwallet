@@ -611,6 +611,8 @@ type ticketStatus struct {
 	FeeTxStatus     string            `json:"feetxstatus"`
 	FeeTxHash       string            `json:"feetxhash"`
 	VoteChoices     map[string]string `json:"votechoices"`
+	TSpendPolicy    map[string]string `json:"tspendpolicy"`
+	TreasuryPolicy  map[string]string `json:"treasurypolicy"`
 	Request         []byte            `json:"request"`
 }
 
@@ -662,7 +664,8 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticke
 	return &resp, nil
 }
 
-func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash, choices []wallet.AgendaChoice) error {
+func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
+	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 	w := c.Wallet
 	params := w.ChainParams()
 
@@ -693,13 +696,17 @@ func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
 
 	var resp ticketStatus
 	requestBody, err := json.Marshal(&struct {
-		Timestamp   int64             `json:"timestamp"`
-		TicketHash  string            `json:"tickethash"`
-		VoteChoices map[string]string `json:"votechoices"`
+		Timestamp      int64             `json:"timestamp"`
+		TicketHash     string            `json:"tickethash"`
+		VoteChoices    map[string]string `json:"votechoices"`
+		TSpendPolicy   map[string]string `json:"tspendpolicy"`
+		TreasuryPolicy map[string]string `json:"treasurypolicy"`
 	}{
-		Timestamp:   time.Now().Unix(),
-		TicketHash:  ticketHash.String(),
-		VoteChoices: agendaChoices,
+		Timestamp:      time.Now().Unix(),
+		TicketHash:     ticketHash.String(),
+		VoteChoices:    agendaChoices,
+		TSpendPolicy:   tspendPolicy,
+		TreasuryPolicy: treasuryPolicy,
 	})
 	if err != nil {
 		return err
@@ -882,17 +889,21 @@ func (fp *feePayment) submitPayment() (err error) {
 		Request   []byte `json:"request"`
 	}
 	requestBody, err := json.Marshal(&struct {
-		Timestamp   int64             `json:"timestamp"`
-		TicketHash  string            `json:"tickethash"`
-		FeeTx       json.Marshaler    `json:"feetx"`
-		VotingKey   string            `json:"votingkey"`
-		VoteChoices map[string]string `json:"votechoices"`
+		Timestamp      int64             `json:"timestamp"`
+		TicketHash     string            `json:"tickethash"`
+		FeeTx          json.Marshaler    `json:"feetx"`
+		VotingKey      string            `json:"votingkey"`
+		VoteChoices    map[string]string `json:"votechoices"`
+		TSpendPolicy   map[string]string `json:"tspendpolicy"`
+		TreasuryPolicy map[string]string `json:"treasurypolicy"`
 	}{
-		Timestamp:   time.Now().Unix(),
-		TicketHash:  fp.ticketHash.String(),
-		FeeTx:       txMarshaler(feeTx),
-		VotingKey:   votingKey,
-		VoteChoices: voteChoices,
+		Timestamp:      time.Now().Unix(),
+		TicketHash:     fp.ticketHash.String(),
+		FeeTx:          txMarshaler(feeTx),
+		VotingKey:      votingKey,
+		VoteChoices:    voteChoices,
+		TSpendPolicy:   w.TSpendPolicyForTicket(&fp.ticketHash),
+		TreasuryPolicy: w.TreasuryKeyPolicyForTicket(&fp.ticketHash),
 	})
 	if err != nil {
 		return err
