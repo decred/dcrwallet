@@ -905,34 +905,56 @@ func TestWalletSvrCmds(t *testing.T) {
 		{
 			name: "sendtoaddress",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd(Method("sendtoaddress"), "1Address", 0.5)
+				return dcrjson.NewCmd(Method("sendtoaddress"), "TsAddress", 0.5)
 			},
 			staticCmd: func() interface{} {
-				return NewSendToAddressCmd("1Address", 0.5, nil, nil)
+				return NewSendToAddressCmd("TsAddress", 0.5, nil, nil)
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["1Address",0.5],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5],"id":1}`,
 			unmarshalled: &SendToAddressCmd{
-				Address:   "1Address",
-				Amount:    0.5,
-				Comment:   nil,
-				CommentTo: nil,
+				Address:               "TsAddress",
+				Amount:                0.5,
+				Comment:               nil,
+				CommentTo:             nil,
+				SubtractFeeFromAmount: dcrjson.Bool(false),
 			},
 		},
 		{
 			name: "sendtoaddress optional1",
 			newCmd: func() (interface{}, error) {
-				return dcrjson.NewCmd(Method("sendtoaddress"), "1Address", 0.5, "comment", "commentto")
+				return dcrjson.NewCmd(Method("sendtoaddress"), "TsAddress", 0.5, "comment", "commentto")
 			},
 			staticCmd: func() interface{} {
-				return NewSendToAddressCmd("1Address", 0.5, dcrjson.String("comment"),
+				return NewSendToAddressCmd("TsAddress", 0.5, dcrjson.String("comment"),
 					dcrjson.String("commentto"))
 			},
-			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["1Address",0.5,"comment","commentto"],"id":1}`,
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5,"comment","commentto"],"id":1}`,
 			unmarshalled: &SendToAddressCmd{
-				Address:   "1Address",
-				Amount:    0.5,
-				Comment:   dcrjson.String("comment"),
-				CommentTo: dcrjson.String("commentto"),
+				Address:               "TsAddress",
+				Amount:                0.5,
+				Comment:               dcrjson.String("comment"),
+				CommentTo:             dcrjson.String("commentto"),
+				SubtractFeeFromAmount: dcrjson.Bool(false),
+			},
+		},
+		{
+			name: "sendtoaddress subtract fee from amount",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd(Method("sendtoaddress"), "TsAddress", 0.5, "comment", "commentto", dcrjson.Bool(true))
+			},
+			staticCmd: func() interface{} {
+				cmd := NewSendToAddressCmd("TsAddress", 0.5, dcrjson.String("comment"),
+					dcrjson.String("commentto"))
+				cmd.SubtractFeeFromAmount = dcrjson.Bool(true)
+				return cmd
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"sendtoaddress","params":["TsAddress",0.5,"comment","commentto",true],"id":1}`,
+			unmarshalled: &SendToAddressCmd{
+				Address:               "TsAddress",
+				Amount:                0.5,
+				Comment:               dcrjson.String("comment"),
+				CommentTo:             dcrjson.String("commentto"),
+				SubtractFeeFromAmount: dcrjson.Bool(true),
 			},
 		},
 		{

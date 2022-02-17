@@ -4626,6 +4626,44 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		txFee:              relayFee,
 		dontSignTx:         false,
 		isTreasury:         false,
+		recipientPaysFee:   false,
+	}
+	err := w.authorTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
+	err = w.recordAuthoredTx(ctx, op, a)
+	if err != nil {
+		return nil, err
+	}
+	err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
+	if err != nil {
+		return nil, err
+	}
+	hash := a.atx.Tx.TxHash()
+	return &hash, nil
+}
+
+func (w *Wallet) SendOutputRecipientPaysFee(ctx context.Context, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32) (*chainhash.Hash, error) {
+	const op errors.Op = "wallet.SendOutputRecipientPaysFee"
+	relayFee := w.RelayFee()
+	for _, output := range outputs {
+		err := txrules.CheckOutput(output, relayFee)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+	}
+
+	a := &authorTx{
+		outputs:            outputs,
+		account:            account,
+		changeAccount:      changeAccount,
+		minconf:            minconf,
+		randomizeChangeIdx: true,
+		txFee:              relayFee,
+		dontSignTx:         false,
+		isTreasury:         false,
+		recipientPaysFee:   true,
 	}
 	err := w.authorTx(ctx, op, a)
 	if err != nil {
@@ -4663,6 +4701,7 @@ func (w *Wallet) SendOutputsToTreasury(ctx context.Context, outputs []*wire.TxOu
 		txFee:              relayFee,
 		dontSignTx:         false,
 		isTreasury:         true,
+		recipientPaysFee:   false,
 	}
 	err := w.authorTx(ctx, op, a)
 	if err != nil {
