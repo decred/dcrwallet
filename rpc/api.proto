@@ -1345,8 +1345,6 @@ message ProcessUnmanagedTicketsResponse {}
 message SetVspdVoteChoicesRequest {
 	string vsp_host = 1;
 	string vsp_pubkey = 2;
-	uint32 fee_account = 3;
-	uint32 change_account = 4;
 }
 
 message SetVspdVoteChoicesResponse {}

@@ -370,10 +370,15 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			MixAccount:          cfg.mixedAccount,
 			MixBranch:           cfg.mixedBranch,
 			MixChangeAccount:    cfg.ChangeAccount,
-			VSPHost:             cfg.VSPOpts.URL,
-			VSPPubKey:           cfg.VSPOpts.PubKey,
-			TicketSplitAccount:  cfg.TicketSplitAccount,
-			Dial:                cfg.dial,
+			VSPOpts: jsonrpc.VSPOptions{
+				Host:            cfg.VSPOpts.URL,
+				PubKey:          cfg.VSPOpts.PubKey,
+				MaxFee:          cfg.VSPOpts.MaxFee.Amount,
+				PurchaseAccount: cfg.PurchaseAccount,
+				ChangeAccount:   cfg.ChangeAccount,
+			},
+			TicketSplitAccount: cfg.TicketSplitAccount,
+			Dial:               cfg.dial,
 		}
 		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {

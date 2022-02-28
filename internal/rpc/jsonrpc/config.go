@@ -7,6 +7,8 @@ package jsonrpc
 import (
 	"context"
 	"net"
+
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 // Options contains the required options for running the legacy RPC server.
@@ -24,7 +26,16 @@ type Options struct {
 	MixChangeAccount   string
 	TicketSplitAccount string
 
-	VSPHost   string
-	VSPPubKey string
-	Dial      func(ctx context.Context, network, addr string) (net.Conn, error)
+	VSPOpts VSPOptions
+
+	Dial func(ctx context.Context, network, addr string) (net.Conn, error)
+}
+
+// VSPOptions defines options for processing tickets with a VSP server.
+type VSPOptions struct {
+	Host            string
+	PubKey          string
+	MaxFee          dcrutil.Amount
+	PurchaseAccount string
+	ChangeAccount   string
 }

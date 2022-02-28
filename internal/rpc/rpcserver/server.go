@@ -1747,11 +1747,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			PubKey: vspPubKey,
 			Dialer: nil,
 			Wallet: s.wallet,
-			Policy: vsp.Policy{
-				MaxFee:     0.1e8,
-				FeeAcct:    req.Account,
-				ChangeAcct: req.ChangeAccount,
-			},
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
@@ -1844,7 +1839,14 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	if vspClient != nil {
-		request.VSPFeePaymentProcess = vspClient.Process
+		policy := vsp.Policy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.Account,
+			ChangeAcct: req.ChangeAccount,
+		}
+		request.VSPFeePaymentProcess = func(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
+			return vspClient.Process(ctx, ticketHash, feeTx, policy)
+		}
 		request.VSPFeeProcess = vspClient.FeePercentage
 	}
 
@@ -2650,6 +2652,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	var vspHost string
 	var vspPubKey string
 	var vspClient *vsp.Client
+	var vspFeePolicy vsp.Policy
 	if req.VspHost != "" || req.VspPubkey != "" {
 		vspHost = req.VspHost
 		vspPubKey = req.VspPubkey
@@ -2664,15 +2667,15 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 			PubKey: vspPubKey,
 			Dialer: nil,
 			Wallet: wallet,
-			Policy: vsp.Policy{
-				MaxFee:     0.1e8,
-				FeeAcct:    req.Account,
-				ChangeAcct: req.Account,
-			},
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
 			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+		}
+		vspFeePolicy = vsp.Policy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.Account,
+			ChangeAcct: req.Account,
 		}
 	}
 	if req.BalanceToMaintain < 0 {
@@ -2728,6 +2731,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 		c.VSP = vspClient
+		c.VSPFeePolicy = vspFeePolicy
 		c.MixedAccount = mixedAccount
 		c.MixChange = mixedChange
 		c.CSPPServer = csppServer
@@ -3922,17 +3926,11 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.Account,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: policy,
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -3940,9 +3938,14 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	}
 
 	// process tickets fee if needed.
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.Account,
+		ChangeAcct: req.ChangeAccount,
+	}
 	for _, ticketHash := range failedTicketsFee {
 		feeTx := new(wire.MsgTx)
-		err := vspClient.ProcessWithPolicy(ctx, &ticketHash, feeTx, policy)
+		err := vspClient.Process(ctx, &ticketHash, feeTx, policy)
 		if err != nil {
 			// if it fails to process again, we log it and continue with
 			// the wallet start.
@@ -3963,23 +3966,22 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: policy,
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
 
+	policy := vsp.Policy{
+		MaxFee:     0.1e8,
+		FeeAcct:    req.FeeAccount,
+		ChangeAcct: req.ChangeAccount,
+	}
 	err = vspClient.ProcessManagedTickets(ctx, policy)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "ProcessManagedTickets failed. Error: %v", err)
@@ -3999,17 +4001,11 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: policy,
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -4025,6 +4021,11 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		return nil
 	})
 	if errors.Is(err, errUnmanagedTickets) {
+		policy := vsp.Policy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.FeeAccount,
+			ChangeAcct: req.ChangeAccount,
+		}
 		vspClient.ProcessUnprocessedTickets(ctx, policy)
 	}
 
@@ -4042,17 +4043,11 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := vsp.Config{
 		URL:    vspHost,
 		PubKey: vspPubKey,
 		Dialer: nil,
 		Wallet: s.wallet,
-		Policy: policy,
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
