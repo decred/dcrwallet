@@ -3351,12 +3351,12 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"MixedAccountBranch should be 0 or 1.")
 		}
-		_, err = w.AccountNumber(ctx, s.cfg.TicketSplitAccount)
+		mixedSplitAccount, err = w.AccountNumber(ctx, s.cfg.TicketSplitAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on mixedSplitAccount: %v", err)
 		}
-		_, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
+		changeAccount, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on changeAccount: %v", err)
