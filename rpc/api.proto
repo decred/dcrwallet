@@ -134,6 +134,8 @@ service AgendaService {
 service VotingService {
 	rpc VoteChoices (VoteChoicesRequest) returns (VoteChoicesResponse);
 	rpc SetVoteChoices (SetVoteChoicesRequest) returns (SetVoteChoicesResponse);
+  	rpc TreasuryPolicies (TreasuryPoliciesRequest) returns (TreasuryPoliciesResponse);
+  	rpc SetTreasuryPolicy (SetTreasuryPolicyRequest) returns (SetTreasuryPolicyResponse);
 }
 
 service MessageVerificationService {
@@ -1028,6 +1030,25 @@ message SetVoteChoicesRequest {
 message SetVoteChoicesResponse {
 	uint32 votebits = 1;
 }
+
+message TreasuryPoliciesRequest {}
+
+message TreasuryPoliciesResponse {
+	message Policy {
+		string key = 1;
+		string policy = 2;
+		string ticket = 3;
+	}
+	repeated Policy policies = 1;
+}
+
+message SetTreasuryPolicyRequest {
+	string key = 1;
+	string policy = 2;
+	bytes ticket_hash = 3;
+}
+
+message SetTreasuryPolicyResponse {}
 
 message VerifyMessageRequest {
 	string address = 1;

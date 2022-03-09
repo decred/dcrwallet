@@ -51,6 +51,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -62,9 +63,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.14.0"
+	semverString = "7.15.0"
 	semverMajor  = 7
-	semverMinor  = 14
+	semverMinor  = 15
 	semverPatch  = 0
 )
 
@@ -3350,6 +3351,128 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 		Votebits: uint32(voteBits),
 	}
 	return resp, nil
+}
+
+// treasuryPolicies returns voting policies for treasury spends for all keys in an array
+func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPoliciesRequest) (*pb.TreasuryPoliciesResponse, error) {
+	policies := s.wallet.TreasuryKeyPolicies()
+	resp := &pb.TreasuryPoliciesResponse{
+		Policies: make([]*pb.TreasuryPoliciesResponse_Policy, len(policies)),
+	}
+	for i := range policies {
+		var policy string
+		switch policies[i].Policy {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		}
+		r := &pb.TreasuryPoliciesResponse_Policy{
+			Key:    hex.EncodeToString(policies[i].PiKey),
+			Policy: policy,
+		}
+		resp.Policies = append(resp.Policies, r)
+	}
+	return resp, nil
+}
+
+// setTreasuryPolicy saves the voting policy for treasury spends by a particular
+// key, and optionally, setting the key policy used by a specific ticket.
+//
+// If a VSP host is configured in the application settings, the voting
+// preferences will also be set with the VSP.
+func (s *votingServer) SetTreasuryPolicy(ctx context.Context, req *pb.SetTreasuryPolicyRequest) (*pb.SetTreasuryPolicyResponse, error) {
+	var ticketHash *chainhash.Hash
+	var err error
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	pikey, err := hex.DecodeString(req.Key)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if len(pikey) != secp256k1.PubKeyBytesLenCompressed {
+		err = errors.New("treasury key must be 33 bytes")
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	var policy stake.TreasuryVoteT
+	switch req.Policy {
+	case "abstain", "invalid", "":
+		policy = stake.TreasuryVoteInvalid
+	case "yes":
+		policy = stake.TreasuryVoteYes
+	case "no":
+		policy = stake.TreasuryVoteNo
+	default:
+		err = fmt.Errorf("unknown policy %q", req.Policy)
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	err = s.wallet.SetTreasuryKeyPolicy(ctx, pikey, policy, ticketHash)
+	if err != nil {
+		return nil, translateError(err)
+	}
+
+	// Update voting preferences on VSPs if required.
+	policyMap := map[string]string{
+		req.Key: req.Policy,
+	}
+	err = s.updateVSPVoteChoices(ctx, ticketHash, nil, nil, policyMap)
+
+	resp := &pb.SetTreasuryPolicyResponse{}
+	return resp, err
+}
+
+func (s *votingServer) updateVSPVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
+	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+	if ticketHash != nil {
+		vspHost, err := s.wallet.VSPHostForTicket(ctx, ticketHash)
+		if err != nil {
+			if errors.Is(err, errors.NotExist) {
+				// Ticket is not registered with a VSP, nothing more to do here.
+				return nil
+			}
+			return err
+		}
+		vspClient, err := loader.LookupVSP(vspHost)
+		if err != nil {
+			return err
+		}
+		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
+		return err
+	}
+	var firstErr error
+	err := s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		vspHost, err := s.wallet.VSPHostForTicket(ctx, hash)
+		if err != nil && firstErr == nil {
+			if errors.Is(err, errors.NotExist) {
+				// Ticket is not registered with a VSP, nothing more to do here.
+				return nil
+			}
+			firstErr = err
+			return nil
+		}
+		vspClient, err := loader.LookupVSP(vspHost)
+		if err != nil && firstErr == nil {
+			firstErr = err
+			return nil
+		}
+		// Never return errors here, so all tickets are tried.
+		// The first error will be returned to the user.
+		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	return firstErr
 }
 
 // StartMessageVerificationService starts the MessageVerification service
