@@ -1035,15 +1035,15 @@ message TreasuryPoliciesRequest {}
 
 message TreasuryPoliciesResponse {
 	message Policy {
-		string key = 1;
+		bytes key = 1;
 		string policy = 2;
-		string ticket = 3;
+		bytes ticket_hash = 3;
 	}
 	repeated Policy policies = 1;
 }
 
 message SetTreasuryPolicyRequest {
-	string key = 1;
+	bytes key = 1;
 	string policy = 2;
 	bytes ticket_hash = 3;
 }

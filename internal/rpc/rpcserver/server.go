@@ -3357,7 +3357,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPoliciesRequest) (*pb.TreasuryPoliciesResponse, error) {
 	policies := s.wallet.TreasuryKeyPolicies()
 	resp := &pb.TreasuryPoliciesResponse{
-		Policies: make([]*pb.TreasuryPoliciesResponse_Policy, len(policies)),
+		Policies: make([]*pb.TreasuryPoliciesResponse_Policy, 0, len(policies)),
 	}
 	for i := range policies {
 		var policy string
@@ -3368,9 +3368,15 @@ func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPol
 			policy = "no"
 		}
 		r := &pb.TreasuryPoliciesResponse_Policy{
-			Key:    hex.EncodeToString(policies[i].PiKey),
-			Policy: policy,
+			Key:        policies[i].PiKey,
+			Policy:     policy,
+			TicketHash: []byte{},
 		}
+
+		if policies[i].Ticket != nil {
+			r.TicketHash = policies[i].Ticket[:]
+		}
+
 		resp.Policies = append(resp.Policies, r)
 	}
 	return resp, nil
@@ -3391,11 +3397,7 @@ func (s *votingServer) SetTreasuryPolicy(ctx context.Context, req *pb.SetTreasur
 		}
 	}
 
-	pikey, err := hex.DecodeString(req.Key)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if len(pikey) != secp256k1.PubKeyBytesLenCompressed {
+	if len(req.Key) != secp256k1.PubKeyBytesLenCompressed {
 		err = errors.New("treasury key must be 33 bytes")
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
@@ -3412,14 +3414,14 @@ func (s *votingServer) SetTreasuryPolicy(ctx context.Context, req *pb.SetTreasur
 		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	err = s.wallet.SetTreasuryKeyPolicy(ctx, pikey, policy, ticketHash)
+	err = s.wallet.SetTreasuryKeyPolicy(ctx, req.Key, policy, ticketHash)
 	if err != nil {
 		return nil, translateError(err)
 	}
 
 	// Update voting preferences on VSPs if required.
 	policyMap := map[string]string{
-		req.Key: req.Policy,
+		hex.EncodeToString(req.Key): req.Policy,
 	}
 	err = s.updateVSPVoteChoices(ctx, ticketHash, nil, nil, policyMap)
 
