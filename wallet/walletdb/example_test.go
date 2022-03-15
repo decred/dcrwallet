@@ -5,7 +5,6 @@
 
 // Test must be updated for API changes.
 //go:build disabled
-// +build disabled
 
 package walletdb_test
 

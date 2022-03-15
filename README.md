@@ -74,7 +74,7 @@ https://decred.org/downloads/
 
 ### Build from source (all platforms)
 
-- **Install Go 1.15 or 1.16**
+- **Install Go 1.17 or 1.18**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   Ensure Go was installed properly and is a supported version:
@@ -88,8 +88,7 @@ https://decred.org/downloads/
 - **Build or Update dcrwallet**
 
   Since dcrwallet is a single Go module, it's possible to use a single command
-  to download, build, and install without needing to clone the repo. If using Go
-  1.16, run
+  to download, build, and install without needing to clone the repo. Run:
 
   ```sh
   $ go install decred.org/dcrwallet/v2@master

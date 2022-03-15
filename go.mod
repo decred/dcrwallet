@@ -1,6 +1,6 @@
 module decred.org/dcrwallet/v2
 
-go 1.16
+go 1.17
 
 require (
 	decred.org/cspp/v2 v2.0.0
@@ -38,4 +38,17 @@ require (
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
+)
+
+require (
+	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
+	github.com/companyzero/sntrup4591761 v0.0.0-20200131011700-2b0d299dbd22 // indirect
+	github.com/dchest/siphash v1.2.2 // indirect
+	github.com/decred/base58 v1.0.3 // indirect
+	github.com/decred/dcrd/database/v3 v3.0.0 // indirect
+	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.2 // indirect
+	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110 // indirect
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
+	golang.org/x/text v0.3.3 // indirect
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
 )
