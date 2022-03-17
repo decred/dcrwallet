@@ -167,13 +167,16 @@ func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
 
 // versionServer provides RPC clients with the ability to query the RPC server
 // version.
-type versionServer struct{}
+type versionServer struct {
+	pb.UnimplementedVersionServiceServer
+}
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
 	ready          uint32 // atomic
 	wallet         *wallet.Wallet
 	dialCSPPServer func(ctx context.Context, network, addr string) (net.Conn, error)
+	pb.UnimplementedWalletServiceServer
 }
 
 // loaderServer provides RPC clients with the ability to load and close wallets,
@@ -182,18 +185,22 @@ type loaderServer struct {
 	ready     uint32 // atomic
 	loader    *loader.Loader
 	activeNet *netparams.Params
+	pb.UnimplementedWalletLoaderServiceServer
 }
 
 // seedServer provides RPC clients with the ability to generate secure random
 // seeds encoded in both binary and human-readable formats, and decode any
 // human-readable input back to binary.
-type seedServer struct{}
+type seedServer struct {
+	pb.UnimplementedSeedServiceServer
+}
 
 // accountMixerServer provides RPC clients with the ability to start/stop the
 // account mixing privacy service.
 type accountMixerServer struct {
 	ready  uint32 // atomic
 	loader *loader.Loader
+	pb.UnimplementedAccountMixerServiceServer
 }
 
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
@@ -201,26 +208,31 @@ type accountMixerServer struct {
 type ticketbuyerV2Server struct {
 	ready  uint32 // atomic
 	loader *loader.Loader
+	pb.UnimplementedTicketBuyerV2ServiceServer
 }
 
 type agendaServer struct {
 	ready     uint32 // atomic
 	activeNet *chaincfg.Params
+	pb.UnimplementedAgendaServiceServer
 }
 
 type votingServer struct {
 	ready  uint32 // atomic
 	wallet *wallet.Wallet
+	pb.UnimplementedVotingServiceServer
 }
 
 // messageVerificationServer provides RPC clients with the ability to verify
 // that a message was signed using the private key of a particular address.
 type messageVerificationServer struct {
 	chainParams *chaincfg.Params
+	pb.UnimplementedMessageVerificationServiceServer
 }
 
 type decodeMessageServer struct {
 	chainParams *chaincfg.Params
+	pb.UnimplementedDecodeMessageServiceServer
 }
 
 // networkServer provices RPC clients with the ability to perform network
@@ -228,6 +240,7 @@ type decodeMessageServer struct {
 type networkServer struct {
 	ready  uint32 // atomic
 	wallet *wallet.Wallet
+	pb.UnimplementedNetworkServiceServer
 }
 
 // Singleton implementations of each service.  Not all services are immediately

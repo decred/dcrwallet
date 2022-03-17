@@ -1,17 +1,19 @@
 #!/bin/sh
 
-build_protoc_gen_go() {
+build_tools() {
     mkdir -p bin
     export GOBIN=$PWD/bin
-    GO111MODULE=on go install github.com/golang/protobuf/protoc-gen-go
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+    go install google.golang.org/protobuf/cmd/protoc-gen-go
 }
 
 generate() {
-    protoc -I. api.proto --go_out=plugins=grpc:walletrpc --go_opt=paths=source_relative
+    protoc -I. api.proto --go_out=walletrpc --go-grpc_out=walletrpc \
+        --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
 
     # fix uid mapping on files created within the container
     [ -n "$UID" ] && chown -R $UID . 2>/dev/null
 }
 
-(cd tools && build_protoc_gen_go)
+(cd tools && build_tools)
 PATH=$PWD/tools/bin:$PATH generate
