@@ -142,6 +142,7 @@ var handlers = map[string]handler{
 	"listreceivedbyaddress":   {fn: (*Server).listReceivedByAddress},
 	"listsinceblock":          {fn: (*Server).listSinceBlock},
 	"listtransactions":        {fn: (*Server).listTransactions},
+	"listtransactionsv2":      {fn: (*Server).listTransactionsV2},
 	"listunspent":             {fn: (*Server).listUnspent},
 	"lockaccount":             {fn: (*Server).lockAccount},
 	"lockunspent":             {fn: (*Server).lockUnspent},
@@ -3121,6 +3122,32 @@ func (s *Server) listTransactions(ctx context.Context, icmd interface{}) (interf
 	}
 
 	return w.ListTransactions(ctx, *cmd.From, *cmd.Count)
+}
+
+// listTransactionsV2 handles a listtransactionsv2 request by returning an
+// array of maps with details of sent and recevied wallet transactions.
+func (s *Server) listTransactionsV2(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ListTransactionsV2Cmd)
+
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	// TODO: ListTransactionsV2 does not currently understand the difference
+	// between transactions pertaining to one account from another.  This
+	// will be resolved when wtxmgr is combined with the waddrmgr namespace.
+
+	if cmd.Account != nil && *cmd.Account != "*" {
+		// For now, don't bother trying to continue if the user
+		// specified an account, since this can't be (easily or
+		// efficiently) calculated.
+		return nil,
+			errors.E(`Transactions can not be searched by account. ` +
+				`Use "*" to reference all accounts.`)
+	}
+
+	return w.ListTransactionsV2(ctx, *cmd.From, *cmd.Count)
 }
 
 // listAddressTransactions handles a listaddresstransactions request by

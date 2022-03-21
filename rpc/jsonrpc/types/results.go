@@ -240,6 +240,30 @@ type ListTransactionsResult struct {
 	OtherAccount      string                  `json:"otheraccount,omitempty"`
 }
 
+// ListTransactionsV2Result models the data from the listtransactionsv2
+// command.
+type ListTransactionsV2Result struct {
+	Account           string                  `json:"account"`
+	Address           string                  `json:"address,omitempty"`
+	Amount            float64                 `json:"amount"`
+	BlockHash         string                  `json:"blockhash,omitempty"`
+	BlockIndex        *int64                  `json:"blockindex,omitempty"`
+	BlockTime         int64                   `json:"blocktime,omitempty"`
+	Category          string                  `json:"category"`
+	Confirmations     int64                   `json:"confirmations"`
+	Fee               *float64                `json:"fee,omitempty"`
+	Generated         bool                    `json:"generated,omitempty"`
+	InvolvesWatchOnly bool                    `json:"involveswatchonly,omitempty"`
+	Time              int64                   `json:"time"`
+	TimeReceived      int64                   `json:"timereceived"`
+	TxID              string                  `json:"txid"`
+	TxType            *ListTransactionsTxType `json:"txtype,omitempty"`
+	Outputs           []uint32                `json:"outputs"`
+	WalletConflicts   []string                `json:"walletconflicts"`
+	Comment           string                  `json:"comment,omitempty"`
+	OtherAccount      string                  `json:"otheraccount,omitempty"`
+}
+
 // ListReceivedByAccountResult models the data from the listreceivedbyaccount
 // command.
 type ListReceivedByAccountResult struct {

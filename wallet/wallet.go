@@ -2561,6 +2561,139 @@ outputs:
 	return sends, receives
 }
 
+// listTransactionsV2 creates a object that may be marshalled to a response
+// result for a listtransactions RPC.
+//
+// TODO: This should be moved to the jsonrpc package.
+func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (sends, receives []types.ListTransactionsV2Result) {
+	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
+
+	var (
+		blockHashStr  string
+		blockTime     int64
+		confirmations int64
+	)
+	if details.Block.Height != -1 {
+		blockHashStr = details.Block.Hash.String()
+		blockTime = details.Block.Time.Unix()
+		confirmations = int64(confirms(details.Block.Height, syncHeight))
+	}
+
+	txHashStr := details.Hash.String()
+	received := details.Received.Unix()
+	generated := compat.IsEitherCoinBaseTx(&details.MsgTx)
+	recvCat := recvCategory(details, syncHeight, net).String()
+
+	send := len(details.Debits) != 0
+
+	txTypeStr := types.LTTTRegular
+	switch details.TxType {
+	case stake.TxTypeSStx:
+		txTypeStr = types.LTTTTicket
+	case stake.TxTypeSSGen:
+		txTypeStr = types.LTTTVote
+	case stake.TxTypeSSRtx:
+		txTypeStr = types.LTTTRevocation
+	}
+
+	// Fee can only be determined if every input is a debit.
+	var feeF64 float64
+	if len(details.Debits) == len(details.MsgTx.TxIn) {
+		var debitTotal dcrutil.Amount
+		for _, deb := range details.Debits {
+			debitTotal += deb.Amount
+		}
+		var outputTotal dcrutil.Amount
+		for _, output := range details.MsgTx.TxOut {
+			outputTotal += dcrutil.Amount(output.Value)
+		}
+		// Note: The actual fee is debitTotal - outputTotal.  However,
+		// this RPC reports negative numbers for fees, so the inverse
+		// is calculated.
+		feeF64 = (outputTotal - debitTotal).ToCoin()
+	}
+
+outputs:
+	// XXX collect outputs
+	for i, output := range details.MsgTx.TxOut {
+		// Determine if this output is a credit.  Change outputs are skipped.
+		var isCredit bool
+		for _, cred := range details.Credits {
+			if cred.Index == uint32(i) {
+				if cred.Change {
+					continue outputs
+				}
+				isCredit = true
+				break
+			}
+		}
+
+		var address string
+		var accountName string
+		_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, net)
+		if len(addrs) == 1 {
+			addr := addrs[0]
+			address = addr.String()
+			account, err := addrMgr.AddrAccount(addrmgrNs, addrs[0])
+			if err == nil {
+				accountName, err = addrMgr.AccountName(addrmgrNs, account)
+				if err != nil {
+					accountName = ""
+				}
+			}
+		}
+
+		amountF64 := dcrutil.Amount(output.Value).ToCoin()
+		result := types.ListTransactionsResult{
+			// Fields left zeroed:
+			//   InvolvesWatchOnly
+			//   BlockIndex
+			//
+			// Fields set below:
+			//   Account (only for non-"send" categories)
+			//   Category
+			//   Amount
+			//   Fee
+			Address:         address,
+			Vout:            uint32(i),
+			Confirmations:   confirmations,
+			Generated:       generated,
+			BlockHash:       blockHashStr,
+			BlockTime:       blockTime,
+			TxID:            txHashStr,
+			WalletConflicts: []string{},
+			Time:            received,
+			TimeReceived:    received,
+			TxType:          &txTypeStr,
+		}
+
+		// Add a received/generated/immature result if this is a credit.
+		// If the output was spent, create a second result under the
+		// send category with the inverse of the output amount.  It is
+		// therefore possible that a single output may be included in
+		// the results set zero, one, or two times.
+		//
+		// Since credits are not saved for outputs that are not
+		// controlled by this wallet, all non-credits from transactions
+		// with debits are grouped under the send category.
+
+		if send {
+			result.Category = "send"
+			result.Amount = -amountF64
+			result.Fee = &feeF64
+			sends = append(sends, result)
+		}
+		if isCredit {
+			result.Account = accountName
+			result.Category = recvCat
+			result.Amount = amountF64
+			result.Fee = nil
+			receives = append(receives, result)
+		}
+	}
+	return sends, receives
+}
+
 // ListSinceBlock returns a slice of objects with details about transactions
 // since the given block. If the block is -1 then all transactions are included.
 // This is intended to be used for listsinceblock RPC replies.
@@ -2622,6 +2755,67 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 				}
 
 				sends, receives := listTransactions(dbtx, &details[i],
+					w.manager, tipHeight, w.chainParams)
+				txList = append(txList, sends...)
+				txList = append(txList, receives...)
+
+				if len(sends) != 0 || len(receives) != 0 {
+					n++
+				}
+			}
+
+			return false, nil
+		}
+
+		// Return newer results first by starting at mempool height and working
+		// down to the genesis block.
+		return w.txStore.RangeTransactions(ctx, txmgrNs, -1, 0, rangeFn)
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	// reverse the list so that it is sorted from old to new.
+	for i, j := 0, len(txList)-1; i < j; i, j = i+1, j-1 {
+		txList[i], txList[j] = txList[j], txList[i]
+	}
+	return txList, nil
+}
+
+// ListTransactionsV2 returns a slice of objects with details about a recorded
+// transaction.  This is intended to be used for listtransactionsv2 RPC
+// replies.
+func (w *Wallet) ListTransactionsV2(ctx context.Context, from, count int) ([]types.ListTransactionsV2Result, error) {
+	const op errors.Op = "wallet.ListTransactionsV2"
+	txList := []types.ListTransactionsV2Result{}
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+
+		// Get current block.  The block height used for calculating
+		// the number of tx confirmations.
+		_, tipHeight := w.txStore.MainChainTip(dbtx)
+
+		// Need to skip the first from transactions, and after those, only
+		// include the next count transactions.
+		skipped := 0
+		n := 0
+
+		rangeFn := func(details []udb.TxDetails) (bool, error) {
+			// Iterate over transactions at this height in reverse order.
+			// This does nothing for unmined transactions, which are
+			// unsorted, but it will process mined transactions in the
+			// reverse order they were marked mined.
+			for i := len(details) - 1; i >= 0; i-- {
+				if n >= count {
+					return true, nil
+				}
+
+				if from > skipped {
+					skipped++
+					continue
+				}
+
+				sends, receives := listTransactionsV2(dbtx, &details[i],
 					w.manager, tipHeight, w.chainParams)
 				txList = append(txList, sends...)
 				txList = append(txList, receives...)

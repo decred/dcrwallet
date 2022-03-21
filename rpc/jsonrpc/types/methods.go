@@ -638,6 +638,28 @@ func NewListTransactionsCmd(account *string, count, from *int, includeWatchOnly 
 	}
 }
 
+// ListTransactionsV2Cmd defines the listtransactionsv2 JSON-RPC command.
+type ListTransactionsV2Cmd struct {
+	Account          *string
+	Count            *int  `jsonrpcdefault:"10"`
+	From             *int  `jsonrpcdefault:"0"`
+	IncludeWatchOnly *bool `jsonrpcdefault:"false"`
+}
+
+// NewListTransactionsV2Cmd returns a new instance which can be used to issue a
+// listtransactionsv2 JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewListTransactionsV2Cmd(account *string, count, from *int, includeWatchOnly *bool) *ListTransactionsV2Cmd {
+	return &ListTransactionsV2Cmd{
+		Account:          account,
+		Count:            count,
+		From:             from,
+		IncludeWatchOnly: includeWatchOnly,
+	}
+}
+
 // ListUnspentCmd defines the listunspent JSON-RPC command.
 type ListUnspentCmd struct {
 	MinConf   *int `jsonrpcdefault:"1"`
