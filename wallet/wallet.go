@@ -2565,7 +2565,7 @@ outputs:
 // result for a listtransactions RPC.
 //
 // TODO: This should be moved to the jsonrpc package.
-func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (sends, receives []types.ListTransactionsV2Result) {
+func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) types.ListTransactionsV2Result {
 	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 
 	var (
@@ -2613,11 +2613,31 @@ func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb
 		feeF64 = (outputTotal - debitTotal).ToCoin()
 	}
 
+	result := types.ListTransactionsV2Result{
+		// Fields left zeroed:
+		//   InvolvesWatchOnly
+		//   BlockIndex
+		//
+		// Fields set below:
+		//   Category
+		//   Fee
+		//   Inputs
+		//   Outputs
+		Confirmations: confirmations,
+		Generated:     generated,
+		BlockHash:     blockHashStr,
+		BlockTime:     blockTime,
+		TxID:          txHashStr,
+		Time:          received,
+		TimeReceived:  received,
+		TxType:        &txTypeStr,
+	}
+
+	outputs := make([]types.ListTransactionsOutput, 0, len(details.MsgTx.TxOut))
+	var isCredit bool
 outputs:
-	// XXX collect outputs
 	for i, output := range details.MsgTx.TxOut {
 		// Determine if this output is a credit.  Change outputs are skipped.
-		var isCredit bool
 		for _, cred := range details.Credits {
 			if cred.Index == uint32(i) {
 				if cred.Change {
@@ -2644,27 +2664,11 @@ outputs:
 		}
 
 		amountF64 := dcrutil.Amount(output.Value).ToCoin()
-		result := types.ListTransactionsResult{
-			// Fields left zeroed:
-			//   InvolvesWatchOnly
-			//   BlockIndex
-			//
+		output := types.ListTransactionsOutput{
 			// Fields set below:
 			//   Account (only for non-"send" categories)
-			//   Category
 			//   Amount
-			//   Fee
-			Address:         address,
-			Vout:            uint32(i),
-			Confirmations:   confirmations,
-			Generated:       generated,
-			BlockHash:       blockHashStr,
-			BlockTime:       blockTime,
-			TxID:            txHashStr,
-			WalletConflicts: []string{},
-			Time:            received,
-			TimeReceived:    received,
-			TxType:          &txTypeStr,
+			Address: address,
 		}
 
 		// Add a received/generated/immature result if this is a credit.
@@ -2676,22 +2680,30 @@ outputs:
 		// Since credits are not saved for outputs that are not
 		// controlled by this wallet, all non-credits from transactions
 		// with debits are grouped under the send category.
-
 		if send {
-			result.Category = "send"
-			result.Amount = -amountF64
-			result.Fee = &feeF64
-			sends = append(sends, result)
+			output.Amount = -amountF64
 		}
 		if isCredit {
-			result.Account = accountName
-			result.Category = recvCat
-			result.Amount = amountF64
-			result.Fee = nil
-			receives = append(receives, result)
+			output.Account = accountName
+			output.Amount = amountF64
 		}
+
+		outputs = append(outputs, output)
 	}
-	return sends, receives
+	result.Outputs = outputs
+
+	if send {
+		result.Category = "send"
+		result.Fee = &feeF64
+	}
+	if isCredit {
+		result.Category = recvCat
+		result.Fee = nil
+	}
+
+	// XXX add inputs
+
+	return result
 }
 
 // ListSinceBlock returns a slice of objects with details about transactions
@@ -2815,14 +2827,11 @@ func (w *Wallet) ListTransactionsV2(ctx context.Context, from, count int) ([]typ
 					continue
 				}
 
-				sends, receives := listTransactionsV2(dbtx, &details[i],
+				tx := listTransactionsV2(dbtx, &details[i],
 					w.manager, tipHeight, w.chainParams)
-				txList = append(txList, sends...)
-				txList = append(txList, receives...)
+				txList = append(txList, tx)
 
-				if len(sends) != 0 || len(receives) != 0 {
-					n++
-				}
+				n++
 			}
 
 			return false, nil
