@@ -19,7 +19,7 @@ var (
 	returnsString      = []interface{}{(*string)(nil)}
 	returnsStringArray = []interface{}{(*[]string)(nil)}
 	returnsLTRArray    = []interface{}{(*[]types.ListTransactionsResult)(nil)}
-	returnsLTRv2Array  = []interface{}{{*[]types.ListTransactionsV2Result)(nil)}
+	returnsLTRV2Array  = []interface{}{(*[]types.ListTransactionsV2Result)(nil)}
 )
 
 // Methods contains all methods and result types that help is generated for,
@@ -86,7 +86,7 @@ var Methods = []struct {
 	{"listreceivedbyaddress", []interface{}{(*[]types.ListReceivedByAddressResult)(nil)}},
 	{"listsinceblock", []interface{}{(*types.ListSinceBlockResult)(nil)}},
 	{"listtransactions", returnsLTRArray},
-	{"listtransactionsv2", returnsLTv2RArray},
+	{"listtransactionsv2", returnsLTRV2Array},
 	{"listunspent", []interface{}{(*types.ListUnspentResult)(nil)}},
 	{"lockaccount", nil},
 	{"lockunspent", returnsBool},
