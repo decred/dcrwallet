@@ -2664,7 +2664,7 @@ outputs:
 		}
 
 		amountF64 := dcrutil.Amount(output.Value).ToCoin()
-		output := types.ListTransactionsOutput{
+		o := types.ListTransactionsOutput{
 			// Fields set below:
 			//   Account (only for non-"send" categories)
 			//   Amount
@@ -2681,14 +2681,14 @@ outputs:
 		// controlled by this wallet, all non-credits from transactions
 		// with debits are grouped under the send category.
 		if send {
-			output.Amount = -amountF64
+			o.Amount = -amountF64
 		}
 		if isCredit {
-			output.Account = accountName
-			output.Amount = amountF64
+			o.Account = accountName
+			o.Amount = amountF64
 		}
 
-		outputs = append(outputs, output)
+		outputs = append(outputs, o)
 	}
 	result.Outputs = outputs
 
@@ -2701,7 +2701,16 @@ outputs:
 		result.Fee = nil
 	}
 
-	// XXX add inputs
+	inputs := make([]types.ListTransactionsInput, 0, len(details.MsgTx.TxIn))
+	for _, input := range details.MsgTx.TxIn {
+		amountF64 := dcrutil.Amount(input.ValueIn).ToCoin()
+		i := types.ListTransactionsInput{
+			Amount: amountF64,
+		}
+
+		inputs = append(inputs, i)
+	}
+	result.Inputs = inputs
 
 	return result
 }
