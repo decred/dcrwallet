@@ -2619,7 +2619,6 @@ func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb
 		//   BlockIndex
 		//
 		// Fields set below:
-		//   Category
 		//   Fee
 		//   Inputs
 		//   Outputs
@@ -2631,6 +2630,9 @@ func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb
 		Time:          received,
 		TimeReceived:  received,
 		TxType:        &txTypeStr,
+	}
+	if send {
+		result.Fee = &feeF64
 	}
 
 	outputs := make([]types.ListTransactionsOutput, 0, len(details.MsgTx.TxOut))
@@ -2682,24 +2684,17 @@ outputs:
 		// with debits are grouped under the send category.
 		if send {
 			o.Amount = -amountF64
+			o.Category = "send"
 		}
 		if isCredit {
 			o.Account = accountName
 			o.Amount = amountF64
+			o.Category = recvCat
 		}
 
 		outputs = append(outputs, o)
 	}
 	result.Outputs = outputs
-
-	if send {
-		result.Category = "send"
-		result.Fee = &feeF64
-	}
-	if isCredit {
-		result.Category = recvCat
-		result.Fee = nil
-	}
 
 	inputs := make([]types.ListTransactionsInput, 0, len(details.MsgTx.TxIn))
 	for _, input := range details.MsgTx.TxIn {

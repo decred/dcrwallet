@@ -638,7 +638,6 @@ var helpDescsEnUS = map[string]string{
 	"listtransactionsv2result-blockhash":         "The hash of the block this transaction is mined in, or the empty string if unmined",
 	"listtransactionsv2result-blockindex":        "Unset",
 	"listtransactionsv2result-blocktime":         "The Unix time of the block header this transaction is mined in, or 0 if unmined",
-	"listtransactionsv2result-category":          `The kind of transaction: "send" for sent transactions, "immature" for immature coinbase outputs, "generate" for mature coinbase outputs, or "recv" for all other received outputs.  Note: A single output may be included multiple times under different categories`,
 	"listtransactionsv2result-confirmations":     "The number of block confirmations of the transaction",
 	"listtransactionsv2result-fee":               "The total input value minus the total output value for sent transactions",
 	"listtransactionsv2result-generated":         "Whether the transaction output is a coinbase output",
@@ -656,6 +655,7 @@ var helpDescsEnUS = map[string]string{
 	"listtransactionsoutput-account":             "The output account",
 	"listtransactionsoutput-address":             "The output address",
 	"listtransactionsoutput-amount":              "The output amount",
+	"listtransactionsoutput-category":            `The kind of transaction: "send" for sent transactions, "immature" for immature coinbase outputs, "generate" for mature coinbase outputs, or "recv" for all other received outputs.  Note: A single output may be included multiple times under different categories`,
 	"listtransactionsoutput-otheraccount":        "The output other account",
 
 	// ListUnspentCmd help.

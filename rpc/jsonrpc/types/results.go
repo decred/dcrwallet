@@ -246,7 +246,6 @@ type ListTransactionsV2Result struct {
 	BlockHash         string                   `json:"blockhash,omitempty"`
 	BlockIndex        *int64                   `json:"blockindex,omitempty"`
 	BlockTime         int64                    `json:"blocktime,omitempty"`
-	Category          string                   `json:"category"`
 	Confirmations     int64                    `json:"confirmations"`
 	Fee               *float64                 `json:"fee,omitempty"`
 	Generated         bool                     `json:"generated,omitempty"`
@@ -272,6 +271,7 @@ type ListTransactionsOutput struct {
 	Account      string  `json:"account"`
 	Address      string  `json:"address,omitempty"`
 	Amount       float64 `json:"amount"`
+	Category     string  `json:"category"`
 	OtherAccount string  `json:"otheraccount,omitempty"`
 }
 
