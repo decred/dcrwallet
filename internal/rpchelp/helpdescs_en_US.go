@@ -628,6 +628,36 @@ var helpDescsEnUS = map[string]string{
 	"listtransactionsresult-otheraccount":      "Unset",
 	"listtransactionsresult-txtype":            "The type of tx (regular tx, stake tx)",
 
+	// ListTransactionsV2Cmd help.
+	"listtransactionsv2--synopsis": "JSON array of objects containing verbose details of the each transaction",
+	"listtransactionsv2-account":   "Unused (must be unset or \"*\")",
+	"listtransactionsv2-count":     "Maximum number of transactions to create results from",
+	"listtransactionsv2-from":      "Number of transactions to skip before results are created",
+
+	// ListTransactionsV2Result help.
+	"listtransactionsv2result-blockhash":         "The hash of the block this transaction is mined in, or the empty string if unmined",
+	"listtransactionsv2result-blockindex":        "Unset",
+	"listtransactionsv2result-blocktime":         "The Unix time of the block header this transaction is mined in, or 0 if unmined",
+	"listtransactionsv2result-category":          `The kind of transaction: "send" for sent transactions, "immature" for immature coinbase outputs, "generate" for mature coinbase outputs, or "recv" for all other received outputs.  Note: A single output may be included multiple times under different categories`,
+	"listtransactionsv2result-confirmations":     "The number of block confirmations of the transaction",
+	"listtransactionsv2result-fee":               "The total input value minus the total output value for sent transactions",
+	"listtransactionsv2result-generated":         "Whether the transaction output is a coinbase output",
+	"listtransactionsv2result-involveswatchonly": "Unset",
+	"listtransactionsv2result-time":              "The earliest Unix time this transaction was known to exist",
+	"listtransactionsv2result-timereceived":      "The earliest Unix time this transaction was known to exist",
+	"listtransactionsv2result-txid":              "The hash of the transaction",
+	"listtransactionsv2result-txtype":            "The type of tx (regular tx, stake tx)",
+	"listtransactionsv2result-inputs":            "The transaction inputs",
+	"listtransactionsinput-account":              "The input account",
+	"listtransactionsinput-address":              "The input address",
+	"listtransactionsinput-amount":               "The input amount",
+	"listtransactionsinput-otheraccount":         "The input otheraccount",
+	"listtransactionsv2result-outputs":           "The transaction outputs",
+	"listtransactionsoutput-account":             "The output account",
+	"listtransactionsoutput-address":             "The output address",
+	"listtransactionsoutput-amount":              "The output amount",
+	"listtransactionsoutput-otheraccount":        "The output other account",
+
 	// ListUnspentCmd help.
 	"listunspent--synopsis": "Returns a JSON array of objects representing unlocked unspent outputs controlled by wallet keys.",
 	"listunspent-minconf":   "Minimum number of block confirmations required before a transaction output is considered",
