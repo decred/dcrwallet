@@ -1401,9 +1401,15 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 		return nil, translateError(err)
 	}
 
+	host, err := s.wallet.VSPHostForTicket(ctx, ticketHash)
+	if err != nil && !errors.Is(err, errors.NotExist) {
+		return nil, err
+	}
+
 	resp := &pb.GetTicketsResponse{
-		Ticket: marshalTicketDetails(ticketSummary),
-		Block:  marshalGetTicketBlockDetails(blockHeader),
+		Ticket:  marshalTicketDetails(ticketSummary),
+		Block:   marshalGetTicketBlockDetails(blockHeader),
+		VspHost: host,
 	}
 	return resp, nil
 }

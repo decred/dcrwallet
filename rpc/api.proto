@@ -409,6 +409,7 @@ message GetTicketsResponse {
 	}
 	TicketDetails ticket = 1;
 	BlockDetails block = 2;
+	string vsp_host = 3;
 }
 
 message TicketPriceRequest {
