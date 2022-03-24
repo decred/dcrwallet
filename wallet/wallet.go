@@ -2565,7 +2565,7 @@ outputs:
 // result for a listtransactions RPC.
 //
 // TODO: This should be moved to the jsonrpc package.
-func listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) types.ListTransactionsV2Result {
+func (w *Wallet) listTransactionsV2(tx walletdb.ReadTx, details *udb.TxDetails, addrMgr *udb.Manager, syncHeight int32, net *chaincfg.Params) (types.ListTransactionsV2Result, error) {
 	addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
 
 	var (
@@ -2668,7 +2668,7 @@ outputs:
 		amountF64 := dcrutil.Amount(output.Value).ToCoin()
 		o := types.ListTransactionsOutput{
 			// Fields set below:
-			//   Account (only for non-"send" categories)
+			//   Account
 			//   Amount
 			Address: address,
 		}
@@ -2699,15 +2699,49 @@ outputs:
 	inputs := make([]types.ListTransactionsInput, 0, len(details.MsgTx.TxIn))
 	for _, input := range details.MsgTx.TxIn {
 		amountF64 := dcrutil.Amount(input.ValueIn).ToCoin()
-		i := types.ListTransactionsInput{
+
+		in := types.ListTransactionsInput{
+			// Fields set below:
+			//   Address
+			//   Account
 			Amount: amountF64,
 		}
+		// Get previous transaction details
+		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+		pt, err := w.txStore.Tx(txmgrNs, &input.PreviousOutPoint.Hash)
+		if err != nil {
+			return types.ListTransactionsV2Result{}, err
+		}
 
-		inputs = append(inputs, i)
+		// Lookup previous transaction output
+		for i, output := range pt.TxOut {
+			if uint32(i) == input.PreviousOutPoint.Index {
+				// Previous output found, get address & account info
+				var address string
+				var accountName string
+				_, addrs := stdscript.ExtractAddrs(output.Version, output.PkScript, net)
+				if len(addrs) == 1 {
+					addr := addrs[0]
+					address = addr.String()
+					account, err := addrMgr.AddrAccount(addrmgrNs, addrs[0])
+					if err == nil {
+						accountName, err = addrMgr.AccountName(addrmgrNs, account)
+						if err != nil {
+							accountName = ""
+						}
+					}
+
+					in.Address = address
+					in.Account = accountName
+				}
+			}
+		}
+
+		inputs = append(inputs, in)
 	}
 	result.Inputs = inputs
 
-	return result
+	return result, nil
 }
 
 // ListSinceBlock returns a slice of objects with details about transactions
@@ -2831,8 +2865,12 @@ func (w *Wallet) ListTransactionsV2(ctx context.Context, from, count int) ([]typ
 					continue
 				}
 
-				tx := listTransactionsV2(dbtx, &details[i],
+				tx, err := w.listTransactionsV2(dbtx, &details[i],
 					w.manager, tipHeight, w.chainParams)
+				if err != nil {
+					return false, err
+				}
+
 				txList = append(txList, tx)
 
 				n++
