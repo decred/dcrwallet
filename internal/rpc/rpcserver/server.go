@@ -1441,7 +1441,14 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		// the targetTicketCount after sending all from this block.
 		for _, t := range tickets {
 			resp.Ticket = marshalTicketDetails(t)
-			err := server.Send(resp)
+
+			host, err := s.wallet.VSPHostForTicket(ctx, t.Ticket.Hash)
+			if err != nil && !errors.Is(err, errors.NotExist) {
+				return true, err
+			}
+			resp.VspHost = host
+
+			err = server.Send(resp)
 			if err != nil {
 				return true, err
 			}
