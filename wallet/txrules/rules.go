@@ -35,7 +35,7 @@ func StakeSubScriptType(scriptType stdscript.ScriptType) (stdscript.ScriptType, 
 }
 
 // DefaultRelayFeePerKb is the default minimum relay fee policy for a mempool.
-const DefaultRelayFeePerKb dcrutil.Amount = 1e4
+const DefaultRelayFeePerKb dcrutil.Amount = 0.0001 * 1e8
 
 // IsDustAmount determines whether a transaction output value and script length would
 // cause the output to be considered dust.  Transactions with dust outputs are
