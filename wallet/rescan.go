@@ -175,7 +175,7 @@ func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 				return err
 			}
 			_, err = w.processTransactionRecord(context.Background(), dbtx, rec, header, &blockMeta)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return err
 			}
 		}

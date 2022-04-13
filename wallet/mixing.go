@@ -245,7 +245,7 @@ SplitPoints:
 			return errors.E(op, err)
 		}
 		watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.Exist) {
 			return err
 		}
 		return nil

@@ -7,6 +7,7 @@ package wallet
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -64,7 +65,7 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 			return nil, errors.E(op, err)
 		}
 		ops, err := w.processTransactionRecord(ctx, dbtx, rec, header, &blockMeta)
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.Exist) {
 			return nil, errors.E(op, err)
 		}
 		watch = append(watch, ops...)
@@ -388,6 +389,9 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 		}
 
 		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, header, meta)
+		if errors.Is(err, errors.Exist) {
+			return nil
+		}
 		return err
 	})
 	w.lockedOutpointMu.Unlock()
@@ -430,9 +434,11 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	if header == nil {
 		err = w.txStore.InsertMemPoolTx(dbtx, rec)
 		if errors.Is(err, errors.Exist) {
-			log.Warnf("Refusing to add unmined transaction %v since same "+
-				"transaction already exists mined", &rec.Hash)
-			return nil, nil
+			msg := fmt.Sprintf("Refusing to add unmined transaction "+
+				"%v since same transaction already exists mined",
+				&rec.Hash)
+			log.Warnf(msg)
+			return nil, errors.E(op, errors.Exist, msg)
 		}
 	} else {
 		err = w.txStore.InsertMinedTx(dbtx, rec, &blockMeta.Hash)
@@ -1013,7 +1019,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range voteRecords {
 			_, err := w.processTransactionRecord(ctx, dbtx, voteRecords[i], nil, nil)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return err
 			}
 		}
@@ -1154,7 +1160,7 @@ func (w *Wallet) RevokeOwnedTickets(ctx context.Context, missedTicketHashes []*c
 	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		for i := range revocationRecords {
 			_, err := w.processTransactionRecord(ctx, dbtx, revocationRecords[i], nil, nil)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return err
 			}
 		}

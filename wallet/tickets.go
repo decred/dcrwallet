@@ -308,7 +308,7 @@ func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
 			// Could be more efficient by avoiding processTransaction, as we
 			// know it is a revocation.
 			watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return errors.E(op, err)
 			}
 			return rpc.PublishTransaction(ctx, revocation)
@@ -420,7 +420,7 @@ func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
 				&rec.Hash)
 
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return err
 			}
 			watchOutPoints = append(watchOutPoints, watch...)
@@ -500,7 +500,7 @@ func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p
 		// know it is a revocation.
 		watchOutPoints, err = w.processTransactionRecord(ctx, dbtx, rec, nil,
 			nil)
-		if err != nil {
+		if err != nil && !errors.Is(err, errors.Exist) {
 			return err
 		}
 		return nil

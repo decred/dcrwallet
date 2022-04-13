@@ -499,6 +499,9 @@ func (w *Wallet) recordAuthoredTx(ctx context.Context, op errors.Op, a *authorTx
 		// relevant transactions, since this does a lot of extra work.
 		var err error
 		watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
+		if errors.Is(err, errors.Exist) {
+			return nil
+		}
 		return err
 	})
 	if err != nil {
@@ -1597,6 +1600,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
+			if errors.Is(err, errors.Exist) {
+				return nil
+			}
 			return err
 		})
 		w.lockedOutpointMu.Unlock()
@@ -1726,7 +1732,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
 			watchOutPoints = append(watchOutPoints, watch...)
-			if err != nil {
+			if err != nil && !errors.Is(err, errors.Exist) {
 				return err
 			}
 
