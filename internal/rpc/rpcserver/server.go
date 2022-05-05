@@ -3505,14 +3505,13 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 		return nil, translateError(err)
 	}
 
-	// Addresses must have an associated secp256k1 private key and therefore
-	// must be P2PK or P2PKH (P2SH is not allowed).
+	// Addresses must have an associated secp256k1 private key and must be P2PKH
+	// (P2PK and P2SH is not allowed).
 	switch addr.(type) {
-	case *stdaddr.AddressPubKeyEcdsaSecp256k1V0:
 	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0:
 	default:
 		return nil, status.Error(codes.InvalidArgument,
-			"address must be secp256k1 P2PK or P2PKH")
+			"address must be secp256k1 pay-to-pubkey-hash")
 	}
 
 	valid, err = wallet.VerifyMessage(req.Message, addr, req.Signature, s.chainParams)

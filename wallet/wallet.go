@@ -2087,20 +2087,20 @@ func VerifyMessage(msg string, addr stdaddr.Address, sig []byte, params stdaddr.
 		return false, errors.E(op, err)
 	}
 
-	// Reconstruct the address from the recovered pubkey.
-	var serializedPK []byte
+	// Reconstruct the pubkey hash address from the recovered pubkey.
+	var pkHash []byte
 	if wasCompressed {
-		serializedPK = pk.SerializeCompressed()
+		pkHash = stdaddr.Hash160(pk.SerializeCompressed())
 	} else {
-		serializedPK = pk.SerializeUncompressed()
+		pkHash = stdaddr.Hash160(pk.SerializeUncompressed())
 	}
-	recoveredAddr, err := stdaddr.NewAddressPubKeyEcdsaSecp256k1V0Raw(serializedPK, params)
+	address, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pkHash, params)
 	if err != nil {
 		return false, errors.E(op, err)
 	}
 
 	// Return whether addresses match.
-	return recoveredAddr.String() == addr.String(), nil
+	return address.String() == addr.String(), nil
 }
 
 // HaveAddress returns whether the wallet is the owner of the address a.
