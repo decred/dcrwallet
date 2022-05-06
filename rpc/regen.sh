@@ -12,7 +12,7 @@ generate() {
         --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative
 
     # fix uid mapping on files created within the container
-    [ -n "$UID" ] && chown -R $UID . 2>/dev/null
+    [ -n "$UID" ] && chown -R $UID . 2>/dev/null || return 0
 }
 
 (cd tools && build_tools)
