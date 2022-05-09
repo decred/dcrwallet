@@ -715,7 +715,7 @@ var helpDescsEnUS = map[string]string{
 	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
 
 	// RevokeTickets help.
-	"revoketickets--synopsis": "Requests the wallet create revovactions for any previously missed tickets.  Wallet must be unlocked.",
+	"revoketickets--synopsis": "DEPRECATED -- Performs no action and will be removed in a later API version.",
 
 	// SendFromCmd help.
 	"sendfrom--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +

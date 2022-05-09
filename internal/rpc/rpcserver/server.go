@@ -63,9 +63,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.15.0"
+	semverString = "7.16.0"
 	semverMajor  = 7
-	semverMinor  = 15
+	semverMinor  = 16
 	semverPatch  = 0
 )
 
@@ -1921,70 +1921,13 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}, nil
 }
 
+// deprecated
 func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsRequest) (*pb.RevokeTicketsResponse, error) {
-	n, err := s.requireNetworkBackend()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(req.Passphrase) > 0 {
-		lock := make(chan time.Time, 1)
-		defer func() {
-			lock <- time.Time{} // send matters, not the value
-		}()
-		err = s.wallet.Unlock(ctx, req.Passphrase, lock)
-		if err != nil {
-			return nil, translateError(err)
-		}
-	}
-
-	// The wallet is not locally aware of when tickets are selected to vote and
-	// when they are missed.  RevokeTickets uses trusted RPCs to determine which
-	// tickets were missed.  RevokeExpiredTickets is only able to create
-	// revocations for tickets which have reached their expiry time even if they
-	// were missed prior to expiry, but is able to be used with other backends.
-	if rpc, ok := n.(*dcrd.RPC); ok {
-		err := s.wallet.RevokeTickets(ctx, rpc)
-		if err != nil {
-			return nil, translateError(err)
-		}
-	} else {
-		err := s.wallet.RevokeExpiredTickets(ctx, n)
-		if err != nil {
-			return nil, translateError(err)
-		}
-	}
-
 	return &pb.RevokeTicketsResponse{}, nil
 }
 
+// deprecated
 func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketRequest) (*pb.RevokeTicketResponse, error) {
-	var ticketHash *chainhash.Hash
-	var err error
-	if len(req.TicketHash) != 0 {
-		ticketHash, err = chainhash.NewHash(req.TicketHash)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
-		}
-	} else {
-		return nil, status.Errorf(codes.InvalidArgument, "tickethash is required to revoke ticket")
-	}
-
-	n, err := s.requireNetworkBackend()
-	if err != nil {
-		return nil, err
-	}
-	if _, ok := n.(*dcrd.RPC); ok {
-		return nil, translateError(
-			status.Error(codes.FailedPrecondition,
-				"wallet must be in spv mode to use RevokeTicket request"))
-	}
-
-	err = s.wallet.RevokeTicket(ctx, ticketHash, n)
-	if err != nil {
-		return nil, translateError(err)
-	}
-
 	return &pb.RevokeTicketResponse{}, nil
 }
 

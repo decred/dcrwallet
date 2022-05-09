@@ -54,9 +54,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "8.8.0"
+	jsonrpcSemverString = "8.9.0"
 	jsonrpcSemverMajor  = 8
-	jsonrpcSemverMinor  = 8
+	jsonrpcSemverMinor  = 9
 	jsonrpcSemverPatch  = 0
 )
 
@@ -4177,29 +4177,12 @@ func (s *Server) rescanWallet(ctx context.Context, icmd interface{}) (interface{
 	return nil, err
 }
 
-// revokeTickets initiates the wallet to issue revocations for any missing
-// tickets that not yet been revoked.
+// revoketickets no longer revokes any tickets since revocations are now
+// automatically created per DCP0009.
+//
+// Deprecated: this method will be removed in the next major RPC API version.
 func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface{}, error) {
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	// The wallet is not locally aware of when tickets are selected to vote and
-	// when they are missed.  RevokeTickets uses trusted RPCs to determine which
-	// tickets were missed.  RevokeExpiredTickets is only able to create
-	// revocations for tickets which have reached their expiry time even if they
-	// were missed prior to expiry, but is able to be used with other backends.
-	n, ok := s.walletLoader.NetworkBackend()
-	if !ok {
-		return nil, errNoNetwork
-	}
-	if rpc, ok := n.(*dcrd.RPC); ok {
-		err := w.RevokeTickets(ctx, rpc)
-		return nil, err
-	}
-	err := w.RevokeExpiredTickets(ctx, n)
-	return nil, err
+	return nil, nil
 }
 
 // stakePoolUserInfo returns the ticket information for a given user from the

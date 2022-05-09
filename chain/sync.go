@@ -308,11 +308,6 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		log.Infof("Transactions synced through block %v height %d", &tipHash, tipHeight)
 	}
 
-	err = s.rpc.Call(ctx, "notifyspentandmissedtickets", nil)
-	if err != nil {
-		return err
-	}
-
 	if s.wallet.VotingEnabled() {
 		err = s.rpc.Call(ctx, "notifywinningtickets", nil)
 		if err != nil {
@@ -595,11 +590,6 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
-	case "spentandmissedtickets":
-		err := s.spentAndMissedTickets(ctx, params)
-		if err != nil {
-			log.Error(errors.E(op, err))
-		}
 	case "tspend":
 		err := s.storeTSpend(ctx, params)
 		if err != nil {
@@ -693,14 +683,6 @@ func (s *Syncer) relevantTxAccepted(ctx context.Context, params json.RawMessage)
 		return nil
 	}
 	return s.wallet.AddTransaction(ctx, tx, nil)
-}
-
-func (s *Syncer) spentAndMissedTickets(ctx context.Context, params json.RawMessage) error {
-	missed, err := dcrd.MissedTickets(params)
-	if err != nil {
-		return err
-	}
-	return s.wallet.RevokeOwnedTickets(ctx, missed)
 }
 
 func (s *Syncer) storeTSpend(ctx context.Context, params json.RawMessage) error {
