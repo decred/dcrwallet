@@ -38,3 +38,5 @@ require (
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
 )
+
+retract v2.0.2 // Tagged wrong branch
