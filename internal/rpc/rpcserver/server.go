@@ -1401,9 +1401,15 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 		return nil, translateError(err)
 	}
 
+	host, err := s.wallet.VSPHostForTicket(ctx, ticketHash)
+	if err != nil && !errors.Is(err, errors.NotExist) {
+		return nil, err
+	}
+
 	resp := &pb.GetTicketsResponse{
-		Ticket: marshalTicketDetails(ticketSummary),
-		Block:  marshalGetTicketBlockDetails(blockHeader),
+		Ticket:  marshalTicketDetails(ticketSummary),
+		Block:   marshalGetTicketBlockDetails(blockHeader),
+		VspHost: host,
 	}
 	return resp, nil
 }
@@ -1435,7 +1441,14 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		// the targetTicketCount after sending all from this block.
 		for _, t := range tickets {
 			resp.Ticket = marshalTicketDetails(t)
-			err := server.Send(resp)
+
+			host, err := s.wallet.VSPHostForTicket(ctx, t.Ticket.Hash)
+			if err != nil && !errors.Is(err, errors.NotExist) {
+				return true, err
+			}
+			resp.VspHost = host
+
+			err = server.Send(resp)
 			if err != nil {
 				return true, err
 			}
