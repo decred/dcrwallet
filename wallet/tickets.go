@@ -6,11 +6,9 @@ package wallet
 
 import (
 	"context"
-	"time"
 
 	"decred.org/dcrwallet/v2/errors"
 	"decred.org/dcrwallet/v2/rpc/client/dcrd"
-	"decred.org/dcrwallet/v2/wallet/udb"
 	"decred.org/dcrwallet/v2/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v4"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -226,105 +224,11 @@ func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr st
 	return ticketHashes, nil
 }
 
-// RevokeTickets creates and sends revocation transactions for any unrevoked
-// missed and expired tickets.  The wallet must be unlocked to generate any
-// revocations.
+// RevokeTickets no longer revokes any tickets since revocations are now
+// automatically created per DCP0009.
+//
+// Deprecated: this method will be removed in the next major version.
 func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
-	const op errors.Op = "wallet.RevokeTickets"
-
-	var ticketHashes []chainhash.Hash
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		var err error
-		_, tipHeight := w.txStore.MainChainTip(dbtx)
-		ticketHashes, err = w.txStore.UnspentTickets(dbtx, tipHeight, false)
-		return err
-	})
-	if err != nil {
-		return errors.E(op, err)
-	}
-
-	ticketHashPtrs := make([]*chainhash.Hash, len(ticketHashes))
-	for i := range ticketHashes {
-		ticketHashPtrs[i] = &ticketHashes[i]
-	}
-	rpc := dcrd.New(rpcCaller)
-	expired, missed, err := rpc.ExistsExpiredMissedTickets(ctx, ticketHashPtrs)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	revokableTickets := make([]*chainhash.Hash, 0, len(ticketHashes))
-	for i, p := range ticketHashPtrs {
-		if !(expired.Get(i) || missed.Get(i)) {
-			continue
-		}
-		revokableTickets = append(revokableTickets, p)
-	}
-	feePerKb := w.RelayFee()
-	revocations := make([]*wire.MsgTx, 0, len(revokableTickets))
-	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		for _, ticketHash := range revokableTickets {
-			addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-			ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
-			if err != nil {
-				return err
-			}
-
-			// Don't create revocations when this wallet doesn't have voting
-			// authority or the private key to revoke.
-			owned, haveKey, err := w.hasVotingAuthority(addrmgrNs, ticketPurchase)
-			if err != nil {
-				return err
-			}
-			if !(owned && haveKey) {
-				continue
-			}
-
-			revocation, err := createUnsignedRevocation(ticketHash,
-				ticketPurchase, feePerKb, w.chainParams)
-			if err != nil {
-				return err
-			}
-			err = w.signRevocation(addrmgrNs, ticketPurchase, revocation)
-			if err != nil {
-				return err
-			}
-			revocations = append(revocations, revocation)
-		}
-		return nil
-	})
-	if err != nil {
-		return errors.E(op, err)
-	}
-
-	for i, revocation := range revocations {
-		rec, err := udb.NewTxRecordFromMsgTx(revocation, time.Now())
-		if err != nil {
-			return errors.E(op, err)
-		}
-		var watch []wire.OutPoint
-		//w.lockedOutpointMu intentionally not locked.
-		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			// Could be more efficient by avoiding processTransaction, as we
-			// know it is a revocation.
-			watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-			if err != nil {
-				return errors.E(op, err)
-			}
-			return rpc.PublishTransaction(ctx, revocation)
-		})
-		if err != nil {
-			return errors.E(op, err)
-		}
-
-		log.Infof("Revoked ticket %v with revocation %v", revokableTickets[i],
-			&rec.Hash)
-		err = rpc.LoadTxFilter(ctx, false, nil, watch)
-		if err != nil {
-			log.Errorf("Failed to watch outpoints: %v", err)
-		}
-	}
-
 	return nil
 }
 

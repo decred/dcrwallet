@@ -67,6 +67,9 @@ func RelevantTxAccepted(params json.RawMessage) (tx *wire.MsgTx, err error) {
 
 // MissedTickets extracts the missed ticket hashes from the parameters of a
 // spentandmissedtickets JSON-RPC notification.
+//
+// Deprecated: The missedtickets notification was removed from dcrd and this
+// function will be removed in the next major version.
 func MissedTickets(params json.RawMessage) (missed []*chainhash.Hash, err error) {
 	// Parameters (array):
 	// 0: Block hash (reversed hex)

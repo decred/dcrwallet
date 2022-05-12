@@ -88,15 +88,17 @@ func (r *RPC) ExistsLiveTicket(ctx context.Context, ticket *chainhash.Hash) (boo
 	return exists, err
 }
 
-// ExistsLiveExpiredTickets returns bitsets identifying whether each ticket
-// is currently live or expired.
-func (r *RPC) ExistsLiveExpiredTickets(ctx context.Context, tickets []*chainhash.Hash) (live, expired bitset.Bytes, err error) {
+// ExistsLiveExpiredTickets returns bitsets identifying whether each ticket is
+// currently live or expired.  Following the activation of DCP0009, this method
+// will never return any expired tickets.
+//
+// Deprecated: Use ExistsLiveTickets instead.
+func (r *RPC) ExistsLiveExpiredTickets(ctx context.Context, tickets []*chainhash.Hash) (live, _ bitset.Bytes, err error) {
 	const op errors.Op = "dcrd.ExistsLiveExpiredTickets"
 	// Reuse the single json.RawMessage for both calls
 	ticketArray, _ := json.Marshal(hashSliceToStrings(tickets))
-	errs := make(chan error, 2)
+	errs := make(chan error, 1)
 	go func() { errs <- exists(ctx, r, "existslivetickets", &live, ticketArray) }()
-	go func() { errs <- exists(ctx, r, "existsexpiredtickets", &expired, ticketArray) }()
 	for i := 0; i < cap(errs); i++ {
 		if e := <-errs; err == nil && e != nil {
 			// Must only return after all exists calls are
@@ -109,19 +111,11 @@ func (r *RPC) ExistsLiveExpiredTickets(ctx context.Context, tickets []*chainhash
 	return
 }
 
-// ExistsExpiredMissedTickets returns bitsets identifying whether each ticket
-// is currently expired or missed.
-func (r *RPC) ExistsExpiredMissedTickets(ctx context.Context, tickets []*chainhash.Hash) (expired, missed bitset.Bytes, err error) {
-	const op errors.Op = "dcrd.ExistsExpiredMissedTickets"
-	ticketArray, _ := json.Marshal(hashSliceToStrings(tickets))
-	errs := make(chan error, 2)
-	go func() { errs <- exists(ctx, r, "existsexpiredtickets", &expired, ticketArray) }()
-	go func() { errs <- exists(ctx, r, "existsmissedtickets", &missed, ticketArray) }()
-	for i := 0; i < cap(errs); i++ {
-		if e := <-errs; err == nil && e != nil {
-			err = errors.E(op, e)
-		}
-	}
+// ExistsExpiredMissedTckets no longer performs any RPC as there should never be
+// unspent expired or missed tickets after the activation of DCP0009.
+//
+// Deprecated: this method will be removed in the next major version.
+func (r *RPC) ExistsExpiredMissedTickets(ctx context.Context, tickets []*chainhash.Hash) (_, _ bitset.Bytes, _ error) {
 	return
 }
 

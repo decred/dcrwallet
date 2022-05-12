@@ -2923,6 +2923,9 @@ const (
 	TicketStatusUnspent // unspent
 
 	// TicketStatusRevoked any ticket that has been previously revoked.
+	//
+	// Deprecated: The ticket status will be either missed or expired
+	// instead.  There are no more unrevoked missed/expired tickets.
 	TicketStatusRevoked // revoked
 )
 
@@ -2956,31 +2959,17 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 		case stake.TxTypeSSGen:
 			summary.Status = TicketStatusVoted
 		case stake.TxTypeSSRtx:
-			summary.Status = TicketStatusRevoked
-		}
-		return summary
-	}
-
-	if rpc != nil && summary.Status == TicketStatusLive {
-		// In RPC mode, find if unspent ticket was expired or missed.
-		hashes := []*chainhash.Hash{&details.Ticket.Hash}
-		live, expired, err := rpc.ExistsLiveExpiredTickets(ctx, hashes)
-		switch {
-		case err != nil:
-			log.Errorf("Unable to check if ticket was live "+
-				"for ticket status: %v", &details.Ticket.Hash)
-			summary.Status = TicketStatusUnknown
-		case expired.Get(0):
-			summary.Status = TicketStatusExpired
-		case !live.Get(0):
-			summary.Status = TicketStatusMissed
-		}
-	} else if rpc == nil {
-		// In SPV mode, use expired status when the ticket is certainly
-		// past the expiry period (even though it is possible that the
-		// ticket was missed rather than expiring).
-		if ticketExpired(w.chainParams, ticketHeight, tipHeight) {
-			summary.Status = TicketStatusExpired
+			params := w.chainParams
+			ticketHeight := details.Ticket.Block.Height
+			revocationHeight := details.Spender.Block.Height
+			expired := revocationHeight-ticketHeight >=
+				int32(params.TicketExpiryBlocks())+
+					int32(params.TicketMaturity)
+			if expired {
+				summary.Status = TicketStatusExpired
+			} else {
+				summary.Status = TicketStatusMissed
+			}
 		}
 	}
 

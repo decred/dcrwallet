@@ -25,7 +25,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var requiredAPIVersion = semver{Major: 7, Minor: 0, Patch: 0}
+var requiredAPIVersion = semver{Major: 8, Minor: 0, Patch: 0}
 
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
@@ -530,10 +530,6 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	err = s.rpc.Call(ctx, "rebroadcastwinners", nil)
-	if err != nil {
-		return err
-	}
-	err = s.rpc.Call(ctx, "rebroadcastmissed", nil)
 	if err != nil {
 		return err
 	}
