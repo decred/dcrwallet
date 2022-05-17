@@ -1030,6 +1030,25 @@ message SetVoteChoicesResponse {
 	uint32 votebits = 1;
 }
 
+message TreasuryPoliciesRequest {}
+
+message TreasuryPoliciesResponse {
+	message Policy {
+		bytes key = 1;
+		string policy = 2;
+		bytes ticket_hash = 3;
+	}
+	repeated Policy policies = 1;
+}
+
+message SetTreasuryPolicyRequest {
+	bytes key = 1;
+	string policy = 2;
+	bytes ticket_hash = 3;
+}
+
+message SetTreasuryPolicyResponse {}
+
 message VerifyMessageRequest {
 	string address = 1;
 	string message = 2;
