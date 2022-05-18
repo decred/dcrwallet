@@ -134,6 +134,8 @@ service AgendaService {
 service VotingService {
 	rpc VoteChoices (VoteChoicesRequest) returns (VoteChoicesResponse);
 	rpc SetVoteChoices (SetVoteChoicesRequest) returns (SetVoteChoicesResponse);
+	rpc TreasuryPolicies (TreasuryPoliciesRequest) returns (TreasuryPoliciesResponse);
+	rpc SetTreasuryPolicy (SetTreasuryPolicyRequest) returns (SetTreasuryPolicyResponse);
 }
 
 service MessageVerificationService {

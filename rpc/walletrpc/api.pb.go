@@ -16852,7 +16852,7 @@ var file_api_proto_rawDesc = []byte{
 	0x19, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67, 0x65, 0x6e,
 	0x64, 0x61, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1a, 0x2e, 0x77, 0x61, 0x6c,
 	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x41, 0x67, 0x65, 0x6e, 0x64, 0x61, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xb4, 0x01, 0x0a, 0x0d, 0x56, 0x6f, 0x74, 0x69, 0x6e,
+	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0xf1, 0x02, 0x0a, 0x0d, 0x56, 0x6f, 0x74, 0x69, 0x6e,
 	0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x56, 0x6f, 0x74, 0x65,
 	0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
 	0x72, 0x70, 0x63, 0x2e, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69, 0x63, 0x65, 0x73, 0x52,
@@ -16863,31 +16863,43 @@ var file_api_proto_rawDesc = []byte{
 	0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68, 0x6f, 0x69,
 	0x63, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x21, 0x2e, 0x77, 0x61, 0x6c,
 	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x56, 0x6f, 0x74, 0x65, 0x43, 0x68,
-	0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x70, 0x0a,
-	0x1a, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x56, 0x65, 0x72, 0x69, 0x66, 0x69, 0x63, 0x61,
-	0x74, 0x69, 0x6f, 0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x56,
-	0x65, 0x72, 0x69, 0x66, 0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1f, 0x2e, 0x77,
-	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x4d,
-	0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e,
-	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79,
-	0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32,
-	0x5e, 0x0a, 0x0e, 0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63,
-	0x65, 0x12, 0x4c, 0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
-	0x12, 0x1d, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74,
-	0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x1e, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x52,
-	0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32,
-	0x7f, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
-	0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f, 0x64,
-	0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12,
-	0x26, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f,
-	0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
-	0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61,
-	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x42, 0x24, 0x5a, 0x22, 0x64, 0x65, 0x63, 0x72, 0x65, 0x64, 0x2e, 0x6f, 0x72, 0x67, 0x2f, 0x64,
-	0x63, 0x72, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x77, 0x61, 0x6c,
-	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x69, 0x63, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5b, 0x0a,
+	0x10, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x69, 0x65,
+	0x73, 0x12, 0x22, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x54, 0x72,
+	0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x69, 0x65, 0x73, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70,
+	0x63, 0x2e, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x69,
+	0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x5e, 0x0a, 0x11, 0x53, 0x65,
+	0x74, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x12,
+	0x23, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x53, 0x65, 0x74, 0x54,
+	0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69, 0x63, 0x79, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x24, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x53, 0x65, 0x74, 0x54, 0x72, 0x65, 0x61, 0x73, 0x75, 0x72, 0x79, 0x50, 0x6f, 0x6c, 0x69,
+	0x63, 0x79, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x70, 0x0a, 0x1a, 0x4d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x56, 0x65, 0x72, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x52, 0x0a, 0x0d, 0x56, 0x65, 0x72, 0x69,
+	0x66, 0x79, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x12, 0x1f, 0x2e, 0x77, 0x61, 0x6c, 0x6c,
+	0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x4d, 0x65, 0x73, 0x73,
+	0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x20, 0x2e, 0x77, 0x61, 0x6c,
+	0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x56, 0x65, 0x72, 0x69, 0x66, 0x79, 0x4d, 0x65, 0x73,
+	0x73, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x5e, 0x0a, 0x0e,
+	0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x4c,
+	0x0a, 0x0b, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x1d, 0x2e,
+	0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77,
+	0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x47, 0x65, 0x74, 0x52, 0x61, 0x77, 0x42,
+	0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x7f, 0x0a, 0x14,
+	0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x53, 0x65, 0x72,
+	0x76, 0x69, 0x63, 0x65, 0x12, 0x67, 0x0a, 0x14, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52, 0x61,
+	0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x26, 0x2e, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63, 0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52,
+	0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x1a, 0x27, 0x2e, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74, 0x72, 0x70, 0x63,
+	0x2e, 0x44, 0x65, 0x63, 0x6f, 0x64, 0x65, 0x52, 0x61, 0x77, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x24, 0x5a,
+	0x22, 0x64, 0x65, 0x63, 0x72, 0x65, 0x64, 0x2e, 0x6f, 0x72, 0x67, 0x2f, 0x64, 0x63, 0x72, 0x77,
+	0x61, 0x6c, 0x6c, 0x65, 0x74, 0x2f, 0x72, 0x70, 0x63, 0x2f, 0x77, 0x61, 0x6c, 0x6c, 0x65, 0x74,
+	0x72, 0x70, 0x63, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -17310,106 +17322,110 @@ var file_api_proto_depIdxs = []int32{
 	157, // 149: walletrpc.AgendaService.Agendas:input_type -> walletrpc.AgendasRequest
 	159, // 150: walletrpc.VotingService.VoteChoices:input_type -> walletrpc.VoteChoicesRequest
 	161, // 151: walletrpc.VotingService.SetVoteChoices:input_type -> walletrpc.SetVoteChoicesRequest
-	167, // 152: walletrpc.MessageVerificationService.VerifyMessage:input_type -> walletrpc.VerifyMessageRequest
-	192, // 153: walletrpc.NetworkService.GetRawBlock:input_type -> walletrpc.GetRawBlockRequest
-	170, // 154: walletrpc.DecodeMessageService.DecodeRawTransaction:input_type -> walletrpc.DecodeRawTransactionRequest
-	13,  // 155: walletrpc.VersionService.Version:output_type -> walletrpc.VersionResponse
-	19,  // 156: walletrpc.WalletService.Ping:output_type -> walletrpc.PingResponse
-	21,  // 157: walletrpc.WalletService.Network:output_type -> walletrpc.NetworkResponse
-	23,  // 158: walletrpc.WalletService.CoinType:output_type -> walletrpc.CoinTypeResponse
-	25,  // 159: walletrpc.WalletService.AccountNumber:output_type -> walletrpc.AccountNumberResponse
-	27,  // 160: walletrpc.WalletService.Accounts:output_type -> walletrpc.AccountsResponse
-	45,  // 161: walletrpc.WalletService.Balance:output_type -> walletrpc.BalanceResponse
-	176, // 162: walletrpc.WalletService.GetAccountExtendedPubKey:output_type -> walletrpc.GetAccountExtendedPubKeyResponse
-	178, // 163: walletrpc.WalletService.GetAccountExtendedPrivKey:output_type -> walletrpc.GetAccountExtendedPrivKeyResponse
-	47,  // 164: walletrpc.WalletService.GetTransaction:output_type -> walletrpc.GetTransactionResponse
-	49,  // 165: walletrpc.WalletService.GetTransactions:output_type -> walletrpc.GetTransactionsResponse
-	52,  // 166: walletrpc.WalletService.GetTicket:output_type -> walletrpc.GetTicketsResponse
-	52,  // 167: walletrpc.WalletService.GetTickets:output_type -> walletrpc.GetTicketsResponse
-	54,  // 168: walletrpc.WalletService.TicketPrice:output_type -> walletrpc.TicketPriceResponse
-	56,  // 169: walletrpc.WalletService.StakeInfo:output_type -> walletrpc.StakeInfoResponse
-	58,  // 170: walletrpc.WalletService.BlockInfo:output_type -> walletrpc.BlockInfoResponse
-	181, // 171: walletrpc.WalletService.BestBlock:output_type -> walletrpc.BestBlockResponse
-	189, // 172: walletrpc.WalletService.Spender:output_type -> walletrpc.SpenderResponse
-	191, // 173: walletrpc.WalletService.GetCFilters:output_type -> walletrpc.GetCFiltersResponse
-	210, // 174: walletrpc.WalletService.GetPeerInfo:output_type -> walletrpc.GetPeerInfoResponse
-	90,  // 175: walletrpc.WalletService.TransactionNotifications:output_type -> walletrpc.TransactionNotificationsResponse
-	92,  // 176: walletrpc.WalletService.AccountNotifications:output_type -> walletrpc.AccountNotificationsResponse
-	94,  // 177: walletrpc.WalletService.ConfirmationNotifications:output_type -> walletrpc.ConfirmationNotificationsResponse
-	60,  // 178: walletrpc.WalletService.ChangePassphrase:output_type -> walletrpc.ChangePassphraseResponse
-	29,  // 179: walletrpc.WalletService.RenameAccount:output_type -> walletrpc.RenameAccountResponse
-	31,  // 180: walletrpc.WalletService.Rescan:output_type -> walletrpc.RescanResponse
-	33,  // 181: walletrpc.WalletService.NextAccount:output_type -> walletrpc.NextAccountResponse
-	35,  // 182: walletrpc.WalletService.NextAddress:output_type -> walletrpc.NextAddressResponse
-	37,  // 183: walletrpc.WalletService.ImportPrivateKey:output_type -> walletrpc.ImportPrivateKeyResponse
-	39,  // 184: walletrpc.WalletService.ImportExtendedPublicKey:output_type -> walletrpc.ImportExtendedPublicKeyResponse
-	41,  // 185: walletrpc.WalletService.ImportVotingAccountFromSeed:output_type -> walletrpc.ImportVotingAccountFromSeedResponse
-	43,  // 186: walletrpc.WalletService.ImportScript:output_type -> walletrpc.ImportScriptResponse
-	62,  // 187: walletrpc.WalletService.FundTransaction:output_type -> walletrpc.FundTransactionResponse
-	64,  // 188: walletrpc.WalletService.UnspentOutputs:output_type -> walletrpc.UnspentOutputResponse
-	66,  // 189: walletrpc.WalletService.ConstructTransaction:output_type -> walletrpc.ConstructTransactionResponse
-	68,  // 190: walletrpc.WalletService.SignTransaction:output_type -> walletrpc.SignTransactionResponse
-	70,  // 191: walletrpc.WalletService.SignTransactions:output_type -> walletrpc.SignTransactionsResponse
-	72,  // 192: walletrpc.WalletService.CreateSignature:output_type -> walletrpc.CreateSignatureResponse
-	74,  // 193: walletrpc.WalletService.PublishTransaction:output_type -> walletrpc.PublishTransactionResponse
-	76,  // 194: walletrpc.WalletService.PublishUnminedTransactions:output_type -> walletrpc.PublishUnminedTransactionsResponse
-	78,  // 195: walletrpc.WalletService.PurchaseTickets:output_type -> walletrpc.PurchaseTicketsResponse
-	80,  // 196: walletrpc.WalletService.RevokeTicket:output_type -> walletrpc.RevokeTicketResponse
-	82,  // 197: walletrpc.WalletService.RevokeTickets:output_type -> walletrpc.RevokeTicketsResponse
-	84,  // 198: walletrpc.WalletService.LoadActiveDataFilters:output_type -> walletrpc.LoadActiveDataFiltersResponse
-	86,  // 199: walletrpc.WalletService.SignMessage:output_type -> walletrpc.SignMessageResponse
-	88,  // 200: walletrpc.WalletService.SignMessages:output_type -> walletrpc.SignMessagesResponse
-	173, // 201: walletrpc.WalletService.ValidateAddress:output_type -> walletrpc.ValidateAddressResponse
-	179, // 202: walletrpc.WalletService.CommittedTickets:output_type -> walletrpc.CommittedTicketsResponse
-	183, // 203: walletrpc.WalletService.SweepAccount:output_type -> walletrpc.SweepAccountResponse
-	185, // 204: walletrpc.WalletService.AbandonTransaction:output_type -> walletrpc.AbandonTransactionResponse
-	187, // 205: walletrpc.WalletService.SignHashes:output_type -> walletrpc.SignHashesResponse
-	196, // 206: walletrpc.WalletService.GetCoinjoinOutputspByAcct:output_type -> walletrpc.GetCoinjoinOutputspByAcctResponse
-	200, // 207: walletrpc.WalletService.SetAccountPassphrase:output_type -> walletrpc.SetAccountPassphraseResponse
-	201, // 208: walletrpc.WalletService.UnlockAccount:output_type -> walletrpc.UnlockAccountResponse
-	202, // 209: walletrpc.WalletService.LockAccount:output_type -> walletrpc.LockAccountResponse
-	206, // 210: walletrpc.WalletService.UnlockWallet:output_type -> walletrpc.UnlockWalletResponse
-	208, // 211: walletrpc.WalletService.LockWallet:output_type -> walletrpc.LockWalletResponse
-	204, // 212: walletrpc.WalletService.AccountUnlocked:output_type -> walletrpc.AccountUnlockedResponse
-	212, // 213: walletrpc.WalletService.SyncVSPFailedTickets:output_type -> walletrpc.SyncVSPTicketsResponse
-	214, // 214: walletrpc.WalletService.GetVSPTicketsByFeeStatus:output_type -> walletrpc.GetVSPTicketsByFeeStatusResponse
-	216, // 215: walletrpc.WalletService.ProcessManagedTickets:output_type -> walletrpc.ProcessManagedTicketsResponse
-	218, // 216: walletrpc.WalletService.ProcessUnmanagedTickets:output_type -> walletrpc.ProcessUnmanagedTicketsResponse
-	220, // 217: walletrpc.WalletService.SetVspdVoteChoices:output_type -> walletrpc.SetVspdVoteChoicesResponse
-	222, // 218: walletrpc.WalletService.GetTrackedVSPTickets:output_type -> walletrpc.GetTrackedVSPTicketsResponse
-	224, // 219: walletrpc.WalletService.DiscoverUsage:output_type -> walletrpc.DiscoverUsageResponse
-	104, // 220: walletrpc.WalletLoaderService.WalletExists:output_type -> walletrpc.WalletExistsResponse
-	96,  // 221: walletrpc.WalletLoaderService.CreateWallet:output_type -> walletrpc.CreateWalletResponse
-	98,  // 222: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:output_type -> walletrpc.CreateWatchingOnlyWalletResponse
-	100, // 223: walletrpc.WalletLoaderService.OpenWallet:output_type -> walletrpc.OpenWalletResponse
-	102, // 224: walletrpc.WalletLoaderService.CloseWallet:output_type -> walletrpc.CloseWalletResponse
-	122, // 225: walletrpc.WalletLoaderService.SpvSync:output_type -> walletrpc.SpvSyncResponse
-	120, // 226: walletrpc.WalletLoaderService.RpcSync:output_type -> walletrpc.RpcSyncResponse
-	124, // 227: walletrpc.WalletLoaderService.RescanPoint:output_type -> walletrpc.RescanPointResponse
-	132, // 228: walletrpc.AccountMixerService.RunAccountMixer:output_type -> walletrpc.RunAccountMixerResponse
-	130, // 229: walletrpc.TicketBuyerV2Service.RunTicketBuyer:output_type -> walletrpc.RunTicketBuyerResponse
-	134, // 230: walletrpc.TicketBuyerService.StartAutoBuyer:output_type -> walletrpc.StartAutoBuyerResponse
-	136, // 231: walletrpc.TicketBuyerService.StopAutoBuyer:output_type -> walletrpc.StopAutoBuyerResponse
-	138, // 232: walletrpc.TicketBuyerService.TicketBuyerConfig:output_type -> walletrpc.TicketBuyerConfigResponse
-	140, // 233: walletrpc.TicketBuyerService.SetAccount:output_type -> walletrpc.SetAccountResponse
-	142, // 234: walletrpc.TicketBuyerService.SetBalanceToMaintain:output_type -> walletrpc.SetBalanceToMaintainResponse
-	144, // 235: walletrpc.TicketBuyerService.SetMaxFee:output_type -> walletrpc.SetMaxFeeResponse
-	146, // 236: walletrpc.TicketBuyerService.SetMaxPriceRelative:output_type -> walletrpc.SetMaxPriceRelativeResponse
-	148, // 237: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:output_type -> walletrpc.SetMaxPriceAbsoluteResponse
-	150, // 238: walletrpc.TicketBuyerService.SetVotingAddress:output_type -> walletrpc.SetVotingAddressResponse
-	152, // 239: walletrpc.TicketBuyerService.SetPoolAddress:output_type -> walletrpc.SetPoolAddressResponse
-	154, // 240: walletrpc.TicketBuyerService.SetPoolFees:output_type -> walletrpc.SetPoolFeesResponse
-	156, // 241: walletrpc.TicketBuyerService.SetMaxPerBlock:output_type -> walletrpc.SetMaxPerBlockResponse
-	126, // 242: walletrpc.SeedService.GenerateRandomSeed:output_type -> walletrpc.GenerateRandomSeedResponse
-	128, // 243: walletrpc.SeedService.DecodeSeed:output_type -> walletrpc.DecodeSeedResponse
-	158, // 244: walletrpc.AgendaService.Agendas:output_type -> walletrpc.AgendasResponse
-	160, // 245: walletrpc.VotingService.VoteChoices:output_type -> walletrpc.VoteChoicesResponse
-	162, // 246: walletrpc.VotingService.SetVoteChoices:output_type -> walletrpc.SetVoteChoicesResponse
-	168, // 247: walletrpc.MessageVerificationService.VerifyMessage:output_type -> walletrpc.VerifyMessageResponse
-	193, // 248: walletrpc.NetworkService.GetRawBlock:output_type -> walletrpc.GetRawBlockResponse
-	171, // 249: walletrpc.DecodeMessageService.DecodeRawTransaction:output_type -> walletrpc.DecodeRawTransactionResponse
-	155, // [155:250] is the sub-list for method output_type
-	60,  // [60:155] is the sub-list for method input_type
+	163, // 152: walletrpc.VotingService.TreasuryPolicies:input_type -> walletrpc.TreasuryPoliciesRequest
+	165, // 153: walletrpc.VotingService.SetTreasuryPolicy:input_type -> walletrpc.SetTreasuryPolicyRequest
+	167, // 154: walletrpc.MessageVerificationService.VerifyMessage:input_type -> walletrpc.VerifyMessageRequest
+	192, // 155: walletrpc.NetworkService.GetRawBlock:input_type -> walletrpc.GetRawBlockRequest
+	170, // 156: walletrpc.DecodeMessageService.DecodeRawTransaction:input_type -> walletrpc.DecodeRawTransactionRequest
+	13,  // 157: walletrpc.VersionService.Version:output_type -> walletrpc.VersionResponse
+	19,  // 158: walletrpc.WalletService.Ping:output_type -> walletrpc.PingResponse
+	21,  // 159: walletrpc.WalletService.Network:output_type -> walletrpc.NetworkResponse
+	23,  // 160: walletrpc.WalletService.CoinType:output_type -> walletrpc.CoinTypeResponse
+	25,  // 161: walletrpc.WalletService.AccountNumber:output_type -> walletrpc.AccountNumberResponse
+	27,  // 162: walletrpc.WalletService.Accounts:output_type -> walletrpc.AccountsResponse
+	45,  // 163: walletrpc.WalletService.Balance:output_type -> walletrpc.BalanceResponse
+	176, // 164: walletrpc.WalletService.GetAccountExtendedPubKey:output_type -> walletrpc.GetAccountExtendedPubKeyResponse
+	178, // 165: walletrpc.WalletService.GetAccountExtendedPrivKey:output_type -> walletrpc.GetAccountExtendedPrivKeyResponse
+	47,  // 166: walletrpc.WalletService.GetTransaction:output_type -> walletrpc.GetTransactionResponse
+	49,  // 167: walletrpc.WalletService.GetTransactions:output_type -> walletrpc.GetTransactionsResponse
+	52,  // 168: walletrpc.WalletService.GetTicket:output_type -> walletrpc.GetTicketsResponse
+	52,  // 169: walletrpc.WalletService.GetTickets:output_type -> walletrpc.GetTicketsResponse
+	54,  // 170: walletrpc.WalletService.TicketPrice:output_type -> walletrpc.TicketPriceResponse
+	56,  // 171: walletrpc.WalletService.StakeInfo:output_type -> walletrpc.StakeInfoResponse
+	58,  // 172: walletrpc.WalletService.BlockInfo:output_type -> walletrpc.BlockInfoResponse
+	181, // 173: walletrpc.WalletService.BestBlock:output_type -> walletrpc.BestBlockResponse
+	189, // 174: walletrpc.WalletService.Spender:output_type -> walletrpc.SpenderResponse
+	191, // 175: walletrpc.WalletService.GetCFilters:output_type -> walletrpc.GetCFiltersResponse
+	210, // 176: walletrpc.WalletService.GetPeerInfo:output_type -> walletrpc.GetPeerInfoResponse
+	90,  // 177: walletrpc.WalletService.TransactionNotifications:output_type -> walletrpc.TransactionNotificationsResponse
+	92,  // 178: walletrpc.WalletService.AccountNotifications:output_type -> walletrpc.AccountNotificationsResponse
+	94,  // 179: walletrpc.WalletService.ConfirmationNotifications:output_type -> walletrpc.ConfirmationNotificationsResponse
+	60,  // 180: walletrpc.WalletService.ChangePassphrase:output_type -> walletrpc.ChangePassphraseResponse
+	29,  // 181: walletrpc.WalletService.RenameAccount:output_type -> walletrpc.RenameAccountResponse
+	31,  // 182: walletrpc.WalletService.Rescan:output_type -> walletrpc.RescanResponse
+	33,  // 183: walletrpc.WalletService.NextAccount:output_type -> walletrpc.NextAccountResponse
+	35,  // 184: walletrpc.WalletService.NextAddress:output_type -> walletrpc.NextAddressResponse
+	37,  // 185: walletrpc.WalletService.ImportPrivateKey:output_type -> walletrpc.ImportPrivateKeyResponse
+	39,  // 186: walletrpc.WalletService.ImportExtendedPublicKey:output_type -> walletrpc.ImportExtendedPublicKeyResponse
+	41,  // 187: walletrpc.WalletService.ImportVotingAccountFromSeed:output_type -> walletrpc.ImportVotingAccountFromSeedResponse
+	43,  // 188: walletrpc.WalletService.ImportScript:output_type -> walletrpc.ImportScriptResponse
+	62,  // 189: walletrpc.WalletService.FundTransaction:output_type -> walletrpc.FundTransactionResponse
+	64,  // 190: walletrpc.WalletService.UnspentOutputs:output_type -> walletrpc.UnspentOutputResponse
+	66,  // 191: walletrpc.WalletService.ConstructTransaction:output_type -> walletrpc.ConstructTransactionResponse
+	68,  // 192: walletrpc.WalletService.SignTransaction:output_type -> walletrpc.SignTransactionResponse
+	70,  // 193: walletrpc.WalletService.SignTransactions:output_type -> walletrpc.SignTransactionsResponse
+	72,  // 194: walletrpc.WalletService.CreateSignature:output_type -> walletrpc.CreateSignatureResponse
+	74,  // 195: walletrpc.WalletService.PublishTransaction:output_type -> walletrpc.PublishTransactionResponse
+	76,  // 196: walletrpc.WalletService.PublishUnminedTransactions:output_type -> walletrpc.PublishUnminedTransactionsResponse
+	78,  // 197: walletrpc.WalletService.PurchaseTickets:output_type -> walletrpc.PurchaseTicketsResponse
+	80,  // 198: walletrpc.WalletService.RevokeTicket:output_type -> walletrpc.RevokeTicketResponse
+	82,  // 199: walletrpc.WalletService.RevokeTickets:output_type -> walletrpc.RevokeTicketsResponse
+	84,  // 200: walletrpc.WalletService.LoadActiveDataFilters:output_type -> walletrpc.LoadActiveDataFiltersResponse
+	86,  // 201: walletrpc.WalletService.SignMessage:output_type -> walletrpc.SignMessageResponse
+	88,  // 202: walletrpc.WalletService.SignMessages:output_type -> walletrpc.SignMessagesResponse
+	173, // 203: walletrpc.WalletService.ValidateAddress:output_type -> walletrpc.ValidateAddressResponse
+	179, // 204: walletrpc.WalletService.CommittedTickets:output_type -> walletrpc.CommittedTicketsResponse
+	183, // 205: walletrpc.WalletService.SweepAccount:output_type -> walletrpc.SweepAccountResponse
+	185, // 206: walletrpc.WalletService.AbandonTransaction:output_type -> walletrpc.AbandonTransactionResponse
+	187, // 207: walletrpc.WalletService.SignHashes:output_type -> walletrpc.SignHashesResponse
+	196, // 208: walletrpc.WalletService.GetCoinjoinOutputspByAcct:output_type -> walletrpc.GetCoinjoinOutputspByAcctResponse
+	200, // 209: walletrpc.WalletService.SetAccountPassphrase:output_type -> walletrpc.SetAccountPassphraseResponse
+	201, // 210: walletrpc.WalletService.UnlockAccount:output_type -> walletrpc.UnlockAccountResponse
+	202, // 211: walletrpc.WalletService.LockAccount:output_type -> walletrpc.LockAccountResponse
+	206, // 212: walletrpc.WalletService.UnlockWallet:output_type -> walletrpc.UnlockWalletResponse
+	208, // 213: walletrpc.WalletService.LockWallet:output_type -> walletrpc.LockWalletResponse
+	204, // 214: walletrpc.WalletService.AccountUnlocked:output_type -> walletrpc.AccountUnlockedResponse
+	212, // 215: walletrpc.WalletService.SyncVSPFailedTickets:output_type -> walletrpc.SyncVSPTicketsResponse
+	214, // 216: walletrpc.WalletService.GetVSPTicketsByFeeStatus:output_type -> walletrpc.GetVSPTicketsByFeeStatusResponse
+	216, // 217: walletrpc.WalletService.ProcessManagedTickets:output_type -> walletrpc.ProcessManagedTicketsResponse
+	218, // 218: walletrpc.WalletService.ProcessUnmanagedTickets:output_type -> walletrpc.ProcessUnmanagedTicketsResponse
+	220, // 219: walletrpc.WalletService.SetVspdVoteChoices:output_type -> walletrpc.SetVspdVoteChoicesResponse
+	222, // 220: walletrpc.WalletService.GetTrackedVSPTickets:output_type -> walletrpc.GetTrackedVSPTicketsResponse
+	224, // 221: walletrpc.WalletService.DiscoverUsage:output_type -> walletrpc.DiscoverUsageResponse
+	104, // 222: walletrpc.WalletLoaderService.WalletExists:output_type -> walletrpc.WalletExistsResponse
+	96,  // 223: walletrpc.WalletLoaderService.CreateWallet:output_type -> walletrpc.CreateWalletResponse
+	98,  // 224: walletrpc.WalletLoaderService.CreateWatchingOnlyWallet:output_type -> walletrpc.CreateWatchingOnlyWalletResponse
+	100, // 225: walletrpc.WalletLoaderService.OpenWallet:output_type -> walletrpc.OpenWalletResponse
+	102, // 226: walletrpc.WalletLoaderService.CloseWallet:output_type -> walletrpc.CloseWalletResponse
+	122, // 227: walletrpc.WalletLoaderService.SpvSync:output_type -> walletrpc.SpvSyncResponse
+	120, // 228: walletrpc.WalletLoaderService.RpcSync:output_type -> walletrpc.RpcSyncResponse
+	124, // 229: walletrpc.WalletLoaderService.RescanPoint:output_type -> walletrpc.RescanPointResponse
+	132, // 230: walletrpc.AccountMixerService.RunAccountMixer:output_type -> walletrpc.RunAccountMixerResponse
+	130, // 231: walletrpc.TicketBuyerV2Service.RunTicketBuyer:output_type -> walletrpc.RunTicketBuyerResponse
+	134, // 232: walletrpc.TicketBuyerService.StartAutoBuyer:output_type -> walletrpc.StartAutoBuyerResponse
+	136, // 233: walletrpc.TicketBuyerService.StopAutoBuyer:output_type -> walletrpc.StopAutoBuyerResponse
+	138, // 234: walletrpc.TicketBuyerService.TicketBuyerConfig:output_type -> walletrpc.TicketBuyerConfigResponse
+	140, // 235: walletrpc.TicketBuyerService.SetAccount:output_type -> walletrpc.SetAccountResponse
+	142, // 236: walletrpc.TicketBuyerService.SetBalanceToMaintain:output_type -> walletrpc.SetBalanceToMaintainResponse
+	144, // 237: walletrpc.TicketBuyerService.SetMaxFee:output_type -> walletrpc.SetMaxFeeResponse
+	146, // 238: walletrpc.TicketBuyerService.SetMaxPriceRelative:output_type -> walletrpc.SetMaxPriceRelativeResponse
+	148, // 239: walletrpc.TicketBuyerService.SetMaxPriceAbsolute:output_type -> walletrpc.SetMaxPriceAbsoluteResponse
+	150, // 240: walletrpc.TicketBuyerService.SetVotingAddress:output_type -> walletrpc.SetVotingAddressResponse
+	152, // 241: walletrpc.TicketBuyerService.SetPoolAddress:output_type -> walletrpc.SetPoolAddressResponse
+	154, // 242: walletrpc.TicketBuyerService.SetPoolFees:output_type -> walletrpc.SetPoolFeesResponse
+	156, // 243: walletrpc.TicketBuyerService.SetMaxPerBlock:output_type -> walletrpc.SetMaxPerBlockResponse
+	126, // 244: walletrpc.SeedService.GenerateRandomSeed:output_type -> walletrpc.GenerateRandomSeedResponse
+	128, // 245: walletrpc.SeedService.DecodeSeed:output_type -> walletrpc.DecodeSeedResponse
+	158, // 246: walletrpc.AgendaService.Agendas:output_type -> walletrpc.AgendasResponse
+	160, // 247: walletrpc.VotingService.VoteChoices:output_type -> walletrpc.VoteChoicesResponse
+	162, // 248: walletrpc.VotingService.SetVoteChoices:output_type -> walletrpc.SetVoteChoicesResponse
+	164, // 249: walletrpc.VotingService.TreasuryPolicies:output_type -> walletrpc.TreasuryPoliciesResponse
+	166, // 250: walletrpc.VotingService.SetTreasuryPolicy:output_type -> walletrpc.SetTreasuryPolicyResponse
+	168, // 251: walletrpc.MessageVerificationService.VerifyMessage:output_type -> walletrpc.VerifyMessageResponse
+	193, // 252: walletrpc.NetworkService.GetRawBlock:output_type -> walletrpc.GetRawBlockResponse
+	171, // 253: walletrpc.DecodeMessageService.DecodeRawTransaction:output_type -> walletrpc.DecodeRawTransactionResponse
+	157, // [157:254] is the sub-list for method output_type
+	60,  // [60:157] is the sub-list for method input_type
 	60,  // [60:60] is the sub-list for extension type_name
 	60,  // [60:60] is the sub-list for extension extendee
 	0,   // [0:60] is the sub-list for field type_name
@@ -24190,6 +24206,8 @@ var _AgendaService_serviceDesc = grpc.ServiceDesc{
 type VotingServiceClient interface {
 	VoteChoices(ctx context.Context, in *VoteChoicesRequest, opts ...grpc.CallOption) (*VoteChoicesResponse, error)
 	SetVoteChoices(ctx context.Context, in *SetVoteChoicesRequest, opts ...grpc.CallOption) (*SetVoteChoicesResponse, error)
+	TreasuryPolicies(ctx context.Context, in *TreasuryPoliciesRequest, opts ...grpc.CallOption) (*TreasuryPoliciesResponse, error)
+	SetTreasuryPolicy(ctx context.Context, in *SetTreasuryPolicyRequest, opts ...grpc.CallOption) (*SetTreasuryPolicyResponse, error)
 }
 
 type votingServiceClient struct {
@@ -24218,10 +24236,30 @@ func (c *votingServiceClient) SetVoteChoices(ctx context.Context, in *SetVoteCho
 	return out, nil
 }
 
+func (c *votingServiceClient) TreasuryPolicies(ctx context.Context, in *TreasuryPoliciesRequest, opts ...grpc.CallOption) (*TreasuryPoliciesResponse, error) {
+	out := new(TreasuryPoliciesResponse)
+	err := c.cc.Invoke(ctx, "/walletrpc.VotingService/TreasuryPolicies", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *votingServiceClient) SetTreasuryPolicy(ctx context.Context, in *SetTreasuryPolicyRequest, opts ...grpc.CallOption) (*SetTreasuryPolicyResponse, error) {
+	out := new(SetTreasuryPolicyResponse)
+	err := c.cc.Invoke(ctx, "/walletrpc.VotingService/SetTreasuryPolicy", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VotingServiceServer is the server API for VotingService service.
 type VotingServiceServer interface {
 	VoteChoices(context.Context, *VoteChoicesRequest) (*VoteChoicesResponse, error)
 	SetVoteChoices(context.Context, *SetVoteChoicesRequest) (*SetVoteChoicesResponse, error)
+	TreasuryPolicies(context.Context, *TreasuryPoliciesRequest) (*TreasuryPoliciesResponse, error)
+	SetTreasuryPolicy(context.Context, *SetTreasuryPolicyRequest) (*SetTreasuryPolicyResponse, error)
 }
 
 // UnimplementedVotingServiceServer can be embedded to have forward compatible implementations.
@@ -24233,6 +24271,12 @@ func (*UnimplementedVotingServiceServer) VoteChoices(context.Context, *VoteChoic
 }
 func (*UnimplementedVotingServiceServer) SetVoteChoices(context.Context, *SetVoteChoicesRequest) (*SetVoteChoicesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetVoteChoices not implemented")
+}
+func (*UnimplementedVotingServiceServer) TreasuryPolicies(context.Context, *TreasuryPoliciesRequest) (*TreasuryPoliciesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TreasuryPolicies not implemented")
+}
+func (*UnimplementedVotingServiceServer) SetTreasuryPolicy(context.Context, *SetTreasuryPolicyRequest) (*SetTreasuryPolicyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetTreasuryPolicy not implemented")
 }
 
 func RegisterVotingServiceServer(s *grpc.Server, srv VotingServiceServer) {
@@ -24275,6 +24319,42 @@ func _VotingService_SetVoteChoices_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VotingService_TreasuryPolicies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TreasuryPoliciesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VotingServiceServer).TreasuryPolicies(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/walletrpc.VotingService/TreasuryPolicies",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VotingServiceServer).TreasuryPolicies(ctx, req.(*TreasuryPoliciesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _VotingService_SetTreasuryPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetTreasuryPolicyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VotingServiceServer).SetTreasuryPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/walletrpc.VotingService/SetTreasuryPolicy",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VotingServiceServer).SetTreasuryPolicy(ctx, req.(*SetTreasuryPolicyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _VotingService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "walletrpc.VotingService",
 	HandlerType: (*VotingServiceServer)(nil),
@@ -24286,6 +24366,14 @@ var _VotingService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetVoteChoices",
 			Handler:    _VotingService_SetVoteChoices_Handler,
+		},
+		{
+			MethodName: "TreasuryPolicies",
+			Handler:    _VotingService_TreasuryPolicies_Handler,
+		},
+		{
+			MethodName: "SetTreasuryPolicy",
+			Handler:    _VotingService_SetTreasuryPolicy_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
