@@ -4127,10 +4127,6 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 		return nil
 	})
 
-	// Wallet does not yet know if/when a ticket was selected.  Keep track of
-	// all tickets that are either live, expired, or missed and determine their
-	// states later by querying the consensus RPC server.
-	var liveOrExpiredOrMissed []*chainhash.Hash
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -4175,12 +4171,13 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 			// it is a vote or revocation.  If it is a vote, add the earned
 			// subsidy.
 			if it.SpenderHash != (chainhash.Hash{}) {
-				spender, err := w.txStore.Tx(txmgrNs, &it.SpenderHash)
+				spender, err := w.txStore.TxDetails(txmgrNs, &it.SpenderHash)
 				if err != nil {
 					return err
 				}
+				spenderTx := &spender.MsgTx
 				switch {
-				case isVote(spender):
+				case isVote(spenderTx):
 					res.Voted++
 
 					// Add the subsidy.
@@ -4192,16 +4189,24 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 					// Similarly, for stakepool wallets, this includes the
 					// customer's subsidy rather than being just the subsidy
 					// earned by fees.
-					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
+					res.TotalSubsidy += dcrutil.Amount(spenderTx.TxIn[0].ValueIn)
 
-				case isRevocation(spender):
+				case isRevocation(spenderTx):
 					res.Revoked++
-
-					// The ticket was revoked because it was either expired or
-					// missed.  Append it to the liveOrExpiredOrMissed slice to
-					// check this later.
-					ticketHash := it.Hash
-					liveOrExpiredOrMissed = append(liveOrExpiredOrMissed, &ticketHash)
+					// Revoked tickets must be either expired or missed.
+					// Assume expired unless the revocation occurs before
+					// the expiry time.  This assumption may not be accurate
+					// for tickets that were missed prior to the activation
+					// of DCP0009.
+					params := w.chainParams
+					expired := spender.Block.Height-it.Block.Height >=
+						int32(params.TicketExpiryBlocks())+
+							int32(params.TicketMaturity)
+					if expired {
+						res.Expired++
+					} else {
+						res.Missed++
+					}
 
 				default:
 					return errors.E(errors.IO, errors.Errorf("ticket spender %v is neither vote nor revocation", &it.SpenderHash))
@@ -4209,14 +4214,9 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 				continue
 			}
 
-			// Ticket is matured but unspent.  Possible states are that the
-			// ticket is live, expired, or missed.
+			// Ticket matured, unspent, and therefore live.
 			res.Unspent++
-			if ticketExpired(w.chainParams, it.Block.Height, tipHeight) {
-				res.UnspentExpired++
-			}
-			ticketHash := it.Hash
-			liveOrExpiredOrMissed = append(liveOrExpiredOrMissed, &ticketHash)
+			res.Live++
 		}
 		if err := it.Err(); err != nil {
 			return err
@@ -4243,24 +4243,6 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*Stake
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
-	}
-
-	// As the wallet is unaware of when a ticket was selected or missed, this
-	// info must be queried from the consensus server.  If the ticket is neither
-	// live nor expired, it is assumed missed.
-	live, expired, err := rpc.ExistsLiveExpiredTickets(ctx, liveOrExpiredOrMissed)
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	for i := range liveOrExpiredOrMissed {
-		switch {
-		case live.Get(i):
-			res.Live++
-		case expired.Get(i):
-			res.Expired++
-		default:
-			res.Missed++
-		}
 	}
 
 	// Wait for MempoolCount call from beginning of function to complete.
