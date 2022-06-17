@@ -339,7 +339,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 
 	// Seed peers over DNS when not disabled by persistent peers.
 	if len(s.persistentPeers) == 0 {
-		s.lp.SeedPeers(ctx, wire.SFNodeNetwork|wire.SFNodeCF)
+		s.lp.SeedPeers(ctx, wire.SFNodeNetwork)
 	}
 
 	// Start background handlers to read received messages from remote peers
