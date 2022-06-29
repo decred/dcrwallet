@@ -164,6 +164,119 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 }
 
+// NewUnsignedTransactionRecipientPaysFee creates an unsigned transaction paying
+// to one output.  An appropriate transaction fee is included based on the
+// transaction size and is subtracted from the provided output's value.
+//
+// Transaction inputs are chosen from repeated calls to fetchInputs with
+// increasing targets amounts.
+//
+// If any remaining output value can be returned to the wallet via a change
+// output without violating mempool dust rules, a P2PKH change output is
+// appended to the transaction outputs.
+//
+// If successful, the transaction, total input value spent, and all previous
+// output scripts are returned.  If the input source was unable to provide
+// enough input value to pay for every output any any necessary fees, an
+// InputSourceError is returned.
+func NewUnsignedTransactionRecipientPaysFee(output *wire.TxOut, relayFeePerKb dcrutil.Amount,
+	fetchInputs InputSource, fetchChange ChangeSource, maxTxSize int) (*AuthoredTx, error) {
+
+	const op errors.Op = "txauthor.NewUnsignedTransactionRecipientPaysFee"
+
+	targetAmount := dcrutil.Amount(output.Value)
+	changeScript, changeScriptVersion, err := fetchChange.Script()
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	// Create shallow copy of `output` to include in return value since the
+	// value field will be mutated.  The transaction copy retains a reference to
+	// the output script array.
+	outputCopy := &wire.TxOut{
+		PkScript: output.PkScript,
+		Version:  output.Version,
+		Value:    output.Value,
+	}
+
+	outputs := []*wire.TxOut{outputCopy}
+
+	// Only attempt to fetch enough value to satisfy the target amount.
+	inputDetail, err := fetchInputs(targetAmount)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	if inputDetail.Amount < targetAmount {
+		return nil, errors.E(op, errors.InsufficientBalance)
+	}
+
+	// If the change would be dust, it can safely be considered as a part of the
+	// target amount so that it contributes to the fee paid.
+	changeAmount := inputDetail.Amount - targetAmount
+	changeScriptSize := fetchChange.ScriptSize()
+	if txrules.IsDustAmount(changeAmount, changeScriptSize, relayFeePerKb) {
+		targetAmount += dcrutil.Amount(changeAmount)
+		changeAmount = 0
+		changeScriptSize = 0
+	}
+
+	scriptSizes := make([]int, 0, len(inputDetail.RedeemScriptSizes))
+	scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
+
+	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, outputs,
+		changeScriptSize)
+	maxRequiredFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
+
+	// If the target amount is dust after subtracting the fee, return an error.
+	outputCopy.Value = int64(targetAmount - maxRequiredFee)
+	if txrules.IsDustOutput(outputCopy, relayFeePerKb) {
+		return nil, errors.E(errors.Policy, "transaction output is dust")
+	}
+
+	if maxSignedSize > maxTxSize {
+		return nil, errors.E(errors.Invalid,
+			"signed tx size exceeds allowed maximum")
+	}
+
+	unsignedTransaction := &wire.MsgTx{
+		SerType:  wire.TxSerializeFull,
+		Version:  generatedTxVersion,
+		TxIn:     inputDetail.Inputs,
+		TxOut:    outputs,
+		LockTime: 0,
+		Expiry:   0,
+	}
+	changeIndex := -1
+
+	// If there is change, then create a change output and add it to the
+	// returned transaction's outputs.
+	if changeAmount != 0 {
+		if len(changeScript) > txscript.MaxScriptElementSize {
+			return nil, errors.E(errors.Invalid,
+				"script size exceed maximum bytes pushable to the stack")
+		}
+		change := &wire.TxOut{
+			Value:    int64(changeAmount),
+			Version:  changeScriptVersion,
+			PkScript: changeScript,
+		}
+		l := len(outputs)
+		unsignedTransaction.TxOut = append(outputs[:l:l], change)
+		changeIndex = l
+	} else {
+		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes,
+			unsignedTransaction.TxOut, 0)
+	}
+	return &AuthoredTx{
+		Tx:                           unsignedTransaction,
+		PrevScripts:                  inputDetail.Scripts,
+		TotalInput:                   inputDetail.Amount,
+		ChangeIndex:                  changeIndex,
+		EstimatedSignedSerializeSize: maxSignedSize,
+	}, nil
+}
+
 // RandomizeOutputPosition randomizes the position of a transaction's output by
 // swapping it with a random output.  The new index is returned.  This should be
 // done before signing.

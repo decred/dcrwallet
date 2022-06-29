@@ -238,3 +238,113 @@ func TestNewUnsignedTransaction(t *testing.T) {
 		}
 	}
 }
+
+func TestNewUnsignedTransactionRecipientPaysFee(t *testing.T) {
+	const defaultRelayFeePerKb = 1e3
+	const defaultFeeOneInputOneOutput = 228
+	const defaultFeeOneInputTwoOutputs = 264
+
+	tests := []struct {
+		name             string
+		unspentOutputs   []*wire.TxOut
+		output           *wire.TxOut
+		wantErr          error
+		wantOutputAmount dcrutil.Amount
+		wantChangeAmount dcrutil.Amount
+	}{{
+		name:             "output spends all input value",
+		unspentOutputs:   p2pkhOutputs(1e8),
+		output:           p2pkhOutputs(1e8)[0],
+		wantOutputAmount: 1e8 - defaultFeeOneInputOneOutput,
+	}, {
+		name:             "output with dust change",
+		unspentOutputs:   p2pkhOutputs(1e8),
+		output:           p2pkhOutputs(1e8 - 1)[0],
+		wantOutputAmount: 1e8 - defaultFeeOneInputOneOutput,
+	}, {
+		name:             "output with non-dust change",
+		unspentOutputs:   p2pkhOutputs(2e8),
+		output:           p2pkhOutputs(1e8)[0],
+		wantOutputAmount: 1e8 - defaultFeeOneInputTwoOutputs,
+		wantChangeAmount: 1e8,
+	}, {
+		name:           "output overspends input value",
+		unspentOutputs: p2pkhOutputs(1e8),
+		output:         p2pkhOutputs(1e8 + 1)[0],
+		wantErr:        errors.InsufficientBalance,
+	}, {
+		name:           "output is dust",
+		unspentOutputs: p2pkhOutputs(defaultFeeOneInputOneOutput),
+		output:         p2pkhOutputs(defaultFeeOneInputOneOutput)[0],
+		wantErr:        errors.Policy,
+	}}
+
+	var changeSource AuthorTestChangeSource
+	maxTxSize := chaincfg.MainNetParams().MaxTxSize
+	for _, test := range tests {
+		testName := test.name
+		inputSource := makeInputSource(test.unspentOutputs)
+		tx, err := NewUnsignedTransactionRecipientPaysFee(test.output,
+			defaultRelayFeePerKb, inputSource, changeSource, maxTxSize)
+
+		// Ensure the error returned matches what is expected from the
+		// respective test.
+		if test.wantErr != nil {
+			if err == nil {
+				t.Errorf("%s: error expected, but one was not returned",
+					testName)
+				return
+			} else if !errors.Is(err, test.wantErr) {
+				t.Errorf("%s: got error: %v, expected error: %v",
+					testName, err, test.wantErr)
+				return
+			}
+			continue
+		} else if err != nil {
+			t.Errorf("%s: got unexpected error: %v", testName, err)
+			return
+		}
+
+		// Ensure the change output matches what is expected from the
+		// respective test.
+		if test.wantChangeAmount > 0 && tx.ChangeIndex < 0 {
+			t.Errorf("%s: expected change output does not exist", testName)
+			return
+		}
+		if test.wantChangeAmount == 0 && tx.ChangeIndex >= 0 {
+			t.Errorf("%s: unexpected change output created", testName)
+			return
+		}
+
+		outputIndex := 0
+		if tx.ChangeIndex >= 0 {
+			outputIndex = tx.ChangeIndex ^ 1
+		}
+		actualOutputValue := tx.Tx.TxOut[outputIndex].Value
+
+		// Ensure the returned output reference is not the same as the provided
+		// output argument.  Since the transaction is modified, it should not
+		// be the same.
+		if test.output == tx.Tx.TxOut[outputIndex] {
+			t.Errorf("%s: expected returned output reference to not equal"+
+				" test output reference", testName)
+			return
+		}
+
+		if actualOutputValue != int64(test.wantOutputAmount) {
+			t.Errorf("%s: unexpected output value. got %v, want %v ",
+				testName, actualOutputValue, test.wantOutputAmount)
+			return
+		}
+
+		// If there is change, make sure it's the expected value.
+		if tx.ChangeIndex >= 0 {
+			changeValue := tx.Tx.TxOut[tx.ChangeIndex].Value
+			if changeValue != int64(test.wantChangeAmount) {
+				t.Errorf("%s: Got change amount %v, Expected %v",
+					testName, changeValue, test.wantChangeAmount)
+				return
+			}
+		}
+	}
+}

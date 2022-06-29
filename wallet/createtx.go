@@ -337,6 +337,7 @@ type authorTx struct {
 	txFee              dcrutil.Amount
 	dontSignTx         bool
 	isTreasury         bool
+	recipientPaysFee   bool
 
 	atx                 *txauthor.AuthoredTx
 	changeSourceUpdates []func(walletdb.ReadWriteTx) error
@@ -393,9 +394,22 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 			}
 		}
 		var err error
-		atx, err = txauthor.NewUnsignedTransaction(a.outputs, a.txFee,
-			randomInputSource(inputSource.SelectInputs), changeSource,
-			w.chainParams.MaxTxSize)
+
+		maxTxSize := w.chainParams.MaxTxSize
+		randInputSource := randomInputSource(inputSource.SelectInputs)
+		if a.recipientPaysFee {
+			outputs := a.outputs
+			if len(outputs) != 1 {
+				return errors.E(errors.Invalid, "expected exactly one output "+
+					"for transaction where recipient pays the fee")
+			}
+			output := outputs[0]
+			atx, err = txauthor.NewUnsignedTransactionRecipientPaysFee(output,
+				a.txFee, randInputSource, changeSource, maxTxSize)
+		} else {
+			atx, err = txauthor.NewUnsignedTransaction(a.outputs, a.txFee,
+				randInputSource, changeSource, maxTxSize)
+		}
 		if err != nil {
 			return err
 		}

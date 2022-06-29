@@ -3526,7 +3526,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
-func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
+func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32, recipientPaysFee bool) (string, error) {
 	changeAccount := account
 	if s.cfg.CSPPServer != "" && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
@@ -3545,7 +3545,14 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 	if err != nil {
 		return "", err
 	}
-	txSha, err := w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
+
+	var txSha *chainhash.Hash
+	if recipientPaysFee {
+		txSha, err = w.SendOutputRecipientPaysFee(ctx, outputs, account,
+			changeAccount, minconf)
+	} else {
+		txSha, err = w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
+	}
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
 			return "", errWalletUnlockNeeded
@@ -4393,7 +4400,7 @@ func (s *Server) sendFrom(ctx context.Context, icmd interface{}) (interface{}, e
 		cmd.ToAddress: amt,
 	}
 
-	return s.sendPairs(ctx, w, pairs, account, minConf)
+	return s.sendPairs(ctx, w, pairs, account, minConf, false)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -4435,7 +4442,7 @@ func (s *Server) sendMany(ctx context.Context, icmd interface{}) (interface{}, e
 		pairs[k] = amt
 	}
 
-	return s.sendPairs(ctx, w, pairs, account, minConf)
+	return s.sendPairs(ctx, w, pairs, account, minConf, false)
 }
 
 // sendToAddress handles a sendtoaddress RPC request by creating a new
@@ -4471,8 +4478,13 @@ func (s *Server) sendToAddress(ctx context.Context, icmd interface{}) (interface
 		cmd.Address: amt,
 	}
 
-	// sendtoaddress always spends from the default account, this matches bitcoind
-	return s.sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1)
+	recipientPaysFee := false
+	if cmd.SubtractFeeFromAmount != nil {
+		recipientPaysFee = *cmd.SubtractFeeFromAmount
+	}
+
+	// sendtoaddress always spends from the default account.
+	return s.sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1, recipientPaysFee)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
