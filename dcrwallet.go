@@ -163,6 +163,7 @@ func run(ctx context.Context) error {
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
+		cfg.TreasuryPolicyYesVote, cfg.TreasuryPolicyNoVote,
 		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets,
 		cfg.MixSplitLimit)

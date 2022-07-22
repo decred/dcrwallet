@@ -124,8 +124,10 @@ type Wallet struct {
 	vspTSpendKeyPolicy map[udb.VSPTreasuryKey]stake.TreasuryVoteT
 
 	// Start up flags/settings
-	gapLimit        uint32
-	accountGapLimit int
+	tspendPolicyYesVote float64
+	tspendPolicyNoVote  float64
+	gapLimit            uint32
+	accountGapLimit     int
 
 	// initialHeight is the wallet's tip height prior to syncing with the
 	// network. Useful for calculating or estimating headers fetch progress
@@ -176,6 +178,8 @@ type Config struct {
 	PoolAddress   stdaddr.StakeAddress
 	PoolFees      float64
 
+	TreasuryPolicyYesVote   float64
+	TreasuryPolicyNoVote    float64
 	GapLimit                uint32
 	AccountGapLimit         int
 	MixSplitLimit           int
@@ -5342,6 +5346,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		vspTSpendKeyPolicy: make(map[udb.VSPTreasuryKey]stake.TreasuryVoteT),
 
 		// LoaderOptions
+		tspendPolicyYesVote:     cfg.TreasuryPolicyYesVote,
+		tspendPolicyNoVote:      cfg.TreasuryPolicyNoVote,
 		gapLimit:                cfg.GapLimit,
 		allowHighFees:           cfg.AllowHighFees,
 		accountGapLimit:         cfg.AccountGapLimit,

@@ -40,6 +40,8 @@ type Loader struct {
 	db          wallet.DB
 
 	stakeOptions            *StakeOptions
+	tspendPolicyYesVote     float64
+	tspendPolicyNoVote      float64
 	gapLimit                uint32
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
@@ -69,13 +71,16 @@ type StakeOptions struct {
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
-	allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int, disableCoinTypeUpgrades bool, manualTickets bool, mixSplitLimit int) *Loader {
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions,
+	tspendPolicyYesVote float64, tspendPolicyNoVote float64, gapLimit uint32, allowHighFees bool,
+	relayFee dcrutil.Amount, accountGapLimit int, disableCoinTypeUpgrades bool, manualTickets bool, mixSplitLimit int) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
 		dbDirPath:               dbDirPath,
 		stakeOptions:            stakeOptions,
+		tspendPolicyYesVote:     tspendPolicyYesVote,
+		tspendPolicyNoVote:      tspendPolicyNoVote,
 		gapLimit:                gapLimit,
 		accountGapLimit:         accountGapLimit,
 		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
@@ -185,6 +190,8 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
+		TreasuryPolicyYesVote:   l.tspendPolicyYesVote,
+		TreasuryPolicyNoVote:    l.tspendPolicyNoVote,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
@@ -277,6 +284,8 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
+		TreasuryPolicyYesVote:   l.tspendPolicyYesVote,
+		TreasuryPolicyNoVote:    l.tspendPolicyNoVote,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
@@ -338,6 +347,8 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		VotingAddress:           so.VotingAddress,
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
+		TreasuryPolicyYesVote:   l.tspendPolicyYesVote,
+		TreasuryPolicyNoVote:    l.tspendPolicyNoVote,
 		GapLimit:                l.gapLimit,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,

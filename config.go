@@ -99,6 +99,8 @@ type config struct {
 	PromptPublicPass        bool                 `long:"promptpublicpass" description:"Prompt for public passphrase from terminal"`
 	EnableTicketBuyer       bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
 	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
+	TreasuryPolicyYesVote   float64              `long:"tpolicyyesvote" description:"Specify percentage of treasury yes votes"`
+	TreasuryPolicyNoVote    float64              `long:"tpolicynovote" description:"Specify percentage of treasury no votes"`
 	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
 	poolAddress             stdaddr.StakeAddress
@@ -673,6 +675,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			fmt.Fprintln(os.Stderr, usageMessage)
 			return loadConfigError(err)
 		}
+	}
+
+	if cfg.TreasuryPolicyYesVote+cfg.TreasuryPolicyNoVote >= 1 {
+		err := errors.Errorf("tpolicyyesvote + tpolicynovote must be less than 1")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
 	}
 
 	ipNet := func(cidr string) net.IPNet {

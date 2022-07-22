@@ -8,6 +8,7 @@ package wallet
 import (
 	"context"
 	"math/big"
+	"math/rand"
 	"time"
 
 	"decred.org/dcrwallet/v2/deployments"
@@ -918,13 +919,33 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 					continue
 				}
 
+				if w.tspendPolicyYesVote+w.tspendPolicyNoVote <= 0 {
+					continue
+				}
+
 				// Get policy for tspend, falling back to any
 				// policy for the Pi key.
 				tspendHash := v.TxHash()
-				tspendVote := w.TSpendPolicy(&tspendHash, ticketHash)
-				if tspendVote == stake.TreasuryVoteInvalid {
+
+				r := rand.New(rand.NewSource(time.Now().UnixNano()))
+				randomNumber := r.Float64()
+				tspendVote := stake.TreasuryVoteNo
+
+				yesPercent := w.tspendPolicyYesVote
+				noPercent := w.tspendPolicyNoVote + yesPercent
+				if randomNumber <= yesPercent {
+					tspendVote = stake.TreasuryVoteYes
+					log.Infof("%.4f >= %.4f(random), will vote yes", yesPercent, randomNumber)
+				} else if randomNumber <= noPercent {
+					log.Infof("%.4f >= %.4f(random), will vote no", noPercent, randomNumber)
+				} else {
 					continue
 				}
+
+				// tspendVote := w.TSpendPolicy(&tspendHash, ticketHash)
+				// if tspendVote == stake.TreasuryVoteInvalid {
+				// 	continue
+				// }
 
 				// Append tspend hash and vote bits
 				tVotes = append(tVotes[:], tspendHash[:]...)
