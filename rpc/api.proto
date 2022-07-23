@@ -134,8 +134,10 @@ service AgendaService {
 service VotingService {
 	rpc VoteChoices (VoteChoicesRequest) returns (VoteChoicesResponse);
 	rpc SetVoteChoices (SetVoteChoicesRequest) returns (SetVoteChoicesResponse);
-  	rpc TreasuryPolicies (TreasuryPoliciesRequest) returns (TreasuryPoliciesResponse);
-  	rpc SetTreasuryPolicy (SetTreasuryPolicyRequest) returns (SetTreasuryPolicyResponse);
+	rpc TSpendPolicies (TSpendPoliciesRequest) returns (TSpendPoliciesResponse);
+	rpc SetTSpendPolicy (SetTSpendPolicyRequest) returns (SetTSpendPolicyResponse);
+	rpc TreasuryPolicies (TreasuryPoliciesRequest) returns (TreasuryPoliciesResponse);
+	rpc SetTreasuryPolicy (SetTreasuryPolicyRequest) returns (SetTreasuryPolicyResponse);
 }
 
 service MessageVerificationService {
@@ -1031,6 +1033,28 @@ message SetVoteChoicesRequest {
 message SetVoteChoicesResponse {
 	uint32 votebits = 1;
 }
+
+message TSpendPoliciesRequest {	
+	bytes hash = 1;
+	bytes ticket_hash = 2;
+}
+
+message TSpendPoliciesResponse {
+	message Policy {
+		bytes hash = 1;
+		string policy = 2;
+		bytes ticket_hash = 3;
+	}
+	repeated Policy policies = 1;
+}
+
+message SetTSpendPolicyRequest {
+	bytes hash = 1;
+	string policy = 2;
+	bytes ticket_hash = 3;
+}
+
+message SetTSpendPolicyResponse {}
 
 message TreasuryPoliciesRequest {}
 
