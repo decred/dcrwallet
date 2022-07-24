@@ -8,7 +8,6 @@ package wallet
 import (
 	"context"
 	"math/big"
-	"math/rand"
 	"time"
 
 	"decred.org/dcrwallet/v2/deployments"
@@ -804,8 +803,8 @@ func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Ha
 }
 
 // VoteOnOwnedTickets creates and publishes vote transactions for all owned
-// tickets in the winningTicketHashes slice if wallet voting is enabled.  The
-// vote is only valid when voting on the block described by the passed block
+// tickets in the winningTicketHashes slice if wallet voting is enabled. The
+// vote is only valid when voting on the block is described by the passed block
 // hash and height.  When a network backend is associated with the wallet,
 // relevant commitment outputs are loaded as watched data.
 func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*chainhash.Hash, blockHash *chainhash.Hash, blockHeight int32) error {
@@ -895,9 +894,6 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				}
 			}
 
-			// Deal with treasury votes
-			tspends := w.GetAllTSpends(ctx)
-
 			// Dealwith consensus votes
 			vote, err := createUnsignedVote(ticketHash, ticketPurchase,
 				blockHeight, blockHash, ticketVoteBits, w.subsidyCache,
@@ -908,44 +904,52 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				continue
 			}
 
+			// Deal with treasury votes
+			tspends := w.GetAllTSpends(ctx)
+
+			// If a wallet pre-defined voting policy exists, shuffle all treasury
+			// votes first
+			tspendYesNoSum := w.tspendPolicyYesVote + w.tspendPolicyNoVote
+			if tspendYesNoSum > 0 && tspendYesNoSum <= 1 {
+				shuffle(len(tspends), func(i, j int) {
+					tspends[i], tspends[j] = tspends[j], tspends[i]
+				})
+			}
+
 			// Iterate over all tpends and determine if they are
 			// within the voting window.
 			tVotes := make([]byte, 0, 256)
 			tVotes = append(tVotes[:], 'T', 'V')
-			for _, v := range tspends {
+			for i, v := range tspends {
 				if !blockchain.InsideTSpendWindow(int64(blockHeight),
 					v.Expiry, w.chainParams.TreasuryVoteInterval,
 					w.chainParams.TreasuryVoteIntervalMultiplier) {
 					continue
 				}
 
-				if w.tspendPolicyYesVote+w.tspendPolicyNoVote <= 0 {
-					continue
-				}
-
 				// Get policy for tspend, falling back to any
 				// policy for the Pi key.
 				tspendHash := v.TxHash()
+				tspendVote := stake.TreasuryVoteInvalid
 
-				r := rand.New(rand.NewSource(time.Now().UnixNano()))
-				randomNumber := r.Float64()
-				tspendVote := stake.TreasuryVoteNo
-
-				yesPercent := w.tspendPolicyYesVote
-				noPercent := w.tspendPolicyNoVote + yesPercent
-				if randomNumber <= yesPercent {
-					tspendVote = stake.TreasuryVoteYes
-					log.Infof("%.4f >= %.4f(random), will vote yes", yesPercent, randomNumber)
-				} else if randomNumber <= noPercent {
-					log.Infof("%.4f >= %.4f(random), will vote no", noPercent, randomNumber)
-				} else {
+				switch {
+				// If a wallet pre-defined voting policy exists, assign the first batch "Yes" votes,
+				// the second batch "No" and the last defaults to abstain.
+				case tspendYesNoSum > 0 && tspendYesNoSum <= 1:
+					currentIndex := float64(i)
+					tspendCount := float64(len(tspends))
+					if currentIndex <= w.tspendPolicyYesVote*tspendCount {
+						tspendVote = stake.TreasuryVoteYes
+					} else if currentIndex <= tspendYesNoSum*tspendCount {
+						tspendVote = stake.TreasuryVoteNo
+					}
+				default:
+					// fall back to the original Implementation.
+					tspendVote = w.TSpendPolicy(&tspendHash, ticketHash)
+				}
+				if tspendVote == stake.TreasuryVoteInvalid {
 					continue
 				}
-
-				// tspendVote := w.TSpendPolicy(&tspendHash, ticketHash)
-				// if tspendVote == stake.TreasuryVoteInvalid {
-				// 	continue
-				// }
 
 				// Append tspend hash and vote bits
 				tVotes = append(tVotes[:], tspendHash[:]...)

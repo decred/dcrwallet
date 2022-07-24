@@ -677,8 +677,15 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 
-	if cfg.TreasuryPolicyYesVote+cfg.TreasuryPolicyNoVote >= 1 {
+	if cfg.TreasuryPolicyYesVote+cfg.TreasuryPolicyNoVote > 1 {
 		err := errors.Errorf("tpolicyyesvote + tpolicynovote must be less than 1")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	prdct := cfg.TreasuryPolicyYesVote * cfg.TreasuryPolicyNoVote
+	if prdct*-1 != prdct {
+		err := errors.Errorf("tpolicyyesvote or tpolicynovote must not be negative")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
