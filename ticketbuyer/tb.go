@@ -337,7 +337,7 @@ func (tb *TB) mixChange(ctx context.Context, cfg *Config) error {
 	changeAccount := cfg.ChangeAccount
 	mixChange := cfg.MixChange
 
-	if !mixChange {
+	if !mixChange || csppServer == "" {
 		return nil
 	}
 
