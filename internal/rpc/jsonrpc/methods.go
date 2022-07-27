@@ -4904,6 +4904,11 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd interface{}) (inte
 				}
 			}
 			keys[addr.String()] = wif
+
+			// Add the pubkey hash variant for supported addresses as well.
+			if pkH, ok := addr.(stdaddr.AddressPubKeyHasher); ok {
+				keys[pkH.AddressPubKeyHash().String()] = wif
+			}
 		}
 	}
 
