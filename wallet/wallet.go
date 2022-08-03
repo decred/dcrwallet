@@ -3791,7 +3791,6 @@ func (w *Wallet) ImportPublicKey(ctx context.Context, pubkey []byte) (string, er
 	var props *udb.AccountProperties
 	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
-		//maddr, err := w.manager.ImportPrivateKey(addrmgrNs, wif)
 		maddr, err := w.manager.ImportPublicKey(addrmgrNs, pubkey)
 		if err == nil {
 			addr = maddr.Address()
