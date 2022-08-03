@@ -132,6 +132,7 @@ var handlers = map[string]handler{
 	"getcfilterv2":              {fn: (*Server).getCFilterV2},
 	"importcfiltersv2":          {fn: (*Server).importCFiltersV2},
 	"importprivkey":             {fn: (*Server).importPrivKey},
+	"importpubkey":              {fn: (*Server).importPubKey},
 	"importscript":              {fn: (*Server).importScript},
 	"importxpub":                {fn: (*Server).importXpub},
 	"listaccounts":              {fn: (*Server).listAccounts},
@@ -2073,6 +2074,58 @@ func (s *Server) importPrivKey(ctx context.Context, icmd interface{}) (interface
 		default:
 			return nil, err
 		}
+	}
+
+	if rescan {
+		// TODO: This is not synchronized with process shutdown and
+		// will cause panics when the DB is closed mid-transaction.
+		go w.RescanFromHeight(context.Background(), n, scanFrom)
+	}
+
+	return nil, nil
+}
+
+// importPubKey handles an importpubkey request by importing a hex-encoded
+// compressed 33-byte secp256k1 public key with sign byte, as well as its
+// derived P2PKH address.  This method may only be used by watching-only
+// wallets and with the special "imported" account.
+func (s *Server) importPubKey(ctx context.Context, icmd interface{}) (interface{}, error) {
+	cmd := icmd.(*types.ImportPubKeyCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	rescan := true
+	if cmd.Rescan != nil {
+		rescan = *cmd.Rescan
+	}
+	scanFrom := int32(0)
+	if cmd.ScanFrom != nil {
+		scanFrom = int32(*cmd.ScanFrom)
+	}
+	n, ok := s.walletLoader.NetworkBackend()
+	if rescan && !ok {
+		return nil, errNoNetwork
+	}
+
+	if cmd.Label != nil && *cmd.Label != udb.ImportedAddrAccountName {
+		return nil, errNotImportedAccount
+	}
+
+	pk, err := hex.DecodeString(cmd.PubKey)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
+	}
+
+	_, err = w.ImportPublicKey(ctx, pk)
+	if errors.Is(err, errors.Exist) {
+		// Do not return duplicate address errors, and skip any
+		// rescans.
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if rescan {

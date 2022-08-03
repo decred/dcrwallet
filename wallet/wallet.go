@@ -3782,6 +3782,44 @@ func (w *Wallet) ImportPrivateKey(ctx context.Context, wif *dcrutil.WIF) (string
 	return addrStr, nil
 }
 
+// ImportPublicKey imports a compressed secp256k1 public key and its derived
+// P2PKH address.
+func (w *Wallet) ImportPublicKey(ctx context.Context, pubkey []byte) (string, error) {
+	const op errors.Op = "wallet.ImportPublicKey"
+	// Attempt to import private key into wallet.
+	var addr stdaddr.Address
+	var props *udb.AccountProperties
+	err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
+		addrmgrNs := tx.ReadWriteBucket(waddrmgrNamespaceKey)
+		//maddr, err := w.manager.ImportPrivateKey(addrmgrNs, wif)
+		maddr, err := w.manager.ImportPublicKey(addrmgrNs, pubkey)
+		if err == nil {
+			addr = maddr.Address()
+			props, err = w.manager.AccountProperties(
+				addrmgrNs, udb.ImportedAddrAccount)
+		}
+		return err
+	})
+	if err != nil {
+		return "", errors.E(op, err)
+	}
+
+	if n, err := w.NetworkBackend(); err == nil {
+		err := n.LoadTxFilter(ctx, false, []stdaddr.Address{addr}, nil)
+		if err != nil {
+			return "", errors.E(op, err)
+		}
+	}
+
+	addrStr := addr.String()
+	log.Infof("Imported payment address %s", addrStr)
+
+	w.NtfnServer.notifyAccountProperties(props)
+
+	// Return the payment address string of the imported private key.
+	return addrStr, nil
+}
+
 // ImportScript imports a redeemscript to the wallet. If it also allows the
 // user to specify whether or not they want the redeemscript to be rescanned,
 // and how far back they wish to rescan.

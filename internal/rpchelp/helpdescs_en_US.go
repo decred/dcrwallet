@@ -512,6 +512,13 @@ var helpDescsEnUS = map[string]string{
 	"importprivkey-rescan":    "Rescan the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
 	"importprivkey-scanfrom":  "Block number for where to start rescan from",
 
+	// ImportPubKeyCmd help.
+	"importpubkey--synopsis": "Imports a compressed (33-byte) secp256k1 public key and the derived P2PKH address to the imported account.",
+	"importpubkey-pubkey":    "The hex-encoded 33-byte compressed public key",
+	"importpubkey-label":     "Unused (must be unset or 'imported')",
+	"importpubkey-rescan":    "Rescan the blockchain (since the genesis block, or scanfrom block) for outputs controlled by the imported key",
+	"importpubkey-scanfrom":  "Block number for where to start rescan from",
+
 	// ImportScript help.
 	"importscript--synopsis": "Import a redeem script.",
 	"importscript-hex":       "Hex encoded script to import",

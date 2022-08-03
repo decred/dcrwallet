@@ -473,6 +473,28 @@ func NewImportPrivKeyCmd(privKey string, label *string, rescan *bool, scanFrom *
 	}
 }
 
+// ImportPrivKeyCmd defines the importprivkey JSON-RPC command.
+type ImportPubKeyCmd struct {
+	PubKey   string
+	Label    *string
+	Rescan   *bool `jsonrpcdefault:"true"`
+	ScanFrom *int
+}
+
+// NewImportPubKeyCmd returns a new instance which can be used to issue a
+// importpubkey JSON-RPC command.
+//
+// The parameters which are pointers indicate they are optional.  Passing nil
+// for optional parameters will use the default value.
+func NewImportPubKeyCmd(pubKey string, label *string, rescan *bool, scanFrom *int) *ImportPubKeyCmd {
+	return &ImportPubKeyCmd{
+		PubKey:   pubKey,
+		Label:    label,
+		Rescan:   rescan,
+		ScanFrom: scanFrom,
+	}
+}
+
 // ImportScriptCmd is a type for handling custom marshaling and
 // unmarshaling of importscript JSON wallet extension commands.
 type ImportScriptCmd struct {
@@ -1251,6 +1273,7 @@ func init() {
 		{"getwalletfee", (*GetWalletFeeCmd)(nil)},
 		{"importcfiltersv2", (*ImportCFiltersV2Cmd)(nil)},
 		{"importprivkey", (*ImportPrivKeyCmd)(nil)},
+		{"importpubkey", (*ImportPubKeyCmd)(nil)},
 		{"importscript", (*ImportScriptCmd)(nil)},
 		{"importxpub", (*ImportXpubCmd)(nil)},
 		{"listaccounts", (*ListAccountsCmd)(nil)},

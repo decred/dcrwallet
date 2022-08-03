@@ -75,6 +75,7 @@ var Methods = []struct {
 	{"help", append(returnsString, returnsString[0])},
 	{"importcfiltersv2", nil},
 	{"importprivkey", nil},
+	{"importpubkey", nil},
 	{"importscript", nil},
 	{"importxpub", nil},
 	{"listaccounts", []interface{}{(*map[string]float64)(nil)}},

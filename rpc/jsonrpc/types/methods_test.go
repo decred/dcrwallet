@@ -385,6 +385,22 @@ func TestWalletSvrCmds(t *testing.T) {
 			},
 		},
 		{
+			name: "importpubkey",
+			newCmd: func() (interface{}, error) {
+				return dcrjson.NewCmd(Method("importpubkey"), "abc", "label", false, 12345)
+			},
+			staticCmd: func() interface{} {
+				return NewImportPubKeyCmd("abc", dcrjson.String("label"), dcrjson.Bool(false), dcrjson.Int(12345))
+			},
+			marshalled: `{"jsonrpc":"1.0","method":"importpubkey","params":["abc","label",false,12345],"id":1}`,
+			unmarshalled: &ImportPubKeyCmd{
+				PubKey:   "abc",
+				Label:    dcrjson.String("label"),
+				Rescan:   dcrjson.Bool(false),
+				ScanFrom: dcrjson.Int(12345),
+			},
+		},
+		{
 			name: "listaccounts",
 			newCmd: func() (interface{}, error) {
 				return dcrjson.NewCmd(Method("listaccounts"))
