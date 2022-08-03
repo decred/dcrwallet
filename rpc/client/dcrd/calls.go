@@ -148,11 +148,12 @@ func (r *RPC) ExistsLiveTickets(ctx context.Context, tickets []*chainhash.Hash) 
 
 // MempoolCount returns the count of a particular kind of transaction in mempool.
 // Kind may be one of:
-//   "all"
-//   "regular"
-//   "tickets"
-//   "votes"
-//   "revocations"
+//
+//	"all"
+//	"regular"
+//	"tickets"
+//	"votes"
+//	"revocations"
 func (r *RPC) MempoolCount(ctx context.Context, kind string) (int, error) {
 	const op errors.Op = "dcrd.MempoolCount"
 	// This is rather inefficient, as only the count is needed, not all

@@ -6,6 +6,5 @@
 /*
 Package wallet provides ...
 TODO: Flesh out this section
-
 */
 package wallet

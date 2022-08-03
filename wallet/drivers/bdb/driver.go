@@ -6,11 +6,11 @@
 // wallet.OpenDB and wallet.CreateDB functions to be called with the following
 // arguments:
 //
-//  var filename string
-//  db, err := wallet.CreateDB("bdb", filename)
-//  if err != nil { /* handle error */ }
-//  db, err = wallet.OpenDB("bdb", filename)
-//  if err != nil { /* handle error */ }
+//	var filename string
+//	db, err := wallet.CreateDB("bdb", filename)
+//	if err != nil { /* handle error */ }
+//	db, err = wallet.OpenDB("bdb", filename)
+//	if err != nil { /* handle error */ }
 package bdb
 
 import _ "decred.org/dcrwallet/v2/wallet/internal/bdb" // Register bdb driver during init

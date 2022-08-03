@@ -2918,14 +2918,17 @@ func (s *Server) listLockUnspent(ctx context.Context, icmd interface{}) (interfa
 
 // listReceivedByAccount handles a listreceivedbyaccount request by returning
 // a slice of objects, each one containing:
-//  "account": the receiving account;
-//  "amount": total amount received by the account;
-//  "confirmations": number of confirmations of the most recent transaction.
+//
+//	"account": the receiving account;
+//	"amount": total amount received by the account;
+//	"confirmations": number of confirmations of the most recent transaction.
+//
 // It takes two parameters:
-//  "minconf": minimum number of confirmations to consider a transaction -
-//             default: one;
-//  "includeempty": whether or not to include addresses that have no transactions -
-//                  default: false.
+//
+//	"minconf": minimum number of confirmations to consider a transaction -
+//	           default: one;
+//	"includeempty": whether or not to include addresses that have no transactions -
+//	                default: false.
 func (s *Server) listReceivedByAccount(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.ListReceivedByAccountCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -2951,15 +2954,18 @@ func (s *Server) listReceivedByAccount(ctx context.Context, icmd interface{}) (i
 
 // listReceivedByAddress handles a listreceivedbyaddress request by returning
 // a slice of objects, each one containing:
-//  "account": the account of the receiving address;
-//  "address": the receiving address;
-//  "amount": total amount received by the address;
-//  "confirmations": number of confirmations of the most recent transaction.
+//
+//	"account": the account of the receiving address;
+//	"address": the receiving address;
+//	"amount": total amount received by the address;
+//	"confirmations": number of confirmations of the most recent transaction.
+//
 // It takes two parameters:
-//  "minconf": minimum number of confirmations to consider a transaction -
-//             default: one;
-//  "includeempty": whether or not to include addresses that have no transactions -
-//                  default: false.
+//
+//	"minconf": minimum number of confirmations to consider a transaction -
+//	           default: one;
+//	"includeempty": whether or not to include addresses that have no transactions -
+//	                default: false.
 func (s *Server) listReceivedByAddress(ctx context.Context, icmd interface{}) (interface{}, error) {
 	cmd := icmd.(*types.ListReceivedByAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()

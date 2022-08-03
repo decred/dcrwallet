@@ -167,18 +167,18 @@ func Errorf(format string, args ...interface{}) error {
 // args of similar type are passed, the final arg is recorded.  The following
 // types are recognized:
 //
-//  errors.Op
-//      The operation, method, or RPC which was invoked.
-//  errors.Kind
-//      The class of error.
-//  string
-//      Description of the error condition.  String types populate the
-//      Err field and overwrite, and are overwritten by, other arguments
-//      which implement the error interface.
-//  error
-//      The underlying error.  If the error is an *Error, the Op and Kind
-//      will be promoted to the newly created error if not set to another
-//      value in the args.
+//	errors.Op
+//	    The operation, method, or RPC which was invoked.
+//	errors.Kind
+//	    The class of error.
+//	string
+//	    Description of the error condition.  String types populate the
+//	    Err field and overwrite, and are overwritten by, other arguments
+//	    which implement the error interface.
+//	error
+//	    The underlying error.  If the error is an *Error, the Op and Kind
+//	    will be promoted to the newly created error if not set to another
+//	    value in the args.
 //
 // If another *Error is passed as an argument and no other arguments differ from
 // the wrapped error, instead of wrapping the error, the errors are collapsed

@@ -5233,7 +5233,9 @@ func CreateWatchOnly(ctx context.Context, db DB, extendedPubKey string, pubPass 
 
 // decodeStakePoolColdExtKey decodes the string of stake pool addresses
 // to search incoming tickets for. The format for the passed string is:
-//   "xpub...:end"
+//
+//	"xpub...:end"
+//
 // where xpub... is the extended public key and end is the last
 // address index to scan to, exclusive. Effectively, it returns the derived
 // addresses for this public key for the address indexes [0,end). The branch

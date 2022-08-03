@@ -705,7 +705,7 @@ func (m *Manager) CoinTypePrivKey(dbtx walletdb.ReadTx) (*hdkeychain.ExtendedKey
 // of the same seed in multicurrency wallets.  New (not restored) wallets are
 // now created using the coin types assigned to Decred in SLIP0044:
 //
-//  https://github.com/satoshilabs/slips/blob/master/slip-0044.md
+//	https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 //
 // The address manager should be upgraded to the SLIP0044 coin type if it is
 // currently using the legacy coin type and there are no used accounts or
@@ -1434,9 +1434,10 @@ func (m *Manager) LookupAccount(ns walletdb.ReadBucket, name string) (uint32, er
 
 // UnlockedWithPassphrase returns nil when the wallet is currently unlocked with a
 // matching passphrase and errors with the following codes otherwise:
-//   WatchingOnly: The wallet is watching-only and can never be unlocked
-//   Locked: The wallet is currently locked
-//   Passphrase: The wallet is unlocked but the provided passphrase is incorrect
+//
+//	WatchingOnly: The wallet is watching-only and can never be unlocked
+//	Locked: The wallet is currently locked
+//	Passphrase: The wallet is unlocked but the provided passphrase is incorrect
 func (m *Manager) UnlockedWithPassphrase(passphrase []byte) error {
 	defer m.mtx.RUnlock()
 	m.mtx.RLock()
@@ -2657,7 +2658,8 @@ func deriveCoinTypeKey(masterNode *hdkeychain.ExtendedKey, coinType uint32) (*hd
 // hierarchy described by BIP0044 given the master node.
 //
 // In particular this is the hierarchical deterministic extended key path:
-//   m/44'/<coin type>'/<account>'
+//
+//	m/44'/<coin type>'/<account>'
 func deriveAccountKey(coinTypeKey *hdkeychain.ExtendedKey, account uint32) (*hdkeychain.ExtendedKey, error) {
 	// Enforce maximum account number.
 	if account > MaxAccountNum {
@@ -2675,7 +2677,8 @@ func deriveAccountKey(coinTypeKey *hdkeychain.ExtendedKey, account uint32) (*hdk
 // accordingly.
 //
 // In particular this is the hierarchical deterministic extended key path:
-//   m/44'/<coin type>'/<account>'/<branch>
+//
+//	m/44'/<coin type>'/<account>'/<branch>
 //
 // The branch is 0 for external addresses and 1 for internal addresses.
 func checkBranchKeys(acctKey *hdkeychain.ExtendedKey) error {

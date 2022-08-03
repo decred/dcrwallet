@@ -66,12 +66,14 @@ var (
 
 // Key names for various database fields.
 // sstxRecords
-//     key: sstx tx hash
-//     val: sstxRecord
-// ssgenRecords
-//     key: sstx tx hash
-//     val: serialized slice of ssgenRecords
 //
+//	key: sstx tx hash
+//	val: sstxRecord
+//
+// ssgenRecords
+//
+//	key: sstx tx hash
+//	val: serialized slice of ssgenRecords
 var (
 	// Bucket names.
 	sstxRecordsBucketName  = []byte("sstxrecords")

@@ -447,7 +447,6 @@ type GetWalletFeeCmd struct{}
 
 // NewGetWalletFeeCmd returns a new instance which can be used to issue a
 // getwalletfee JSON-RPC command.
-//
 func NewGetWalletFeeCmd() *GetWalletFeeCmd {
 	return &GetWalletFeeCmd{}
 }

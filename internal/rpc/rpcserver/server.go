@@ -9,11 +9,11 @@
 // Full documentation of the API implemented by this package is maintained in a
 // language-agnostic document:
 //
-//   https://github.com/decred/dcrwallet/blob/master/rpc/documentation/api.md
+//	https://github.com/decred/dcrwallet/blob/master/rpc/documentation/api.md
 //
 // Any API changes must be performed according to the steps listed here:
 //
-//   https://github.com/decred/dcrwallet/blob/master/rpc/documentation/serverchanges.md
+//	https://github.com/decred/dcrwallet/blob/master/rpc/documentation/serverchanges.md
 package rpcserver
 
 import (

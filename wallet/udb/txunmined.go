@@ -336,10 +336,10 @@ func (s *Store) unminedTxHashes(ns walletdb.ReadBucket) ([]*chainhash.Hash, erro
 // PruneUnmined removes unmined transactions that no longer belong in the
 // unmined tx set.  This includes:
 //
-//   * Any transactions past a set expiry
-//   * Ticket purchases with a different ticket price than the passed stake
+//   - Any transactions past a set expiry
+//   - Ticket purchases with a different ticket price than the passed stake
 //     difficulty
-//   * Votes that do not vote on the tip block
+//   - Votes that do not vote on the tip block
 func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*chainhash.Hash, error) {
 	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
