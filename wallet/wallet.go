@@ -5407,6 +5407,13 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	}
 	log.Infof("Opened wallet") // TODO: log balance? last sync height?
 
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		return w.rollbackInvalidCheckpoints(dbtx)
+	})
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
 	var vb stake.VoteBits
 	var tspendPolicy map[chainhash.Hash]stake.TreasuryVoteT
 	var treasuryKeyPolicy map[string]stake.TreasuryVoteT

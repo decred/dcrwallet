@@ -37,6 +37,7 @@ type BlockNode struct {
 	FilterV2 *gcs.FilterV2
 	parent   *BlockNode
 	workSum  *big.Int
+	invalid  bool
 }
 
 // sidechainRootedTree represents a rooted tree of blocks not currently in the
@@ -70,6 +71,15 @@ func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.Fi
 	}
 }
 
+// BadCheckpoint marks a block node invalid due to not matching a required block
+// checkpoint.  Invalid blocks are still recorded in the sidechain forest but
+// are not returned as a possible best chain.  Nodes must be marked invalid
+// prior to adding them to the forest to propagate the invalid status to child
+// blocks.
+func (n *BlockNode) BadCheckpoint() {
+	n.invalid = true
+}
+
 // duplicateNode checks if n, or another node which represents the same block,
 // is already contained in the tree.
 func (t *sidechainRootedTree) duplicateNode(n *BlockNode) bool {
@@ -95,6 +105,7 @@ func (t *sidechainRootedTree) duplicateNode(n *BlockNode) bool {
 func (t *sidechainRootedTree) maybeAttachNode(n *BlockNode) bool {
 	if *t.root.Hash == n.Header.PrevBlock && n.Header.Height == t.root.Header.Height+1 {
 		n.parent = t.root
+		n.invalid = n.invalid || n.parent.invalid
 		t.children[*n.Hash] = n
 		t.tips[*n.Hash] = n
 		n.workSum = new(big.Int).Add(n.parent.workSum, blockchain.CalcWork(n.Header.Bits))
@@ -103,6 +114,7 @@ func (t *sidechainRootedTree) maybeAttachNode(n *BlockNode) bool {
 	}
 	if parent, ok := t.children[n.Header.PrevBlock]; ok && n.Header.Height == parent.Header.Height+1 {
 		n.parent = parent
+		n.invalid = n.invalid || n.parent.invalid
 		t.children[*n.Hash] = n
 		t.tips[*n.Hash] = n
 		delete(t.tips, *parent.Hash)
@@ -117,7 +129,14 @@ func (t *sidechainRootedTree) maybeAttachNode(n *BlockNode) bool {
 // and sorted in increasing order of block heights, along with the summed work
 // of blocks in the sidechain including the root.  If there are multiple best
 // chain candidates, the chosen chain is indeterminate.
+//
+// This method will always return at least one valid block node, or panic if
+// called on an invalid tree.
 func (t *sidechainRootedTree) best() ([]*BlockNode, *big.Int) {
+	if t.root.invalid {
+		panic("no best chain for invalid sidechain tree")
+	}
+
 	// Return memoized best chain if unchanged.
 	if len(t.bestChain) != 0 {
 		return t.bestChain, t.bestChain[len(t.bestChain)-1].workSum
@@ -127,6 +146,9 @@ func (t *sidechainRootedTree) best() ([]*BlockNode, *big.Int) {
 	// this tree).
 	var best *BlockNode
 	for _, n := range t.tips {
+		if n.invalid {
+			continue
+		}
 		if best == nil || best.workSum.Cmp(n.workSum) == -1 {
 			best = n
 		}
@@ -333,7 +355,10 @@ func (w *Wallet) EvaluateBestChain(ctx context.Context, f *SidechainForest) ([]*
 
 		// Find chain with most work
 		for _, t := range f.trees {
-			// Ignore orphan trees
+			// Ignore invalid and orphan trees
+			if t.root.invalid {
+				continue
+			}
 			fork := &t.root.Header.PrevBlock
 			inMainChain, _ := w.txStore.BlockInMainChain(dbtx, fork)
 			if !inMainChain {

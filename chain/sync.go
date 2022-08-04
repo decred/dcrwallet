@@ -392,6 +392,9 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 				}
 
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
+				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
+					nodes[i].BadCheckpoint()
+				}
 				return nil
 			})
 		}
@@ -632,6 +635,9 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	defer s.sidechainsMu.Unlock()
 
 	blockNode := wallet.NewBlockNode(header, &blockHash, filter)
+	if wallet.BadCheckpoint(cnet, &blockHash, int32(header.Height)) {
+		blockNode.BadCheckpoint()
+	}
 	s.sidechains.AddBlockNode(blockNode)
 	s.relevantTxs[blockHash] = relevant
 
