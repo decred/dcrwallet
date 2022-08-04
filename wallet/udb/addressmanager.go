@@ -1303,6 +1303,62 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	return managedAddr, nil
 }
 
+// ImportPubKey imports a compressed 33-byte serialized secp256k1 public key and
+// the derived P2PKH address.  This method may only be used by watching-only
+// wallets.
+func (m *Manager) ImportPublicKey(ns walletdb.ReadWriteBucket, pubkey []byte) (ManagedPubKeyAddress, error) {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
+
+	if !m.watchingOnly {
+		return nil, errors.E(errors.Invalid, "public keys may "+
+			"only be imported by watching-only wallets")
+	}
+
+	if len(pubkey) != secp256k1.PubKeyBytesLenCompressed {
+		return nil, errors.E(errors.Encoding, "invalid length for "+
+			"compressed pubkey")
+	}
+	switch pubkey[0] {
+	case secp256k1.PubKeyFormatCompressedEven,
+		secp256k1.PubKeyFormatCompressedOdd:
+	default:
+		return nil, errors.E(errors.Encoding, "invalid format byte "+
+			"for compressed pubkey")
+	}
+
+	// Prevent duplicates.
+	pkh := dcrutil.Hash160(pubkey)
+	if existsAddress(ns, pkh) {
+		return nil, errors.E(errors.Exist, "address for public key "+
+			"already exists")
+	}
+
+	// Encrypt public key.
+	encryptedPubKey, err := m.cryptoKeyPub.Encrypt(pubkey)
+	if err != nil {
+		return nil, errors.E(errors.Crypto,
+			errors.Errorf("encrypt imported pubkey: %v", err))
+	}
+
+	// Save the new imported address to the db and update start block (if
+	// needed) in a single transaction.
+	err = putImportedAddress(ns, pkh, ImportedAddrAccount,
+		encryptedPubKey, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new managed address based on the imported address.
+	managedAddr, err := newManagedAddressWithoutPrivKey(m,
+		ImportedAddrAccount, pubkey)
+	if err != nil {
+		return nil, err
+	}
+	managedAddr.imported = true
+	return managedAddr, nil
+}
+
 // ImportScript imports a user-provided script into the address manager.  The
 // imported script will act as a pay-to-script-hash address.
 //
