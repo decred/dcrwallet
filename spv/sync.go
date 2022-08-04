@@ -1220,6 +1220,9 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 				}
 
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
+				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
+					nodes[i].BadCheckpoint()
+				}
 				return nil
 			})
 		}

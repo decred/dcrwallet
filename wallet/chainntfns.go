@@ -32,6 +32,16 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 
 	blockHash := header.BlockHash()
 
+	// Enforce checkpoints
+	height := int32(header.Height)
+	ckpt := CheckpointHash(w.chainParams.Net, height)
+	if ckpt != nil && blockHash != *ckpt {
+		err := errors.Errorf("block hash %v does not satisify "+
+			"checkpoint hash %v for height %v", blockHash,
+			ckpt, height)
+		return nil, errors.E(errors.Consensus, err)
+	}
+
 	// Propagate the error unless this block is already included in the main
 	// chain.
 	err := w.txStore.ExtendMainChain(txmgrNs, header, f)
