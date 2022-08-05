@@ -41,3 +41,4 @@ require (
 
 retract v2.0.2 // Tagged wrong branch
 retract v2.0.6 // Tagged wrong branch
+retract v2.0.7 // Contains incorrect TestNet3 difficulty rules
