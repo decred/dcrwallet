@@ -7,7 +7,7 @@ require (
 	github.com/decred/dcrd/addrmgr/v2 v2.0.0
 	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
-	github.com/decred/dcrd/blockchain/v4 v4.0.0
+	github.com/decred/dcrd/blockchain/v4 v4.0.2
 	github.com/decred/dcrd/certgen v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
 	github.com/decred/dcrd/chaincfg/v3 v3.1.1
@@ -39,6 +39,6 @@ require (
 	google.golang.org/protobuf v1.23.0
 )
 
-retract v2.0.2 // Tagged wrong branch
 retract v2.0.6 // Tagged wrong branch
+
 retract v2.0.7 // Contains incorrect TestNet3 difficulty rules
