@@ -23,6 +23,12 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
+func (w *Wallet) isTestNet3() bool {
+	return w.chainParams.Net == wire.TestNet3
+}
+
+const testNet3MaxDiffActivationHeight = 962928
+
 var (
 	// bigZero is 0 represented as a big.Int.  It is defined here to avoid
 	// the overhead of creating it multiple times.
@@ -70,19 +76,26 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 	oldDiffBig := blockchain.CompactToBig(header.Bits)
 
 	// We're not at a retarget point, return the oldDiff.
-	if (int64(header.Height)+1)%w.chainParams.WorkDiffWindowSize != 0 {
+	params := w.chainParams
+	nextHeight := int64(header.Height) + 1
+	if nextHeight%params.WorkDiffWindowSize != 0 {
 		// For networks that support it, allow special reduction of the
 		// required difficulty once too much time has elapsed without
 		// mining a block.
-		if w.chainParams.ReduceMinDifficulty {
+		//
+		// Note that this behavior is deprecated and thus is only supported on
+		// testnet v3 prior to the max diff activation height.  It will be
+		// removed in future version of testnet.
+		if params.ReduceMinDifficulty && (!w.isTestNet3() || nextHeight <
+			testNet3MaxDiffActivationHeight) {
+
 			// Return minimum difficulty when more than the desired
 			// amount of time has elapsed without mining a block.
-			reductionTime := int64(w.chainParams.MinDiffReductionTime /
+			reductionTime := int64(params.MinDiffReductionTime /
 				time.Second)
 			allowMinTime := header.Timestamp.Unix() + reductionTime
-
 			if newBlockTime.Unix() > allowMinTime {
-				return w.chainParams.PowLimitBits, nil
+				return params.PowLimitBits, nil
 			}
 
 			// The block was mined within the desired timeframe, so
@@ -101,15 +114,14 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 	nextDiffBigMax := blockchain.CompactToBig(header.Bits)
 	nextDiffBigMax.Mul(nextDiffBigMax, RAFBig)
 
-	alpha := w.chainParams.WorkDiffAlpha
+	alpha := params.WorkDiffAlpha
 
 	// Number of nodes to traverse while calculating difficulty.
-	nodesToTraverse := (w.chainParams.WorkDiffWindowSize *
-		w.chainParams.WorkDiffWindows)
+	nodesToTraverse := (params.WorkDiffWindowSize * params.WorkDiffWindows)
 
 	// Initialize bigInt slice for the percentage changes for each window period
 	// above or below the target.
-	windowChanges := make([]*big.Int, w.chainParams.WorkDiffWindows)
+	windowChanges := make([]*big.Int, params.WorkDiffWindows)
 
 	// Regress through all of the previous blocks and store the percent changes
 	// per window period; use bigInts to emulate 64.32 bit fixed point.
@@ -120,20 +132,20 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 
 	for i := int64(0); ; i++ {
 		// Store and reset after reaching the end of every window period.
-		if i%w.chainParams.WorkDiffWindowSize == 0 && i != 0 {
+		if i%params.WorkDiffWindowSize == 0 && i != 0 {
 			olderTime = oldHeader.Timestamp.Unix()
 			timeDifference := recentTime - olderTime
 
 			// Just assume we're at the target (no change) if we've
 			// gone all the way back to the genesis block.
 			if oldHeader.Height == 0 {
-				timeDifference = int64(w.chainParams.TargetTimespan /
+				timeDifference = int64(params.TargetTimespan /
 					time.Second)
 			}
 
 			timeDifBig := big.NewInt(timeDifference)
 			timeDifBig.Lsh(timeDifBig, 32) // Add padding
-			targetTemp := big.NewInt(int64(w.chainParams.TargetTimespan /
+			targetTemp := big.NewInt(int64(params.TargetTimespan /
 				time.Second))
 
 			windowAdjusted := targetTemp.Div(timeDifBig, targetTemp)
@@ -141,10 +153,10 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 			// Weight it exponentially. Be aware that this could at some point
 			// overflow if alpha or the number of blocks used is really large.
 			windowAdjusted = windowAdjusted.Lsh(windowAdjusted,
-				uint((w.chainParams.WorkDiffWindows-windowPeriod)*alpha))
+				uint((params.WorkDiffWindows-windowPeriod)*alpha))
 
 			// Sum up all the different weights incrementally.
-			weights += 1 << uint64((w.chainParams.WorkDiffWindows-windowPeriod)*
+			weights += 1 << uint64((params.WorkDiffWindows-windowPeriod)*
 				alpha)
 
 			// Store it in the slice.
@@ -178,7 +190,7 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 
 	// Sum up the weighted window periods.
 	weightedSum := big.NewInt(0)
-	for i := int64(0); i < w.chainParams.WorkDiffWindows; i++ {
+	for i := int64(0); i < params.WorkDiffWindows; i++ {
 		weightedSum.Add(weightedSum, windowChanges[i])
 	}
 
@@ -198,27 +210,40 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 	if oldDiffBig.Cmp(bigZero) == 0 { // This should never really happen,
 		nextDiffBig.Set(nextDiffBig) // but in case it does...
 	} else if nextDiffBig.Cmp(bigZero) == 0 {
-		nextDiffBig.Set(w.chainParams.PowLimit)
+		nextDiffBig.Set(params.PowLimit)
 	} else if nextDiffBig.Cmp(nextDiffBigMax) == 1 {
 		nextDiffBig.Set(nextDiffBigMax)
 	} else if nextDiffBig.Cmp(nextDiffBigMin) == -1 {
 		nextDiffBig.Set(nextDiffBigMin)
 	}
 
-	// Limit new value to the proof of work limit.
-	if nextDiffBig.Cmp(w.chainParams.PowLimit) > 0 {
-		nextDiffBig.Set(w.chainParams.PowLimit)
+	// Prevent the difficulty from going lower than the minimum allowed
+	// difficulty.
+	//
+	// Larger numbers result in a lower difficulty, so imposing a minimum
+	// difficulty equates to limiting the maximum target value.
+	if nextDiffBig.Cmp(params.PowLimit) > 0 {
+		nextDiffBig.Set(params.PowLimit)
 	}
 
-	// Log new target difficulty and return it.  The new target logging is
-	// intentionally converting the bits back to a number instead of using
-	// newTarget since conversion to the compact representation loses
-	// precision.
-	nextDiffBits := blockchain.BigToCompact(nextDiffBig)
-	log.Debugf("Difficulty retarget at block height %d", header.Height+1)
-	log.Debugf("Old target %08x (%064x)", header.Bits, oldDiffBig)
-	log.Debugf("New target %08x (%064x)", nextDiffBits, blockchain.CompactToBig(nextDiffBits))
+	// Prevent the difficulty from going higher than a maximum allowed
+	// difficulty on the test network.  This is to prevent runaway difficulty on
+	// testnet by ASICs and GPUs since it's not reasonable to require
+	// high-powered hardware to keep the test network running smoothly.
+	//
+	// Smaller numbers result in a higher difficulty, so imposing a maximum
+	// difficulty equates to limiting the minimum target value.
+	//
+	// This rule is only active on the version 3 test network once the max diff
+	// activation height has been reached.
+	if w.minTestNetTarget != nil && nextDiffBig.Cmp(w.minTestNetTarget) < 0 &&
+		(!w.isTestNet3() || nextHeight >= testNet3MaxDiffActivationHeight) {
 
+		nextDiffBig = w.minTestNetTarget
+	}
+
+	// Convert the difficulty to the compact representation and return it.
+	nextDiffBits := blockchain.BigToCompact(nextDiffBig)
 	return nextDiffBits, nil
 }
 

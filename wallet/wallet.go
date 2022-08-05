@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"runtime"
 	"sort"
 	"strconv"
@@ -117,6 +118,7 @@ type Wallet struct {
 	stakePoolEnabled   bool
 	stakePoolColdAddrs map[string]struct{}
 	subsidyCache       *blockchain.SubsidyCache
+	minTestNetTarget   *big.Int
 	tspends            map[chainhash.Hash]wire.MsgTx
 	tspendPolicy       map[chainhash.Hash]stake.TreasuryVoteT
 	tspendKeyPolicy    map[string]stake.TreasuryVoteT // keyed by politeia key
@@ -5365,6 +5367,16 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		return nil, errors.E(op, err)
 	}
 
+	// Impose a maximum difficulty target on the test network to prevent runaway
+	// difficulty on testnet by ASICs and GPUs since it's not reasonable to
+	// require high-powered hardware to keep the test network running smoothly.
+	var minTestNetTarget *big.Int
+	if cfg.Params.Net == wire.TestNet3 {
+		// This equates to a maximum difficulty of 2^6 = 64.
+		const maxTestDiffShift = 6
+		minTestNetTarget = new(big.Int).Rsh(cfg.Params.PowLimit, maxTestDiffShift)
+	}
+
 	w := &Wallet{
 		db: db,
 
@@ -5388,8 +5400,9 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		manualTickets:           cfg.ManualTickets,
 
 		// Chain params
-		subsidyCache: blockchain.NewSubsidyCache(cfg.Params),
-		chainParams:  cfg.Params,
+		subsidyCache:     blockchain.NewSubsidyCache(cfg.Params),
+		chainParams:      cfg.Params,
+		minTestNetTarget: minTestNetTarget,
 
 		lockedOutpoints: make(map[outpoint]struct{}),
 

@@ -32,6 +32,8 @@ github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0 h1:aXh7a+86p+H65MGy0QKu4J
 github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0/go.mod h1:t2qaZ3hNnxHZ5kzVJDgW5sp47/8T5hYJt7SR+/JtRhI=
 github.com/decred/dcrd/blockchain/v4 v4.0.0 h1:fCzGqW9aKd3/4x0z2+LM+GpSksYAyftPFVvHGeEDX38=
 github.com/decred/dcrd/blockchain/v4 v4.0.0/go.mod h1:i1FeTNN0LUEWBSMoI3riAFgfVE1X/7Seoz1aJ7YQGbk=
+github.com/decred/dcrd/blockchain/v4 v4.0.2 h1:2hV4/KptuFcjpADaauVmJEmsT6kZcEoDd26Y6M3uk5I=
+github.com/decred/dcrd/blockchain/v4 v4.0.2/go.mod h1:i1FeTNN0LUEWBSMoI3riAFgfVE1X/7Seoz1aJ7YQGbk=
 github.com/decred/dcrd/certgen v1.1.1 h1:MYPG5jCysnbF4OiJ1++YumFEu2p/MsM/zxmmqC9mVFg=
 github.com/decred/dcrd/certgen v1.1.1/go.mod h1:ivkPLChfjdAgFh7ZQOtl6kJRqVkfrCq67dlq3AbZBQE=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.2/go.mod h1:BpbrGgrPTr3YJYRN3Bm+D9NuaFd+zGyNeIKgrhCXK60=
@@ -62,6 +64,7 @@ github.com/decred/dcrd/gcs/v3 v3.0.0 h1:MjWevhoAzKENUgpaJAbZkJlKDN4HIz2nR/i3laZA
 github.com/decred/dcrd/gcs/v3 v3.0.0/go.mod h1:/OVb/rYrAz4TCtxcPneYfBs0+YI1pGIp8RA6RUNqOp4=
 github.com/decred/dcrd/hdkeychain/v3 v3.1.0 h1:NlUjzPMzexbk1PyJu6vrQaiilep5WsEPB0KdhLYrEcE=
 github.com/decred/dcrd/hdkeychain/v3 v3.1.0/go.mod h1:rDCdqwGkcTfEyRheG1g8Wc38appT2C9+D1XTlLy21lo=
+github.com/decred/dcrd/lru v1.1.1 h1:kWFDaW0OWx6AD6Ki342c+JPmHbiVdE6rK81pT3fuo/Y=
 github.com/decred/dcrd/lru v1.1.1/go.mod h1:mxKOwFd7lFjN2GZYsiz/ecgqR6kkYAl+0pz0tEMk218=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0 h1:WzG2IARR6OghjhWdxfUbXSPE4GEF2hZlCE5y2L/45f4=
 github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0/go.mod h1:1ILDxMKVS/qY71MylpZzuEX4O0u1SON4RPKbaZP71K0=
