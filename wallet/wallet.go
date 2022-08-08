@@ -5604,8 +5604,7 @@ func (w *Wallet) GetVSPTicketsByFeeStatus(ctx context.Context, feeStatus int) ([
 
 // SetPublished sets the informed hash as true or false.
 func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, published bool) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		hash := hash
 		err := w.txStore.SetPublished(dbtx, hash, published)
 		if err != nil {

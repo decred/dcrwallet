@@ -760,7 +760,7 @@ func expandOpCode(opCodeFlag byte) uint8 {
 	default:
 		// Original behavior. This cashes out to one of the OP_SS***
 		// opcode constants.
-		return uint8(((opCodeFlag >> 2) & 0x07) + 0xb9)
+		return ((opCodeFlag >> 2) & 0x07) + 0xb9
 	}
 }
 
@@ -2156,11 +2156,8 @@ func (it *unspentTicketCommitsIterator) next() bool {
 		return false
 	}
 	it.amount, it.err = fetchRawTicketCommitmentAmount(v)
-	if it.err != nil {
-		return false
-	}
 
-	return true
+	return it.err == nil
 }
 
 func (it *unspentTicketCommitsIterator) close() {

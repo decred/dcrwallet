@@ -3842,7 +3842,7 @@ func (s *walletServer) UnlockAccount(ctx context.Context, req *pb.UnlockAccountR
 		}
 		return nil, err
 	}
-	err = s.wallet.UnlockAccount(ctx, req.AccountNumber, []byte(req.Passphrase))
+	err = s.wallet.UnlockAccount(ctx, req.AccountNumber, req.Passphrase)
 	if err != nil {
 		return nil, translateError(err)
 	}

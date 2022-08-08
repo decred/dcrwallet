@@ -131,11 +131,8 @@ func testNestedReadWriteBucket(tc *testContext, bucket walletdb.ReadWriteBucket)
 	defer func() {
 		tc.bucketDepth--
 	}()
-	if !testReadWriteBucketInterface(tc, bucket) {
-		return false
-	}
 
-	return true
+	return testReadWriteBucketInterface(tc, bucket)
 }
 
 // testReadWriteBucketInterface ensures the read write bucket interface is
@@ -333,7 +330,7 @@ func testManualTxInterface(tc *testContext, bucketKey []byte) bool {
 				}
 			} else {
 				// The commit should succeed.
-				if err := tx.(walletdb.ReadWriteTx).Commit(); err != nil {
+				if err := tx.Commit(); err != nil {
 					tc.t.Errorf("Commit: unexpected error %v", err)
 					return false
 				}

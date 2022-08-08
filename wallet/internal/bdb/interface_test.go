@@ -111,11 +111,8 @@ func testNestedReadWriteBucket(tc *testContext, testBucket walletdb.ReadWriteBuc
 	defer func() {
 		tc.bucketDepth--
 	}()
-	if !testReadWriteBucketInterface(tc, testBucket) {
-		return false
-	}
 
-	return true
+	return testReadWriteBucketInterface(tc, testBucket)
 }
 
 // testReadWriteBucketInterface ensures the bucket interface is working
