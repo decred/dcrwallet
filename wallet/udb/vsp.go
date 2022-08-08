@@ -83,7 +83,7 @@ func SetVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash *chainhash.Hash, record 
 	// If the pubkey from the record in the request differs from the pubkey
 	// in the database that is saved for the host, update the pubkey in the
 	// db but keep the vsphost id intact.
-	if bytes.Compare(pubkey.PubKey, record.PubKey) != 0 {
+	if !bytes.Equal(pubkey.PubKey, record.PubKey) {
 		err = SetVSPPubKey(dbtx, []byte(record.Host), &VSPPubKey{
 			ID:     pubkey.ID,
 			PubKey: record.PubKey,

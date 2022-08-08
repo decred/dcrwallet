@@ -1419,13 +1419,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		switch n := n.(type) {
 		case *dcrd.RPC:
 			dcp0010Active, err = deployments.DCP0010Active(ctx,
-				int32(tipHeight), w.chainParams, n)
+				tipHeight, w.chainParams, n)
 			if err != nil {
 				return nil, err
 			}
 		}
 		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			int32(tipHeight), feePrice, w.chainParams,
+			tipHeight, feePrice, w.chainParams,
 			dcp0010Active)
 
 		// Reserve outputs for number of buys.
