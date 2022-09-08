@@ -27,6 +27,7 @@ import (
 	"github.com/decred/dcrd/gcs/v3"
 	blockcf "github.com/decred/dcrd/gcs/v3/blockcf2"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/go-socks/socks"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -125,7 +126,7 @@ type LocalPeer struct {
 	atomicPeerIDCounter uint64
 	atomicRequireHeight int32
 
-	dialer net.Dialer
+	dial DialFunc
 
 	receivedGetData  chan *inMsg
 	receivedHeaders  chan *inMsg
@@ -143,7 +144,9 @@ type LocalPeer struct {
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
 // through extaddr.
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {
+	var dialer net.Dialer
 	lp := &LocalPeer{
+		dial:             dialer.DialContext,
 		receivedGetData:  make(chan *inMsg),
 		receivedHeaders:  make(chan *inMsg),
 		receivedInv:      make(chan *inMsg),
@@ -156,12 +159,46 @@ func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.A
 	return lp
 }
 
-func (lp *LocalPeer) newMsgVersion(pver uint32, extaddr net.Addr, c net.Conn) (*wire.MsgVersion, error) {
-	la, err := wire.NewNetAddress(c.LocalAddr(), 0) // We provide no services
-	if err != nil {
-		return nil, err
+// DialFunc provides a method to dial a network connection.
+type DialFunc func(ctx context.Context, net, addr string) (net.Conn, error)
+
+// SetDialFunc sets the function used to dial peer and seeder connections.
+func (lp *LocalPeer) SetDialFunc(dial DialFunc) {
+	lp.dial = dial
+}
+
+func isCGNAT(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4[0] == 100 && ip4[1]&0xc0 == 64 // 100.64.0.0/10
 	}
-	ra, err := wire.NewNetAddress(c.RemoteAddr(), 0)
+	return false
+}
+
+func newNetAddress(addr net.Addr, services wire.ServiceFlag) (*wire.NetAddress, error) {
+	var ip net.IP
+	var port uint16
+	switch a := addr.(type) {
+	case *net.TCPAddr:
+		ip = a.IP
+		port = uint16(a.Port)
+	case *socks.ProxiedAddr:
+		ip = net.ParseIP(a.Host)
+		port = uint16(a.Port)
+	default:
+		return nil, fmt.Errorf("newNetAddress: unsupported address "+
+			"type %T", addr)
+	}
+	switch {
+	case ip.IsLoopback(), ip.IsPrivate(), !ip.IsGlobalUnicast(), isCGNAT(ip):
+		ip = nil
+		port = 0
+	}
+	return wire.NewNetAddressIPPort(ip, port, services), nil
+}
+
+func (lp *LocalPeer) newMsgVersion(pver uint32, c net.Conn) (*wire.MsgVersion, error) {
+	la := new(wire.NetAddress)
+	ra, err := newNetAddress(c.RemoteAddr(), 0)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +339,7 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 	resps := make(chan *http.Response)
 	client := http.Client{
 		Transport: &http.Transport{
-			DialContext: lp.dialer.DialContext,
+			DialContext: lp.dial,
 		},
 	}
 	cancels := make([]func(), 0, len(seeders))
@@ -479,7 +516,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 	mw := msgWriter{c, lp.chainParams.Net}
 
 	// The first message sent must be the version message.
-	lversion, err := lp.newMsgVersion(rp.pver, lp.extaddr, c)
+	lversion, err := lp.newMsgVersion(rp.pver, c)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -539,7 +576,7 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 
 		// Dial with a timeout of 10 seconds.
 		dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		c, err = lp.dialer.DialContext(dialCtx, "tcp", addr)
+		c, err = lp.dial(dialCtx, "tcp", addr)
 		cancel()
 		if err == nil {
 			break
