@@ -101,7 +101,7 @@ func testClientCert(t *testing.T, pub, priv interface{}, name string) {
 	tr := client.Transport.(*http.Transport)
 	tr.TLSClientConfig.Certificates = []tls.Certificate{keypair}
 
-	req, err := http.NewRequest("PUT", s.URL, strings.NewReader("balls"))
+	req, err := http.NewRequest(http.MethodPut, s.URL, strings.NewReader("balls"))
 	if err != nil {
 		t.Error(err)
 		return
