@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 
 	"decred.org/dcrwallet/v3/rpc/jsonrpc/types"
@@ -29,7 +28,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -167,7 +166,7 @@ func main() {
 		return
 	}
 
-	addr, err := dcrutil.DecodeAddress(cfg.SendToAddress, params)
+	addr, err := stdaddr.DecodeAddress(cfg.SendToAddress, params)
 	if err != nil {
 		fmt.Printf("failed to parse address %s: %v", cfg.SendToAddress, err)
 		return
@@ -180,13 +179,15 @@ func main() {
 	}
 
 	// Create the unsigned transaction.
-	pkScript, err := txscript.PayToAddrScript(addr)
-	if err != nil {
-		fmt.Printf("failed to generate pkScript: %s", err)
-		return
-	}
+	pkScriptVer, pkScript := addr.PaymentScript()
 
-	txOuts := []*wire.TxOut{wire.NewTxOut(int64(targetAmount-fee), pkScript)}
+	txOuts := []*wire.TxOut{
+		{
+			Value:    int64(targetAmount - fee),
+			Version:  pkScriptVer,
+			PkScript: pkScript,
+		},
+	}
 	atx, err := txauthor.NewUnsignedTransaction(txOuts, fee, inputSource, nil, params.MaxTxSize)
 	if err != nil {
 		fmt.Printf("failed to create unsigned transaction: %s", err)
