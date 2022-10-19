@@ -11,7 +11,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -22,14 +21,12 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"github.com/jessevdk/go-flags"
 	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/crypto/ssh/terminal"
 )
-
-const defaultScriptVersion = 0
 
 var (
 	activeNet           = chaincfg.MainNetParams()
@@ -256,17 +253,14 @@ func (src *destinationScriptSourceToAccount) Script() ([]byte, uint16, error) {
 		return nil, 0, err
 	}
 
-	destinationAddress, err := dcrutil.DecodeAddress(destinationAddressStr, activeNet)
+	destinationAddress, err := stdaddr.DecodeAddress(destinationAddressStr, activeNet)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	script, err := txscript.PayToAddrScript(destinationAddress)
-	if err != nil {
-		return nil, 0, err
-	}
+	scriptVer, script := destinationAddress.PaymentScript()
 
-	return script, defaultScriptVersion, nil
+	return script, scriptVer, nil
 }
 
 func (src *destinationScriptSourceToAccount) ScriptSize() int {
@@ -281,12 +275,12 @@ type destinationScriptSourceToAddress struct {
 
 // Source creates a non-change address.
 func (src *destinationScriptSourceToAddress) Script() ([]byte, uint16, error) {
-	destinationAddress, err := dcrutil.DecodeAddress(src.address, activeNet)
+	destinationAddress, err := stdaddr.DecodeAddress(src.address, activeNet)
 	if err != nil {
 		return nil, 0, err
 	}
-	script, err := txscript.PayToAddrScript(destinationAddress)
-	return script, defaultScriptVersion, err
+	scriptVer, script := destinationAddress.PaymentScript()
+	return script, scriptVer, err
 }
 
 func (src *destinationScriptSourceToAddress) ScriptSize() int {

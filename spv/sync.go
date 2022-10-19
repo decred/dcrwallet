@@ -164,8 +164,8 @@ func (s *Syncer) Synced() bool {
 // blockchain. The estimate is made by comparing the initial height reported by
 // all connected peers and the wallet's current tip. The highest of these values
 // is estimated to be the mainchain's tip height.
-func (s *Syncer) EstimateMainChainTip() int32 {
-	_, chainTip := s.wallet.MainChainTip(context.Background())
+func (s *Syncer) EstimateMainChainTip(ctx context.Context) int32 {
+	_, chainTip := s.wallet.MainChainTip(ctx)
 	s.forRemotes(func(rp *p2p.RemotePeer) error {
 		if rp.InitialHeight() > chainTip {
 			chainTip = rp.InitialHeight()

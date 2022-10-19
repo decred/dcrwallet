@@ -1758,7 +1758,7 @@ func (s *Server) syncStatus(ctx context.Context, icmd interface{}) (interface{},
 
 	if syncer, ok := n.(*spv.Syncer); ok {
 		synced = syncer.Synced()
-		targetHeight = syncer.EstimateMainChainTip()
+		targetHeight = syncer.EstimateMainChainTip(ctx)
 	} else if rpc, ok := n.(*dcrd.RPC); ok {
 		var chainInfo *dcrdtypes.GetBlockChainInfoResult
 		err := rpc.Call(ctx, "getblockchaininfo", &chainInfo)
