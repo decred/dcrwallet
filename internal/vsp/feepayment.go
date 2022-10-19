@@ -180,7 +180,7 @@ func (fp *feePayment) remove(reason string) {
 
 // feePayment returns an existing managed fee payment, or creates and begins
 // processing a fee payment for a ticket.
-func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy, paidConfirmed bool) (fp *feePayment) {
+func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, policy Policy, paidConfirmed bool) (fp *feePayment) {
 	c.mu.Lock()
 	fp = c.jobs[*ticketHash]
 	c.mu.Unlock()
@@ -208,7 +208,6 @@ func (c *Client) feePayment(ticketHash *chainhash.Hash, policy Policy, paidConfi
 		}
 	}()
 
-	ctx := context.Background()
 	w := c.Wallet
 	params := w.ChainParams()
 

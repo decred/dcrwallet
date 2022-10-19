@@ -197,10 +197,10 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			_ = c.feePayment(hash, policy, true)
+			_ = c.feePayment(ctx, hash, policy, true)
 		} else {
 			// Fee hasn't been paid at the provided VSP, so this should do that if needed.
-			_ = c.feePayment(hash, policy, false)
+			_ = c.feePayment(ctx, hash, policy, false)
 		}
 
 		return nil
@@ -238,7 +238,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	case udb.VSPFeeProcessStarted, udb.VSPFeeProcessErrored:
 		// If VSPTicket has been started or errored then attempt to create a new fee
 		// transaction, submit it then confirm.
-		fp := c.feePayment(ticketHash, policy, false)
+		fp := c.feePayment(ctx, ticketHash, policy, false)
 		if fp == nil {
 			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
 			if err != nil {
@@ -277,7 +277,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 			// Cannot confirm a paid ticket that is already with another VSP.
 			return fmt.Errorf("ticket already paid or confirmed with another vsp")
 		}
-		fp := c.feePayment(ticketHash, policy, true)
+		fp := c.feePayment(ctx, ticketHash, policy, true)
 		if fp == nil {
 			// Don't update VSPStatus to Errored if it was already paid or
 			// confirmed.
