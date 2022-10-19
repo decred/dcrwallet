@@ -24,7 +24,7 @@ import (
 )
 
 var dbUpgradeTests = [...]struct {
-	verify   func(*testing.T, walletdb.DB)
+	verify   func(context.Context, *testing.T, walletdb.DB)
 	filename string // in testdata directory
 }{
 	{verifyV2Upgrade, "v1.db.gz"},
@@ -86,7 +86,7 @@ func TestUpgrades(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Upgrade failed: %v", err)
 				}
-				test.verify(t, db)
+				test.verify(ctx, t, db)
 			})
 		}
 	})
@@ -94,8 +94,7 @@ func TestUpgrades(t *testing.T) {
 	os.RemoveAll(d)
 }
 
-func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV2Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	amgr, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
@@ -164,8 +163,7 @@ func verifyV2Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV3Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	_, _, smgr, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
@@ -234,8 +232,7 @@ func verifyV3Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV4Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrBucketKey)
 		mainBucket := ns.NestedReadBucket(mainBucketName)
@@ -249,8 +246,7 @@ func verifyV4Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV5Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(waddrmgrBucketKey)
 
@@ -307,8 +303,7 @@ func verifyV5Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV6Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 
@@ -360,8 +355,7 @@ func verifyV6Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV8Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	err := walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		ns := tx.ReadBucket(wtxmgrBucketKey)
 		creditBucket := ns.NestedReadBucket(bucketCredits)
@@ -433,8 +427,7 @@ func verifyV8Upgrade(t *testing.T, db walletdb.DB) {
 //
 // See the v11.db.go file for an explanation of the database layout and test
 // plan.
-func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
-	ctx := context.Background()
+func verifyV12Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	_, txmgr, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
@@ -545,9 +538,7 @@ func verifyV12Upgrade(t *testing.T, db walletdb.DB) {
 	}
 }
 
-func verifyV25Upgrade(t *testing.T, db walletdb.DB) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+func verifyV25Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 	const wantVer = 25
 	_, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {

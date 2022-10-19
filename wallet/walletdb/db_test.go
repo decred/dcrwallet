@@ -6,6 +6,7 @@
 package walletdb_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -137,5 +138,6 @@ func TestInterface(t *testing.T) {
 	defer db.Close()
 
 	// Run all of the interface tests against the database.
-	testInterface(t, db)
+	ctx := context.Background()
+	testInterface(ctx, t, db)
 }

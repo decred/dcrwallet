@@ -171,13 +171,12 @@ func TestUntrustedClientCert(t *testing.T) {
 	tr := client.Transport.(*http.Transport)
 	tr.TLSClientConfig.Certificates = []tls.Certificate{keypair2}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 	errChan := make(chan error, 2)
 	timeout := time.After(time.Second * 5)
 	for {
 		go func() {
-			req, err := http.NewRequest("PUT", s.URL, strings.NewReader("test"))
+			req, err := http.NewRequest(http.MethodPut, s.URL, strings.NewReader("test"))
 			if err != nil {
 				errChan <- err
 				return

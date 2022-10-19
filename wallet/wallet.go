@@ -3053,7 +3053,7 @@ func (w *Wallet) GetTicketInfo(ctx context.Context, hash *chainhash.Hash) (*Tick
 			return err
 		}
 
-		ticketSummary = makeTicketSummary(context.Background(), nil, dbtx, w, ticketDetails)
+		ticketSummary = makeTicketSummary(ctx, nil, dbtx, w, ticketDetails)
 		if ticketDetails.Ticket.Block.Height == -1 {
 			// unmined tickets do not have an associated block header
 			return nil

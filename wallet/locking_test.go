@@ -15,10 +15,12 @@ import (
 var testPrivPass = []byte("private")
 
 func TestLocking(t *testing.T) {
-	w, teardown := testWallet(t, &basicWalletConfig)
+	ctx := context.Background()
+
+	w, teardown := testWallet(ctx, t, &basicWalletConfig)
 	defer teardown()
 
-	var tests = []func(t *testing.T, w *Wallet){
+	var tests = []func(ctx context.Context, t *testing.T, w *Wallet){
 		testUnlock,
 		testLockOnBadPassphrase,
 		testNoNilTimeoutReplacement,
@@ -26,13 +28,12 @@ func TestLocking(t *testing.T) {
 		testTimeoutReplacement,
 	}
 	for _, test := range tests {
-		test(t, w)
+		test(ctx, t, w)
 		w.Lock()
 	}
 }
 
-func testUnlock(t *testing.T, w *Wallet) {
-	ctx := context.Background()
+func testUnlock(ctx context.Context, t *testing.T, w *Wallet) {
 	if !w.Locked() {
 		t.Fatal("expected wallet to be locked")
 	}
@@ -60,8 +61,7 @@ func testUnlock(t *testing.T, w *Wallet) {
 	}
 }
 
-func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
-	ctx := context.Background()
+func testLockOnBadPassphrase(ctx context.Context, t *testing.T, w *Wallet) {
 	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
@@ -90,8 +90,7 @@ func testLockOnBadPassphrase(t *testing.T, w *Wallet) {
 // Test:
 // If the wallet is currently unlocked without any timeout, timeout is ignored
 // and if non-nil, is read in a background goroutine to avoid blocking sends.
-func testNoNilTimeoutReplacement(t *testing.T, w *Wallet) {
-	ctx := context.Background()
+func testNoNilTimeoutReplacement(ctx context.Context, t *testing.T, w *Wallet) {
 	err := w.Unlock(ctx, testPrivPass, nil)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
@@ -114,9 +113,8 @@ func testNoNilTimeoutReplacement(t *testing.T, w *Wallet) {
 // Test:
 // If the wallet is locked and a non-nil timeout is provided, the wallet will be
 // locked in the background after reading from the channel.
-func testNonNilTimeoutLock(t *testing.T, w *Wallet) {
+func testNonNilTimeoutLock(ctx context.Context, t *testing.T, w *Wallet) {
 	timeChan := make(chan time.Time)
-	ctx := context.Background()
 	err := w.Unlock(ctx, testPrivPass, timeChan)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
@@ -131,10 +129,9 @@ func testNonNilTimeoutLock(t *testing.T, w *Wallet) {
 // Test:
 // If the wallet is already unlocked with a previous timeout, the new timeout
 // replaces the prior.
-func testTimeoutReplacement(t *testing.T, w *Wallet) {
+func testTimeoutReplacement(ctx context.Context, t *testing.T, w *Wallet) {
 	timeChan1 := make(chan time.Time)
 	timeChan2 := make(chan time.Time)
-	ctx := context.Background()
 	err := w.Unlock(ctx, testPrivPass, timeChan1)
 	if err != nil {
 		t.Fatal("failed to unlock wallet")
