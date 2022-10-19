@@ -22,8 +22,7 @@ var basicWalletConfig = Config{
 	Params:        chaincfg.SimNetParams(),
 }
 
-func testWallet(t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
-	ctx := context.Background()
+func testWallet(ctx context.Context, t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
 	f, err := os.CreateTemp("", "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)

@@ -43,8 +43,7 @@ func hexToBytes(origHex string) []byte {
 }
 
 // createEmptyDB is a helper function for creating an empty wallet db.
-func createEmptyDB() error {
-	ctx := context.Background()
+func createEmptyDB(ctx context.Context) error {
 	db, err := walletdb.Create("bdb", emptyDbPath)
 	defer db.Close()
 
@@ -68,8 +67,7 @@ func createEmptyDB() error {
 
 // cloneDB makes a copy of an empty wallet db. It returns a wallet db, store, a
 // stake store and a teardown function.
-func cloneDB(cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
-	ctx := context.Background()
+func cloneDB(ctx context.Context, cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
 	file, err := os.ReadFile(emptyDbPath)
 	if err != nil {
 		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)

@@ -432,7 +432,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 
 func TestManagerImports(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("imports.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "imports.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -474,7 +474,7 @@ func TestManagerImports(t *testing.T) {
 // with the manager locked.
 func TestImportVotingAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("import_voting_account.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "import_voting_account.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -607,7 +607,7 @@ func TestImportVotingAccount(t *testing.T) {
 // with the manager locked.
 func TestImportAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("import_account.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "import_account.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -976,8 +976,7 @@ func testForEachAccount(tc *testContext, rb walletdb.ReadBucket) {
 
 // testEncryptDecryptErrors ensures that errors which occur while encrypting and
 // decrypting data return the expected errors.
-func testEncryptDecryptErrors(tc *testContext) {
-	ctx := context.Background()
+func testEncryptDecryptErrors(ctx context.Context, tc *testContext) {
 	invalidKeyType := CryptoKeyType(0xff)
 	if _, err := tc.manager.Encrypt(invalidKeyType, []byte{}); err == nil {
 		tc.t.Fatal("Encrypt accepted an invalid key type!")
@@ -1032,8 +1031,7 @@ func testEncryptDecryptErrors(tc *testContext) {
 
 // testEncryptDecrypt ensures that encrypting and decrypting data with the
 // the various crypto key types works as expected.
-func testEncryptDecrypt(tc *testContext) {
-	ctx := context.Background()
+func testEncryptDecrypt(ctx context.Context, tc *testContext) {
 	plainText := []byte("this is a plaintext")
 
 	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
@@ -1073,7 +1071,9 @@ func testEncryptDecrypt(tc *testContext) {
 }
 
 func TestManagerEncryptDecrypt(t *testing.T) {
-	db, mgr, _, _, teardown, err := cloneDB("encrypt_decrypt.kv")
+	ctx := context.Background()
+
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "encrypt_decrypt.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1089,13 +1089,13 @@ func TestManagerEncryptDecrypt(t *testing.T) {
 		watchingOnly: false,
 	}
 
-	testEncryptDecryptErrors(tc)
-	testEncryptDecrypt(tc)
+	testEncryptDecryptErrors(ctx, tc)
+	testEncryptDecrypt(ctx, tc)
 }
 
 func TestChangePassphrase(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("change_passphrase.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "change_passphrase.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1122,8 +1122,7 @@ func TestChangePassphrase(t *testing.T) {
 }
 
 // testManagerAPI tests the functions provided by the Manager API.
-func testManagerAPI(tc *testContext) {
-	ctx := context.Background()
+func testManagerAPI(ctx context.Context, tc *testContext) {
 	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 
@@ -1151,14 +1150,14 @@ func testManagerAPI(tc *testContext) {
 // copy as well as when it is opened from an existing namespace.
 func TestManagerWatchingOnly(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("mgr_watching_only.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Run all of the manager API tests in create mode
-	testManagerAPI(&testContext{
+	testManagerAPI(ctx, &testContext{
 		t:            t,
 		db:           db,
 		manager:      mgr,
@@ -1186,7 +1185,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	}
 
 	// Run all of the manager API tests against the converted manager.
-	testManagerAPI(&testContext{
+	testManagerAPI(ctx, &testContext{
 		t:            t,
 		db:           db,
 		manager:      mgr,
@@ -1202,7 +1201,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	}
 	defer mgr.Close()
 
-	testManagerAPI(&testContext{
+	testManagerAPI(ctx, &testContext{
 		t:            t,
 		db:           db,
 		manager:      mgr,
@@ -1221,13 +1220,13 @@ func TestManager(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB("mgr_watching_only.kv")
+	db, mgr, _, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testManagerAPI(&testContext{
+	testManagerAPI(ctx, &testContext{
 		t:            t,
 		db:           db,
 		manager:      mgr,
@@ -1253,7 +1252,7 @@ func TestManager(t *testing.T) {
 		create:       false,
 		watchingOnly: false,
 	}
-	testManagerAPI(tc)
+	testManagerAPI(ctx, tc)
 }
 
 func TestMain(m *testing.M) {
@@ -1268,7 +1267,8 @@ func TestMain(m *testing.M) {
 		os.RemoveAll(testDir)
 	}
 
-	err = createEmptyDB()
+	ctx := context.Background()
+	err = createEmptyDB(ctx)
 	if err != nil {
 		fmt.Printf("Unable to create empty test db: %v\n", err)
 		teardown()

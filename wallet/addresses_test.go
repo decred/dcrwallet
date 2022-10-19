@@ -130,7 +130,7 @@ var (
 	}
 )
 
-func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
+func setupWallet(ctx context.Context, t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 	f, err := os.CreateTemp("", "testwallet.db")
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +141,6 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx := context.Background()
 	err = Create(ctx, opaqueDB{db}, pubPassphrase, privPassphrase, seed, cfg.Params)
 	if err != nil {
 		db.Close()
@@ -167,11 +166,9 @@ func setupWallet(t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
 
 type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (stdaddr.Address, error)
 
-func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
-	w, db, teardown := setupWallet(tc.t, &walletConfig)
+func testKnownAddresses(ctx context.Context, tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
+	w, db, teardown := setupWallet(ctx, tc.t, &walletConfig)
 	defer teardown()
-
-	ctx := context.Background()
 
 	if unlock {
 		err := w.Unlock(ctx, privPassphrase, nil)
@@ -192,7 +189,7 @@ func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr new
 	}
 
 	for i := 0; i < len(tests); i++ {
-		addr, err := newAddr(w, context.Background(), defaultAccount)
+		addr, err := newAddr(w, ctx, defaultAccount)
 		if err != nil {
 			tc.t.Fatalf("%s: failed to generate external address: %v",
 				prefix, err)
@@ -235,30 +232,32 @@ func testKnownAddresses(tc *testContext, prefix string, unlock bool, newAddr new
 }
 
 func TestAddresses(t *testing.T) {
-	testAddresses(t, false)
-	testAddresses(t, true)
+	ctx := context.Background()
+
+	testAddresses(ctx, t, false)
+	testAddresses(ctx, t, true)
 }
 
-func testAddresses(t *testing.T, unlock bool) {
-	testKnownAddresses(&testContext{
+func testAddresses(ctx context.Context, t *testing.T, unlock bool) {
+	testKnownAddresses(ctx, &testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: false,
 	}, "testInternalAddresses", unlock, (*Wallet).NewInternalAddress, expectedInternalAddrs)
 
-	testKnownAddresses(&testContext{
+	testKnownAddresses(ctx, &testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: true,
 	}, "testInternalAddresses", unlock, (*Wallet).NewInternalAddress, expectedInternalAddrs)
 
-	testKnownAddresses(&testContext{
+	testKnownAddresses(ctx, &testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: false,
 	}, "testExternalAddresses", unlock, (*Wallet).NewExternalAddress, expectedExternalAddrs)
 
-	testKnownAddresses(&testContext{
+	testKnownAddresses(ctx, &testContext{
 		t:            t,
 		account:      defaultAccount,
 		watchingOnly: true,
@@ -266,14 +265,16 @@ func testAddresses(t *testing.T, unlock bool) {
 }
 
 func TestAccountIndexes(t *testing.T) {
+	ctx := context.Background()
+
 	cfg := basicWalletConfig
-	w, teardown := testWallet(t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg)
 	defer teardown()
 
 	w.SetNetworkBackend(mockNetwork{})
 
 	tests := []struct {
-		f       func(t *testing.T, w *Wallet)
+		f       func(ctx context.Context, t *testing.T, w *Wallet)
 		indexes accountIndexes
 	}{
 		{nil, accountIndexes{{^uint32(0), 0}, {^uint32(0), 0}}},
@@ -288,7 +289,7 @@ func TestAccountIndexes(t *testing.T) {
 	}
 	for i, test := range tests {
 		if test.f != nil {
-			test.f(t, w)
+			test.f(ctx, t, w)
 		}
 		w.addressBuffersMu.Lock()
 		b := w.addressBuffers[0]
@@ -311,10 +312,10 @@ type accountIndexes [2]struct {
 	last, cursor uint32
 }
 
-func nextAddresses(n int) func(t *testing.T, w *Wallet) {
-	return func(t *testing.T, w *Wallet) {
+func nextAddresses(n int) func(ctx context.Context, t *testing.T, w *Wallet) {
+	return func(ctx context.Context, t *testing.T, w *Wallet) {
 		for i := 0; i < n; i++ {
-			_, err := w.NewExternalAddress(context.Background(), 0)
+			_, err := w.NewExternalAddress(ctx, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -322,8 +323,7 @@ func nextAddresses(n int) func(t *testing.T, w *Wallet) {
 	}
 }
 
-func watchFutureAddresses(t *testing.T, w *Wallet) {
-	ctx := context.Background()
+func watchFutureAddresses(ctx context.Context, t *testing.T, w *Wallet) {
 	n, _ := w.NetworkBackend()
 	_, err := w.watchHDAddrs(ctx, false, n)
 	if err != nil {
@@ -331,9 +331,8 @@ func watchFutureAddresses(t *testing.T, w *Wallet) {
 	}
 }
 
-func useAddress(child uint32) func(t *testing.T, w *Wallet) {
-	ctx := context.Background()
-	return func(t *testing.T, w *Wallet) {
+func useAddress(child uint32) func(ctx context.Context, t *testing.T, w *Wallet) {
+	return func(ctx context.Context, t *testing.T, w *Wallet) {
 		w.addressBuffersMu.Lock()
 		xbranch := w.addressBuffers[0].albExternal.branchXpub
 		w.addressBuffersMu.Unlock()
@@ -352,6 +351,6 @@ func useAddress(child uint32) func(t *testing.T, w *Wallet) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		watchFutureAddresses(t, w)
+		watchFutureAddresses(ctx, t, w)
 	}
 }

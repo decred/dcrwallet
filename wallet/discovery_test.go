@@ -21,7 +21,7 @@ func TestDiscoveryCursorPos(t *testing.T) {
 	// off-by-ones after the upgrade.  will be fixed in a later commit.
 	cfg.DisableCoinTypeUpgrades = true
 
-	w, teardown := testWallet(t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg)
 	defer teardown()
 
 	/*

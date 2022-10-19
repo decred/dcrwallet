@@ -475,8 +475,7 @@ func testManualTxInterface(tc *testContext, bucketKey []byte) bool {
 // testNamespaceAndTxInterfaces creates a namespace using the provided key and
 // tests all facets of it interface as well as transaction and bucket
 // interfaces under it.
-func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
-	ctx := context.Background()
+func testNamespaceAndTxInterfaces(ctx context.Context, tc *testContext, namespaceKey string) bool {
 	namespaceKeyBytes := []byte(namespaceKey)
 	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
 		_, err := tx.CreateTopLevelBucket(namespaceKeyBytes)
@@ -627,8 +626,7 @@ func testNamespaceAndTxInterfaces(tc *testContext, namespaceKey string) bool {
 
 // testAdditionalErrors performs some tests for error cases not covered
 // elsewhere in the tests and therefore improves negative test coverage.
-func testAdditionalErrors(tc *testContext) bool {
-	ctx := context.Background()
+func testAdditionalErrors(ctx context.Context, tc *testContext) bool {
 	ns3Key := []byte("ns3")
 
 	err := walletdb.Update(ctx, tc.db, func(tx walletdb.ReadWriteTx) error {
@@ -690,22 +688,22 @@ func testAdditionalErrors(tc *testContext) bool {
 
 // testInterface tests performs tests for the various interfaces of walletdb
 // which require state in the database for the given database type.
-func testInterface(t *testing.T, db walletdb.DB) {
+func testInterface(ctx context.Context, t *testing.T, db walletdb.DB) {
 	// Create a test context to pass around.
-	context := testContext{t: t, db: db}
+	tcontext := testContext{t: t, db: db}
 
 	// Create a namespace and test the interface for it.
-	if !testNamespaceAndTxInterfaces(&context, "ns1") {
+	if !testNamespaceAndTxInterfaces(ctx, &tcontext, "ns1") {
 		return
 	}
 
 	// Create a second namespace and test the interface for it.
-	if !testNamespaceAndTxInterfaces(&context, "ns2") {
+	if !testNamespaceAndTxInterfaces(ctx, &tcontext, "ns2") {
 		return
 	}
 
 	// Check a few more error conditions not covered elsewhere.
-	if !testAdditionalErrors(&context) {
+	if !testAdditionalErrors(ctx, &tcontext) {
 		return
 	}
 }

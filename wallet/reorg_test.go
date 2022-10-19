@@ -91,8 +91,9 @@ func mustAddBlockNode(t *testing.T, forest *SidechainForest, n *BlockNode) {
 	}
 }
 
-func (tw *tw) evaluateBestChain(forest *SidechainForest, expectedBranchLen int, expectedTip *chainhash.Hash) []*BlockNode {
-	ctx := context.Background()
+func (tw *tw) evaluateBestChain(ctx context.Context, forest *SidechainForest,
+	expectedBranchLen int, expectedTip *chainhash.Hash) []*BlockNode {
+
 	bestChain, err := tw.EvaluateBestChain(ctx, forest)
 	if err != nil {
 		tw.Fatal(err)
@@ -106,13 +107,12 @@ func (tw *tw) evaluateBestChain(forest *SidechainForest, expectedBranchLen int, 
 	return bestChain
 }
 
-func (tw *tw) assertNoBetterChain(forest *SidechainForest) {
-	tw.evaluateBestChain(forest, 0, nil)
+func (tw *tw) assertNoBetterChain(ctx context.Context, forest *SidechainForest) {
+	tw.evaluateBestChain(ctx, forest, 0, nil)
 }
 
-func (tw *tw) chainSwitch(forest *SidechainForest, chain []*BlockNode) {
-	ctx := context.Background()
-	prevChain, err := tw.ChainSwitch(context.Background(), forest, chain, nil)
+func (tw *tw) chainSwitch(ctx context.Context, forest *SidechainForest, chain []*BlockNode) {
+	prevChain, err := tw.ChainSwitch(ctx, forest, chain, nil)
 	if err != nil {
 		tw.Fatal(err)
 	}
@@ -125,8 +125,7 @@ func (tw *tw) chainSwitch(forest *SidechainForest, chain []*BlockNode) {
 	}
 }
 
-func (tw *tw) expectBlockInMainChain(hash *chainhash.Hash, have, invalidated bool) {
-	ctx := context.Background()
+func (tw *tw) expectBlockInMainChain(ctx context.Context, hash *chainhash.Hash, have, invalidated bool) {
 	haveBlock, isInvalidated, err := tw.BlockInMainChain(ctx, hash)
 	if err != nil {
 		tw.Fatal(err)
@@ -155,9 +154,10 @@ func assertSidechainTree(t *testing.T, tree *sidechainRootedTree, root *chainhas
 
 func TestReorg(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg)
 	defer teardown()
 
 	tg := maketg(t, cfg.Params)
@@ -168,13 +168,13 @@ func TestReorg(t *testing.T) {
 	mustAddBlockNode(t, forest, blockOne.BlockNode)
 	t.Logf("Generated block one %v", blockOne.Hash)
 
-	bestChain := tw.evaluateBestChain(forest, 1, blockOne.Hash)
-	tw.chainSwitch(forest, bestChain)
+	bestChain := tw.evaluateBestChain(ctx, forest, 1, blockOne.Hash)
+	tw.chainSwitch(ctx, forest, bestChain)
 	t.Logf("Attached block one %v", blockOne.Hash)
 	if len(forest.trees) != 0 {
 		t.Fatalf("Did not prune block one from forest")
 	}
-	tw.assertNoBetterChain(forest)
+	tw.assertNoBetterChain(ctx, forest)
 
 	// Generate blocks 2a and 3a and attach to the wallet's main chain together.
 	for i := 2; i <= 3; i++ {
@@ -189,12 +189,12 @@ func TestReorg(t *testing.T) {
 	b2aHash := tg.blockHashByName("2a")
 	b3aHash := tg.blockHashByName("3a")
 	assertSidechainTree(t, forest.trees[0], b2aHash, b3aHash)
-	bestChain = tw.evaluateBestChain(forest, 2, b3aHash)
-	tw.chainSwitch(forest, bestChain)
+	bestChain = tw.evaluateBestChain(ctx, forest, 2, b3aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
 	if len(forest.trees) != 0 {
 		t.Fatalf("Did not prune blocks 2a-3a from forest")
 	}
-	tw.assertNoBetterChain(forest)
+	tw.assertNoBetterChain(ctx, forest)
 
 	// Generate sidechain blocks 2b-3b and assert it does not create a better
 	// chain.
@@ -211,7 +211,7 @@ func TestReorg(t *testing.T) {
 	b2bHash := tg.blockHashByName("2b")
 	b3bHash := tg.blockHashByName("3b")
 	assertSidechainTree(t, forest.trees[0], b2bHash, b3bHash)
-	tw.assertNoBetterChain(forest)
+	tw.assertNoBetterChain(ctx, forest)
 
 	// Generate sidechain block 4b, and attach the better chain 2b-4b to
 	// wallet's main chain, reorging out 2a and 3a.
@@ -224,16 +224,16 @@ func TestReorg(t *testing.T) {
 		t.Fatalf("Expected one tree in forest")
 	}
 	assertSidechainTree(t, forest.trees[0], b2bHash, b4bHash)
-	bestChain = tw.evaluateBestChain(forest, 3, b4bHash)
-	tw.chainSwitch(forest, bestChain)
+	bestChain = tw.evaluateBestChain(ctx, forest, 3, b4bHash)
+	tw.chainSwitch(ctx, forest, bestChain)
 	if len(forest.trees) != 1 {
 		t.Fatalf("Expected single tree in forest after reorg")
 	}
-	tw.assertNoBetterChain(forest)
+	tw.assertNoBetterChain(ctx, forest)
 	assertSidechainTree(t, forest.trees[0], b2aHash, b3aHash)
-	tw.expectBlockInMainChain(b2aHash, false, false)
-	tw.expectBlockInMainChain(b3aHash, false, false)
-	tw.expectBlockInMainChain(b2bHash, true, false)
-	tw.expectBlockInMainChain(b3bHash, true, false)
-	tw.expectBlockInMainChain(b4bHash, true, false)
+	tw.expectBlockInMainChain(ctx, b2aHash, false, false)
+	tw.expectBlockInMainChain(ctx, b3aHash, false, false)
+	tw.expectBlockInMainChain(ctx, b2bHash, true, false)
+	tw.expectBlockInMainChain(ctx, b3bHash, true, false)
+	tw.expectBlockInMainChain(ctx, b4bHash, true, false)
 }
