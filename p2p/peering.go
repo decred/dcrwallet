@@ -44,8 +44,6 @@ const minPver = wire.CFilterV2Version
 // Pver is the maximum protocol version implemented by the LocalPeer.
 const Pver = wire.InitStateVersion
 
-const maxOutboundConns = 8
-
 // connectTimeout is the amount of time allowed before connecting, peering
 // handshake, and protocol negotiation is aborted.
 const connectTimeout = 30 * time.Second
@@ -1449,15 +1447,8 @@ type filterProof = struct {
 // Note: returning a []func() is an ugly hack to prevent a cyclical dependency
 // between the rpc package and the wallet package.
 func (rp *RemotePeer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
-	const opf = "remotepeer(%v).CFiltersV2"
-
 	// TODO: this is spammy and would be better implemented with a single
 	// request/response.
-	type result struct {
-		filter     *gcs.FilterV2
-		proofIndex uint32
-		proof      []chainhash.Hash
-	}
 	filters := make([]filterProof, len(blockHashes))
 	g, ctx := errgroup.WithContext(ctx)
 	for i := range blockHashes {

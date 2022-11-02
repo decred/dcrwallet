@@ -19,13 +19,6 @@ func UseLogger(logger slog.Logger) {
 	log = logger
 }
 
-type infoLogger struct{}
-
-var infoLog infoLogger
-
-func (infoLogger) Print(args ...interface{})                 { log.Info(args...) }
-func (infoLogger) Printf(format string, args ...interface{}) { log.Infof(format, args...) }
-
 type debugLogger struct{}
 
 var debugLog debugLogger

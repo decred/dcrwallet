@@ -316,8 +316,6 @@ func verifyV6Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 			decodeHash("bca8c2649860585f10b27d774b354ea7b80007e9ad79c090ea05596d63995cf5"),
 		}
 
-		const dbVersion = 6
-
 		c := ns.NestedReadBucket(bucketTickets).ReadCursor()
 		found := 0
 		for k, v := c.First(); k != nil; k, v = c.Next() {

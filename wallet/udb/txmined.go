@@ -2783,13 +2783,6 @@ func ticketMatured(params *chaincfg.Params, txHeight, curHeight int32) bool {
 	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)
 }
 
-// ticketExpired returns whether a ticket mined at txHeight has
-// reached ticket expiry in a chain with a tip height curHeight.
-func ticketExpired(params *chaincfg.Params, txHeight, curHeight int32) bool {
-	// Ticket maturity off-by-one extends to the expiry depth as well.
-	return txHeight >= 0 && curHeight-txHeight > int32(params.TicketMaturity)+int32(params.TicketExpiry)
-}
-
 func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte, unminedCredKey []byte) ([]byte, error) {
 	// It has to exists as a credit or an unmined credit.
 	// Look both of these up. If it doesn't, throw an

@@ -111,15 +111,6 @@ func (s *Syncer) synced() {
 	}
 }
 
-// unsynced checks the atomic that controls wallet syncness and if previously
-// synced, updates to unsynced and notifies the callback, if set.
-func (s *Syncer) unsynced() {
-	swapped := atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 1, 0)
-	if swapped && s.cb != nil && s.cb.Synced != nil {
-		s.cb.Synced(false)
-	}
-}
-
 func (s *Syncer) fetchMissingCfiltersStart() {
 	if s.cb != nil && s.cb.FetchMissingCFiltersStarted != nil {
 		s.cb.FetchMissingCFiltersStarted()

@@ -1877,13 +1877,6 @@ func (m *Manager) accountHasPassphrase(ns walletdb.ReadBucket, account uint32) (
 	return
 }
 
-func maxUint32(a, b uint32) uint32 {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // MarkUsed updates usage statistics of a BIP0044 account address so that the
 // last used address index can be tracked.  There is no effect when called on
 // P2SH addresses or any imported addresses.

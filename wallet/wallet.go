@@ -1490,25 +1490,6 @@ func (w *Wallet) FetchMissingCFiltersWithProgress(ctx context.Context, p Peer, p
 	}
 }
 
-// createHeaderData creates the header data to process from hex-encoded
-// serialized block headers.
-func createHeaderData(headers []*wire.BlockHeader) ([]udb.BlockHeaderData, error) {
-	data := make([]udb.BlockHeaderData, len(headers))
-	var buf bytes.Buffer
-	for i, header := range headers {
-		var headerData udb.BlockHeaderData
-		headerData.BlockHash = header.BlockHash()
-		buf.Reset()
-		err := header.Serialize(&buf)
-		if err != nil {
-			return nil, err
-		}
-		copy(headerData.SerializedHeader[:], buf.Bytes())
-		data[i] = headerData
-	}
-	return data, nil
-}
-
 // log2 calculates an integer approximation of log2(x).  This is used to
 // approximate the cap to use when allocating memory for the block locators.
 func log2(x int) int {
@@ -3863,7 +3844,7 @@ func votingXprivFromSeed(seed []byte, params *chaincfg.Params) (*hdkeychain.Exte
 
 	seedSize := len(seed)
 	if seedSize < hdkeychain.MinSeedBytes || seedSize > hdkeychain.MaxSeedBytes {
-		return nil, errors.E(errors.Invalid, errors.New("invalid seed length"))
+		return nil, errors.E(op, errors.Invalid, errors.New("invalid seed length"))
 	}
 
 	// Generate the BIP0044 HD key structure to ensure the provided seed
