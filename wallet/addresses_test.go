@@ -11,7 +11,7 @@ import (
 	"os"
 	"testing"
 
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"

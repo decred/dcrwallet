@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"decred.org/dcrwallet/v2/rpc/client/dcrwallet"
-	"decred.org/dcrwallet/v2/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v3/rpc/client/dcrwallet"
+	"decred.org/dcrwallet/v3/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/rpcclient/v7"

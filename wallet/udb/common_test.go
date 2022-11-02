@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 

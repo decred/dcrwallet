@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"decred.org/dcrwallet/v2/errors"
-	"decred.org/dcrwallet/v2/wallet"
-	_ "decred.org/dcrwallet/v2/wallet/drivers/bdb" // driver loaded during init
+	"decred.org/dcrwallet/v3/errors"
+	"decred.org/dcrwallet/v3/wallet"
+	_ "decred.org/dcrwallet/v3/wallet/drivers/bdb" // driver loaded during init
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"

@@ -7,11 +7,11 @@ package wallet
 import (
 	"context"
 
-	"decred.org/dcrwallet/v2/errors"
-	"decred.org/dcrwallet/v2/wallet/txrules"
-	"decred.org/dcrwallet/v2/wallet/txsizes"
-	"decred.org/dcrwallet/v2/wallet/udb"
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	"decred.org/dcrwallet/v3/errors"
+	"decred.org/dcrwallet/v3/wallet/txrules"
+	"decred.org/dcrwallet/v3/wallet/txsizes"
+	"decred.org/dcrwallet/v3/wallet/udb"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )

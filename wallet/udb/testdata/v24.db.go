@@ -29,9 +29,9 @@ import (
 	"os"
 	"time"
 
-	_ "decred.org/dcrwallet/v2/wallet/internal/bdb"
-	"decred.org/dcrwallet/v2/wallet/udb"
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
+	"decred.org/dcrwallet/v3/wallet/udb"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 

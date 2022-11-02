@@ -14,9 +14,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"decred.org/dcrwallet/v2/errors"
-	_ "decred.org/dcrwallet/v2/wallet/internal/bdb"
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
+	"decred.org/dcrwallet/v3/errors"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 )
 
 // This example demonstrates creating a new database.

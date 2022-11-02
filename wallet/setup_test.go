@@ -9,8 +9,8 @@ import (
 	"os"
 	"testing"
 
-	_ "decred.org/dcrwallet/v2/wallet/drivers/bdb"
-	"decred.org/dcrwallet/v2/wallet/walletdb"
+	_ "decred.org/dcrwallet/v3/wallet/drivers/bdb"
+	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
