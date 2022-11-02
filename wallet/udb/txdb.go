@@ -13,7 +13,7 @@ import (
 
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/crypto/ripemd160"
@@ -569,7 +569,7 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	}
 
 	// Calculate the stake TxType from the MsgTx.
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true, false)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
 
 	return nil
 }

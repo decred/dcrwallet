@@ -14,7 +14,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/gcs/v3"
+	"github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/wire"
 )
 

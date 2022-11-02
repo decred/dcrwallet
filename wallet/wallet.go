@@ -31,7 +31,7 @@ import (
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -40,9 +40,9 @@ import (
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/decred/dcrd/dcrutil/v4"
-	gcs2 "github.com/decred/dcrd/gcs/v3"
+	gcs2 "github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -4018,16 +4018,11 @@ type StakeInfoData struct {
 }
 
 func isVote(tx *wire.MsgTx) bool {
-	return stake.IsSSGen(tx, true) // Yes treasury XXX this is not right when treasury activates
+	return stake.IsSSGen(tx)
 }
 
 func isRevocation(tx *wire.MsgTx) bool {
-	// isAutoRevocationsEnabled is set false to keep manually generated
-	// revocations still considered to be valid revocations.  Enabling this
-	// flag would cause legacy revocations to not be flagged as such.
-	// Enabling the flag only adds additional checks, so it's not necessary
-	// to make the call twice with the flag enabled and disabled.
-	return stake.IsSSRtx(tx, false)
+	return stake.IsSSRtx(tx)
 }
 
 func isTreasurySpend(tx *wire.MsgTx) bool {
@@ -4737,7 +4732,7 @@ func (w *Wallet) SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType t
 			// For an SSGen tx, skip the first input as it is a stake base
 			// and doesn't need to be signed.  The transaction is expected
 			// to already contain the consensus-validated stakebase script.
-			if i == 0 && stake.IsSSGen(tx, true) { // Yes treasury
+			if i == 0 && stake.IsSSGen(tx) {
 				continue
 			}
 
@@ -4955,7 +4950,7 @@ func (w *Wallet) appendRelevantOutpoints(relevant []wire.OutPoint, dbtx walletdb
 	op := wire.OutPoint{
 		Hash: txHash,
 	}
-	isTicket := stake.DetermineTxType(tx, true, false) == stake.TxTypeSStx
+	isTicket := stake.DetermineTxType(tx) == stake.TxTypeSStx
 	var watchedTicketOutputZero bool
 	for i, out := range tx.TxOut {
 		if isTicket && i > 0 && i&1 == 1 && !watchedTicketOutputZero {

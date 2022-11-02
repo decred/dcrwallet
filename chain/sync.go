@@ -18,7 +18,7 @@ import (
 	"decred.org/dcrwallet/v3/rpc/client/dcrd"
 	"decred.org/dcrwallet/v3/validate"
 	"decred.org/dcrwallet/v3/wallet"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"

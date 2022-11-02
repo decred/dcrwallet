@@ -48,12 +48,12 @@ import (
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/walletseed"
 	"github.com/decred/dcrd/addrmgr/v2"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/gcs/v3"
+	"github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -3509,7 +3509,7 @@ func marshalDecodedTxInputs(mtx *wire.MsgTx) []*pb.DecodedTransaction_Input {
 
 func marshalDecodedTxOutputs(mtx *wire.MsgTx, chainParams *chaincfg.Params) []*pb.DecodedTransaction_Output {
 	outputs := make([]*pb.DecodedTransaction_Output, len(mtx.TxOut))
-	txType := stake.DetermineTxType(mtx, true, false)
+	txType := stake.DetermineTxType(mtx)
 
 	for i, v := range mtx.TxOut {
 		// The disassembled string will contain [error] inline if the

@@ -5,9 +5,9 @@ go 1.17
 require (
 	decred.org/cspp/v2 v2.0.0
 	github.com/decred/dcrd/addrmgr/v2 v2.0.0
-	github.com/decred/dcrd/blockchain/stake/v4 v4.0.0
+	github.com/decred/dcrd/blockchain/stake/v5 v5.0.0
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
-	github.com/decred/dcrd/blockchain/v4 v4.0.2
+	github.com/decred/dcrd/blockchain/v5 v5.0.0-20221022042529-0a0cc3b3bf92
 	github.com/decred/dcrd/certgen v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.3
 	github.com/decred/dcrd/chaincfg/v3 v3.1.1
@@ -18,10 +18,10 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/decred/dcrd/dcrjson/v4 v4.0.0
 	github.com/decred/dcrd/dcrutil/v4 v4.0.0
-	github.com/decred/dcrd/gcs/v3 v3.0.0
+	github.com/decred/dcrd/gcs/v4 v4.0.0
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.0
-	github.com/decred/dcrd/rpc/jsonrpc/types/v3 v3.0.0
-	github.com/decred/dcrd/rpcclient/v7 v7.0.0
+	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0
+	github.com/decred/dcrd/rpcclient/v8 v8.0.0-20221022042529-0a0cc3b3bf92
 	github.com/decred/dcrd/txscript/v4 v4.0.0
 	github.com/decred/dcrd/wire v1.5.0
 	github.com/decred/go-socks v1.1.0
@@ -38,6 +38,12 @@ require (
 	google.golang.org/grpc v1.45.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
 	google.golang.org/protobuf v1.27.1
+)
+
+replace (
+	github.com/decred/dcrd/blockchain/stake/v5 => github.com/decred/dcrd/blockchain/stake/v5 v5.0.0-20221022042529-0a0cc3b3bf92
+	github.com/decred/dcrd/gcs/v4 => github.com/decred/dcrd/gcs/v4 v4.0.0-20221022042529-0a0cc3b3bf92
+	github.com/decred/dcrd/rpc/jsonrpc/types/v4 => github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0-20221022042529-0a0cc3b3bf92
 )
 
 require (

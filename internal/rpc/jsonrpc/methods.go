@@ -34,7 +34,7 @@ import (
 	"decred.org/dcrwallet/v3/wallet/txrules"
 	"decred.org/dcrwallet/v3/wallet/txsizes"
 	"decred.org/dcrwallet/v3/wallet/udb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -43,7 +43,7 @@ import (
 	"github.com/decred/dcrd/dcrjson/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -1589,7 +1589,7 @@ func createVinList(mtx *wire.MsgTx, isTreasuryEnabled bool) []dcrdtypes.Vin {
 
 	// Stakebase transactions (votes) have two inputs: a null stake base
 	// followed by an input consuming a ticket's stakesubmission.
-	isSSGen := stake.IsSSGen(mtx, isTreasuryEnabled)
+	isSSGen := stake.IsSSGen(mtx)
 
 	for i, txIn := range mtx.TxIn {
 		// Handle only the null input of a stakebase differently.
@@ -1628,7 +1628,7 @@ func createVinList(mtx *wire.MsgTx, isTreasuryEnabled bool) []dcrdtypes.Vin {
 // createVoutList returns a slice of JSON objects for the outputs of the passed
 // transaction.
 func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap map[string]struct{}, isTreasuryEnabled bool) []dcrdtypes.Vout {
-	txType := stake.DetermineTxType(mtx, isTreasuryEnabled, false)
+	txType := stake.DetermineTxType(mtx)
 	voutList := make([]dcrdtypes.Vout, 0, len(mtx.TxOut))
 	for i, v := range mtx.TxOut {
 		// The disassembled string will contain [error] inline if the

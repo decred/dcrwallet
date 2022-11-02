@@ -14,7 +14,7 @@ import (
 	"decred.org/dcrwallet/v3/internal/compat"
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -432,7 +432,7 @@ func TxTransactionType(tx *wire.MsgTx) TransactionType {
 		return TransactionTypeCoinbase
 	} else if stake.IsSStx(tx) {
 		return TransactionTypeTicketPurchase
-	} else if stake.IsSSGen(tx, true /* Yes treasury */) {
+	} else if stake.IsSSGen(tx) {
 		return TransactionTypeVote
 	} else if isRevocation(tx) {
 		return TransactionTypeRevocation

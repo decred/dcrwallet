@@ -13,8 +13,8 @@ import (
 
 	"decred.org/dcrwallet/v3/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs/v3"
-	blockcf "github.com/decred/dcrd/gcs/v3/blockcf2"
+	"github.com/decred/dcrd/gcs/v4"
+	blockcf "github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/wire"
 )
 

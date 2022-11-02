@@ -18,13 +18,13 @@ import (
 	"decred.org/dcrwallet/v3/wallet/txrules"
 	"decred.org/dcrwallet/v3/wallet/txsizes"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrutil/v4"
-	gcs2 "github.com/decred/dcrd/gcs/v3"
-	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	gcs2 "github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -114,7 +114,7 @@ func NewTxRecord(serializedTx []byte, received time.Time) (*TxRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true, false)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -134,7 +134,7 @@ func NewTxRecordFromMsgTx(msgTx *wire.MsgTx, received time.Time) (*TxRecord, err
 		Received:     received,
 		SerializedTx: buf.Bytes(),
 	}
-	rec.TxType = stake.DetermineTxType(&rec.MsgTx, true, false)
+	rec.TxType = stake.DetermineTxType(&rec.MsgTx)
 	hash := rec.MsgTx.TxHash()
 	copy(rec.Hash[:], hash[:])
 	return rec, nil
@@ -1158,7 +1158,7 @@ func (s *Store) InsertMinedTx(dbtx walletdb.ReadWriteTx, rec *TxRecord, blockHas
 		},
 		// index set for each iteration below
 	}
-	txType := stake.DetermineTxType(&rec.MsgTx, true, false)
+	txType := stake.DetermineTxType(&rec.MsgTx)
 
 	invalidated := false
 	if txType == stake.TxTypeRegular {
@@ -2488,7 +2488,7 @@ func (s *Store) UnspentTickets(dbtx walletdb.ReadTx, syncHeight int32, includeIm
 			if err != nil {
 				return nil, errors.E(errors.IO, err)
 			}
-			if stake.IsSSGen(&spender, true) { // Yes treasury
+			if stake.IsSSGen(&spender) {
 				voteBlock, _ := stake.SSGenBlockVotedOn(&spender)
 				if voteBlock != tipBlock {
 					goto Include

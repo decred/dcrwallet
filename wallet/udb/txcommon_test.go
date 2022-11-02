@@ -14,8 +14,8 @@ import (
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	gcs2 "github.com/decred/dcrd/gcs/v3"
-	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	gcs2 "github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/wire"
 )
 

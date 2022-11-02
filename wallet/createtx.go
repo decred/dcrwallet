@@ -24,7 +24,7 @@ import (
 	"decred.org/dcrwallet/v3/wallet/txsizes"
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"

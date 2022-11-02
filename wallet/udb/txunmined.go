@@ -10,7 +10,7 @@ import (
 
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 )
@@ -58,7 +58,7 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 				if err != nil {
 					return errors.E(errors.IO, err)
 				}
-				if stake.DetermineTxType(&spenderTx, true, false) != stake.TxTypeSSGen {
+				if stake.DetermineTxType(&spenderTx) != stake.TxTypeSSGen {
 					break DoubleSpendVoteCheck
 				}
 				votedBlock, _ := stake.SSGenBlockVotedOn(&spenderTx)
@@ -97,7 +97,7 @@ func (s *Store) InsertMemPoolTx(dbtx walletdb.ReadWriteTx, rec *TxRecord) error 
 		}
 	}
 
-	txType := stake.DetermineTxType(&rec.MsgTx, true, false)
+	txType := stake.DetermineTxType(&rec.MsgTx)
 
 	for i, input := range rec.MsgTx.TxIn {
 		// Skip stakebases for votes.
@@ -179,7 +179,7 @@ func (s *Store) removeDoubleSpends(ns walletdb.ReadWriteBucket, rec *TxRecord) e
 // and expired transactions.
 func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, txHash *chainhash.Hash) error {
 
-	stxType := stake.DetermineTxType(tx, true, false)
+	stxType := stake.DetermineTxType(tx)
 
 	// For each potential credit for this record, each spender (if any) must
 	// be recursively removed as well.  Once the spenders are removed, the
@@ -369,7 +369,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*cha
 			if tx.TxOut[0].Value == stakeDiff {
 				continue
 			}
-		case stake.IsSSGen(&tx, true): // Yes treasury
+		case stake.IsSSGen(&tx):
 			isVote = true
 			// This will never actually error
 			votedBlockHash, _ := stake.SSGenBlockVotedOn(&tx)

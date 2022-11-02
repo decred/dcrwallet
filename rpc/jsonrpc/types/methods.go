@@ -10,7 +10,7 @@ package types
 
 import (
 	"github.com/decred/dcrd/dcrjson/v4"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v3"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 )
 
 // Method describes the exact type used when registering methods with dcrjson.

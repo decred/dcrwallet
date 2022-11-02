@@ -15,9 +15,9 @@ import (
 	"decred.org/dcrwallet/v3/validate"
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v4"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	hd "github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
@@ -35,7 +35,7 @@ func blockCommitments(block *wire.MsgBlock) map[string]struct{} {
 		}
 	}
 	for _, tx := range block.STransactions {
-		switch stake.DetermineTxType(tx, true, false) {
+		switch stake.DetermineTxType(tx) {
 		case stake.TxTypeSStx: // Ticket purchase
 			for i := 2; i < len(tx.TxOut); i += 2 { // Iterate change outputs
 				out := tx.TxOut[i]

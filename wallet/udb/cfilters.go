@@ -8,8 +8,8 @@ import (
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	gcs2 "github.com/decred/dcrd/gcs/v3"
-	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	gcs2 "github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/gcs/v4/blockcf2"
 )
 
 // CFilterV2 returns the saved regular compact filter v2 for a block along with

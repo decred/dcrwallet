@@ -6,8 +6,8 @@
 package spv
 
 import (
-	"github.com/decred/dcrd/blockchain/stake/v4"
-	"github.com/decred/dcrd/gcs/v3/blockcf2"
+	"github.com/decred/dcrd/blockchain/stake/v5"
+	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
@@ -27,7 +27,7 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 
 		txty := stake.TxTypeRegular
 		if tree == wire.TxTreeStake {
-			txty = stake.DetermineTxType(tx, true, false)
+			txty = stake.DetermineTxType(tx)
 		}
 
 		// Coinbases and stakebases are handled specially: all inputs of a
