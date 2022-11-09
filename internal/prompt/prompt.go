@@ -309,17 +309,25 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 
 	for {
 		fmt.Print("Enter existing wallet seed " +
-			"(followed by a blank line): ")
+			"(follow seed words with additional blank line): ")
 
 		// Use scanner instead of buffio.Reader so we can choose choose
 		// more complicated ending condition rather than just a single
 		// newline.
 		var seedStr string
 		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
+		for firstline := true; scanner.Scan(); {
 			line := scanner.Text()
 			if line == "" {
 				break
+			}
+			if firstline {
+				_, err := hex.DecodeString(line)
+				if err == nil {
+					seedStr = line
+					break
+				}
+				firstline = false
 			}
 			seedStr += " " + line
 		}
