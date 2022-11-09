@@ -147,7 +147,15 @@ func PassPrompt(reader *bufio.Reader, prefix string, confirm bool) ([]byte, erro
 		}
 
 		fmt.Print("Confirm passphrase: ")
-		confirm, err := term.ReadPassword(int(os.Stdin.Fd()))
+		var confirm []byte
+		if term.IsTerminal(fd) {
+			confirm, err = term.ReadPassword(fd)
+		} else {
+			confirm, err = reader.ReadBytes('\n')
+			if errors.Is(err, io.EOF) {
+				err = nil
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
