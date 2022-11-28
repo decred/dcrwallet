@@ -63,9 +63,9 @@ import (
 
 // Public API version constants
 const (
-	semverString = "7.16.0"
+	semverString = "7.17.0"
 	semverMajor  = 7
-	semverMinor  = 16
+	semverMinor  = 17
 	semverPatch  = 0
 )
 
@@ -3322,6 +3322,129 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 	return resp, nil
 }
 
+// TSpendPolicies returns voting policies for particular treasury spends
+// transactions. If a tspend transaction hash is specified, that policy is
+// returned; otherwise the policies for all known tspends are returned in an
+// array.  If both a tspend transaction hash and a ticket hash are provided,
+// the per-ticket tspend policy is returned.
+func (s *votingServer) TSpendPolicies(ctx context.Context, req *pb.TSpendPoliciesRequest) (*pb.TSpendPoliciesResponse, error) {
+	var ticketHash *chainhash.Hash
+	var hash *chainhash.Hash
+	var err error
+	if len(req.TicketHash) != 0 {
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	if len(req.Hash) != 0 {
+		hash, err = chainhash.NewHash(req.Hash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+		var policy string
+		switch s.wallet.TSpendPolicy(hash, ticketHash) {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		default:
+			policy = "abstain"
+		}
+		resp := &pb.TSpendPoliciesResponse{
+			Policies: make([]*pb.TSpendPoliciesResponse_Policy, 0, 1),
+		}
+		r := &pb.TSpendPoliciesResponse_Policy{
+			Hash:       req.Hash,
+			Policy:     policy,
+			TicketHash: []byte{},
+		}
+		if req.TicketHash != nil {
+			r.TicketHash = req.TicketHash
+		}
+		resp.Policies = append(resp.Policies, r)
+		return resp, nil
+	}
+
+	tspends := s.wallet.GetAllTSpends(ctx)
+	resp := &pb.TSpendPoliciesResponse{
+		Policies: make([]*pb.TSpendPoliciesResponse_Policy, 0, len(tspends)),
+	}
+	for i := range tspends {
+		tspendHash := tspends[i].TxHash()
+		p := s.wallet.TSpendPolicy(&tspendHash, ticketHash)
+
+		var policy string
+		switch p {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		}
+		r := &pb.TSpendPoliciesResponse_Policy{
+			Hash:       tspendHash[:],
+			Policy:     policy,
+			TicketHash: []byte{},
+		}
+		if req.TicketHash != nil {
+			r.TicketHash = req.TicketHash
+		}
+		resp.Policies = append(resp.Policies, r)
+	}
+	return resp, nil
+}
+
+// SetTSpendPolicy saves the voting policy for a particular tspend transaction
+// hash, and optionally, setting the tspend policy used by a specific ticket.
+func (s *votingServer) SetTSpendPolicy(ctx context.Context, req *pb.SetTSpendPolicyRequest) (*pb.SetTSpendPolicyResponse, error) {
+	if len(req.Hash) != chainhash.HashSize {
+		err := fmt.Errorf("invalid tspend hash length, expected %d got %d",
+			chainhash.HashSize, len(req.Hash))
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	hash, err := chainhash.NewHash(req.Hash)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var ticketHash *chainhash.Hash
+	if req.TicketHash != nil {
+		if len(req.TicketHash) != chainhash.HashSize {
+			err := fmt.Errorf("invalid ticket hash length, expected %d got %d",
+				chainhash.HashSize, len(req.TicketHash))
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+		var err error
+		ticketHash, err = chainhash.NewHash(req.TicketHash)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+		}
+	}
+
+	var policy stake.TreasuryVoteT
+	switch req.Policy {
+	case "abstain", "invalid", "":
+		policy = stake.TreasuryVoteInvalid
+	case "yes":
+		policy = stake.TreasuryVoteYes
+	case "no":
+		policy = stake.TreasuryVoteNo
+	default:
+		err = fmt.Errorf("unknown policy %q", req.Policy)
+		return nil, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	err = s.wallet.SetTSpendPolicy(ctx, hash, policy, ticketHash)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &pb.SetTSpendPolicyResponse{}
+	return resp, err
+}
+
 // treasuryPolicies returns voting policies for treasury spends for all keys in an array
 func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPoliciesRequest) (*pb.TreasuryPoliciesResponse, error) {
 	policies := s.wallet.TreasuryKeyPolicies()
@@ -3388,62 +3511,8 @@ func (s *votingServer) SetTreasuryPolicy(ctx context.Context, req *pb.SetTreasur
 		return nil, translateError(err)
 	}
 
-	// Update voting preferences on VSPs if required.
-	policyMap := map[string]string{
-		hex.EncodeToString(req.Key): req.Policy,
-	}
-	err = s.updateVSPVoteChoices(ctx, ticketHash, nil, nil, policyMap)
-
 	resp := &pb.SetTreasuryPolicyResponse{}
 	return resp, err
-}
-
-func (s *votingServer) updateVSPVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
-	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
-	if ticketHash != nil {
-		vspHost, err := s.wallet.VSPHostForTicket(ctx, ticketHash)
-		if err != nil {
-			if errors.Is(err, errors.NotExist) {
-				// Ticket is not registered with a VSP, nothing more to do here.
-				return nil
-			}
-			return err
-		}
-		vspClient, err := loader.LookupVSP(vspHost)
-		if err != nil {
-			return err
-		}
-		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
-		return err
-	}
-	var firstErr error
-	err := s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
-		vspHost, err := s.wallet.VSPHostForTicket(ctx, hash)
-		if err != nil && firstErr == nil {
-			if errors.Is(err, errors.NotExist) {
-				// Ticket is not registered with a VSP, nothing more to do here.
-				return nil
-			}
-			firstErr = err
-			return nil
-		}
-		vspClient, err := loader.LookupVSP(vspHost)
-		if err != nil && firstErr == nil {
-			firstErr = err
-			return nil
-		}
-		// Never return errors here, so all tickets are tried.
-		// The first error will be returned to the user.
-		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	return firstErr
 }
 
 // StartMessageVerificationService starts the MessageVerification service
@@ -4151,6 +4220,38 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
+
+	treasuryChoices := make(map[string]string)
+	treasuryPolicies := s.wallet.TreasuryKeyPolicies()
+	for _, value := range treasuryPolicies {
+		var choice string
+		switch value.Policy {
+		case stake.TreasuryVoteYes:
+			choice = "yes"
+		case stake.TreasuryVoteNo:
+			choice = "no"
+		default:
+			choice = "abstain"
+		}
+		treasuryChoices[hex.EncodeToString(value.PiKey)] = choice
+	}
+
+	tSpendChoices := make(map[string]string)
+	tspendPolicies := s.wallet.GetAllTSpends(ctx)
+	for i := range tspendPolicies {
+		tspendHash := tspendPolicies[i].TxHash()
+		p := s.wallet.TSpendPolicy(&tspendHash, nil)
+
+		var policy string
+		switch p {
+		case stake.TreasuryVoteYes:
+			policy = "yes"
+		case stake.TreasuryVoteNo:
+			policy = "no"
+		}
+		tSpendChoices[tspendHash.String()] = policy
+	}
+
 	err = s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip errors here, but should we log at least?
 		choices, _, err := s.wallet.AgendaChoices(ctx, hash)
@@ -4162,9 +4263,6 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 			return err
 		}
 		if ticketHost == vspHost {
-			tSpendChoices := s.wallet.TSpendPolicyForTicket(hash)
-			treasuryChoices := s.wallet.TreasuryKeyPolicyForTicket(hash)
-
 			_ = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
 		}
 		return nil
