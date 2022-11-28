@@ -3397,9 +3397,6 @@ func (s *votingServer) TSpendPolicies(ctx context.Context, req *pb.TSpendPolicie
 
 // SetTSpendPolicy saves the voting policy for a particular tspend transaction
 // hash, and optionally, setting the tspend policy used by a specific ticket.
-//
-// If a VSP host is configured in the application settings, the voting
-// preferences will also be set with the VSP.
 func (s *votingServer) SetTSpendPolicy(ctx context.Context, req *pb.SetTSpendPolicyRequest) (*pb.SetTSpendPolicyResponse, error) {
 	if len(req.Hash) != chainhash.HashSize {
 		err := fmt.Errorf("invalid tspend hash length, expected %d got %d",
