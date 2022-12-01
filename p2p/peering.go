@@ -126,10 +126,11 @@ type LocalPeer struct {
 
 	dial DialFunc
 
-	receivedGetData  chan *inMsg
-	receivedHeaders  chan *inMsg
-	receivedInv      chan *inMsg
-	announcedHeaders chan *inMsg
+	receivedGetData   chan *inMsg
+	receivedHeaders   chan *inMsg
+	receivedInv       chan *inMsg
+	announcedHeaders  chan *inMsg
+	receivedInitState chan *inMsg
 
 	extaddr     net.Addr
 	amgr        *addrmgr.AddrManager
@@ -144,15 +145,16 @@ type LocalPeer struct {
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {
 	var dialer net.Dialer
 	lp := &LocalPeer{
-		dial:             dialer.DialContext,
-		receivedGetData:  make(chan *inMsg),
-		receivedHeaders:  make(chan *inMsg),
-		receivedInv:      make(chan *inMsg),
-		announcedHeaders: make(chan *inMsg),
-		extaddr:          extaddr,
-		amgr:             amgr,
-		chainParams:      params,
-		rpByID:           make(map[uint64]*RemotePeer),
+		dial:              dialer.DialContext,
+		receivedGetData:   make(chan *inMsg),
+		receivedHeaders:   make(chan *inMsg),
+		receivedInv:       make(chan *inMsg),
+		announcedHeaders:  make(chan *inMsg),
+		receivedInitState: make(chan *inMsg),
+		extaddr:           extaddr,
+		amgr:              amgr,
+		chainParams:       params,
+		rpByID:            make(map[uint64]*RemotePeer),
 	}
 	return lp
 }
@@ -771,6 +773,8 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				rp.receivedGetMiningState(ctx)
 			case *wire.MsgGetInitState:
 				rp.receivedGetInitState(ctx)
+			case *wire.MsgInitState:
+				rp.lp.receivedInitState <- newInMsg(rp, msg)
 			case *wire.MsgPing:
 				pong(ctx, m, rp)
 			case *wire.MsgPong:
@@ -868,6 +872,19 @@ func (lp *LocalPeer) ReceiveHeadersAnnouncement(ctx context.Context) (*RemotePee
 		rp, msg := r.rp, r.msg.(*wire.MsgHeaders)
 		recycleInMsg(r)
 		return rp, msg.Headers, nil
+	}
+}
+
+// ReceiveInitState waits for an init state message from a remote peer, returning the
+// peer that sent the message, and the message itself.
+func (lp *LocalPeer) ReceiveInitState(ctx context.Context) (*RemotePeer, *wire.MsgInitState, error) {
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case r := <-lp.receivedInitState:
+		rp, msg := r.rp, r.msg.(*wire.MsgInitState)
+		recycleInMsg(r)
+		return rp, msg, nil
 	}
 }
 
@@ -1677,4 +1694,17 @@ func (rp *RemotePeer) SendHeadersSent() bool {
 	sent := rp.sendheaders
 	rp.requestedHeadersMu.Unlock()
 	return sent
+}
+
+// GetInitState attempts to get initial state by sending a NewMsgGetInitState message.
+func (rp *RemotePeer) GetInitState(ctx context.Context) error {
+	const opf = "remotepeer(%v).GetInitState"
+	msg := wire.NewMsgGetInitState()
+	msg.AddTypes(wire.InitStateHeadBlocks, wire.InitStateHeadBlockVotes, wire.InitStateTSpends)
+	err := rp.SendMessage(ctx, msg)
+	if err != nil {
+		op := errors.Opf(opf, rp.raddr)
+		return errors.E(op, err)
+	}
+	return nil
 }

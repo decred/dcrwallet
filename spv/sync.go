@@ -347,6 +347,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveGetData(ctx) })
 	g.Go(func() error { return s.receiveInv(ctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
+	g.Go(func() error { return s.receiveInitState(ctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
@@ -699,6 +700,72 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 					s.handleTxInvs(ctx, rp, txs)
 					wg.Done()
 				}()
+			}
+		}()
+	}
+}
+
+// receiveInitState receives initial state messages from peers
+// and starts goroutines to handle tspend hashes. Requests all
+// unseen tspend txs and adds them to the tspends cache.
+func (s *Syncer) receiveInitState(ctx context.Context) error {
+	const opf = "spv.receiveInitState(%v)"
+	var wg sync.WaitGroup
+	for {
+		rp, msg, err := s.lp.ReceiveInitState(ctx)
+		if err != nil {
+			wg.Wait()
+			return err
+		}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			cachedTspends := s.wallet.GetAllTSpends(ctx)
+			unseenTSpends := make([]*chainhash.Hash, 0)
+
+			for h := range msg.TSpendHashes {
+				found := false
+				for _, v := range cachedTspends {
+					if v.TxHash() == msg.TSpendHashes[h] {
+						found = true
+						break
+					}
+				}
+				if !found {
+					unseenTSpends = append(unseenTSpends, &msg.TSpendHashes[h])
+				}
+			}
+
+			if len(unseenTSpends) == 0 {
+				return
+			}
+
+			tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
+			if errors.Is(err, errors.NotExist) {
+				err = nil
+				// Remove notfound txs.
+				prevTxs, prevUnseen := tspendTxs, unseenTSpends
+				tspendTxs, unseenTSpends = tspendTxs[:0], unseenTSpends[:0]
+				for i, tx := range prevTxs {
+					if tx != nil {
+						tspendTxs = append(tspendTxs, tx)
+						unseenTSpends = append(unseenTSpends, prevUnseen[i])
+					}
+				}
+			}
+			if err != nil {
+				if ctx.Err() == nil {
+					op := errors.Opf(opf, rp.RemoteAddr())
+					err := errors.E(op, err)
+					log.Warn(err)
+				}
+				return
+			}
+
+			for _, v := range tspendTxs {
+				s.wallet.AddTSpend(*v)
 			}
 		}()
 	}
@@ -1408,6 +1475,11 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = rp.GetInitState(ctx)
+	if err != nil {
+		log.Errorf("Failed to get init state", err)
 	}
 
 	unminedTxs, err := s.wallet.UnminedTransactions(ctx)
