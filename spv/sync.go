@@ -722,18 +722,9 @@ func (s *Syncer) receiveInitState(ctx context.Context) error {
 		go func() {
 			defer wg.Done()
 
-			cachedTspends := s.wallet.GetAllTSpends(ctx)
 			unseenTSpends := make([]*chainhash.Hash, 0)
-
 			for h := range msg.TSpendHashes {
-				found := false
-				for _, v := range cachedTspends {
-					if v.TxHash() == msg.TSpendHashes[h] {
-						found = true
-						break
-					}
-				}
-				if !found {
+				if !s.wallet.IsTSpendCached(&msg.TSpendHashes[h]) {
 					unseenTSpends = append(unseenTSpends, &msg.TSpendHashes[h])
 				}
 			}
