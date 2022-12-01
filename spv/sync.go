@@ -348,7 +348,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveInv(ctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
 	g.Go(func() error { return s.receiveInitState(ctx) })
-	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
+	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv | p2p.MaskInitState)
 
 	if len(s.persistentPeers) != 0 {
 		for i := range s.persistentPeers {
@@ -735,14 +735,22 @@ func (s *Syncer) receiveInitState(ctx context.Context) error {
 
 			tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
 			if errors.Is(err, errors.NotExist) {
+				_, height := s.wallet.MainChainTip(ctx)
 				err = nil
 				// Remove notfound txs.
-				prevTxs, prevUnseen := tspendTxs, unseenTSpends
-				tspendTxs, unseenTSpends = tspendTxs[:0], unseenTSpends[:0]
-				for i, tx := range prevTxs {
+				prevTxs := tspendTxs
+				tspendTxs = tspendTxs[:0]
+				for _, tx := range prevTxs {
 					if tx != nil {
+						if !stake.IsTSpend(tx) {
+							continue
+						}
+						if uint32(height) > tx.Expiry {
+							continue
+						}
+						// TODO: ideally also check the signature is valid for tspend keys
+						// for the current network and that it has not expired.
 						tspendTxs = append(tspendTxs, tx)
-						unseenTSpends = append(unseenTSpends, prevUnseen[i])
 					}
 				}
 			}
@@ -849,6 +857,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
+	_, height := s.wallet.MainChainTip(ctx)
 	for _, tx := range relevant {
 		if s.wallet.ManualTickets() && stake.IsSStx(tx) {
 			continue
@@ -857,6 +866,9 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))
+		}
+		if stake.IsTSpend(tx) && uint32(height) < tx.Expiry {
+			s.wallet.AddTSpend(*tx)
 		}
 	}
 	s.mempoolTxs(relevant)

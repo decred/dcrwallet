@@ -774,7 +774,9 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 			case *wire.MsgGetInitState:
 				rp.receivedGetInitState(ctx)
 			case *wire.MsgInitState:
-				rp.lp.receivedInitState <- newInMsg(rp, msg)
+				if rp.lp.messageIsMasked(MaskGetData) {
+					rp.lp.receivedInitState <- newInMsg(rp, msg)
+				}
 			case *wire.MsgPing:
 				pong(ctx, m, rp)
 			case *wire.MsgPong:
@@ -806,6 +808,7 @@ type MessageMask uint64
 const (
 	MaskGetData MessageMask = 1 << iota
 	MaskInv
+	MaskInitState
 )
 
 // AddHandledMessages adds all messages defined by the bitmask.  This operation
@@ -1696,11 +1699,11 @@ func (rp *RemotePeer) SendHeadersSent() bool {
 	return sent
 }
 
-// GetInitState attempts to get initial state by sending a NewMsgGetInitState message.
+// GetInitState attempts to get initial state by sending a GetInitState message.
 func (rp *RemotePeer) GetInitState(ctx context.Context) error {
 	const opf = "remotepeer(%v).GetInitState"
 	msg := wire.NewMsgGetInitState()
-	msg.AddTypes(wire.InitStateHeadBlocks, wire.InitStateHeadBlockVotes, wire.InitStateTSpends)
+	msg.AddTypes(wire.InitStateTSpends)
 	err := rp.SendMessage(ctx, msg)
 	if err != nil {
 		op := errors.Opf(opf, rp.raddr)
