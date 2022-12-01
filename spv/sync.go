@@ -347,7 +347,6 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveGetData(ctx) })
 	g.Go(func() error { return s.receiveInv(ctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
-	g.Go(func() error { return s.receiveInitState(ctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv | p2p.MaskInitState)
 
 	if len(s.persistentPeers) != 0 {
@@ -705,69 +704,50 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 	}
 }
 
-// receiveInitState receives initial state messages from peers
-// and starts goroutines to handle tspend hashes. Requests all
-// unseen tspend txs and adds them to the tspends cache.
-func (s *Syncer) receiveInitState(ctx context.Context) error {
-	const opf = "spv.receiveInitState(%v)"
-	var wg sync.WaitGroup
-	for {
-		rp, msg, err := s.lp.ReceiveInitState(ctx)
-		if err != nil {
-			wg.Wait()
-			return err
-		}
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			unseenTSpends := make([]*chainhash.Hash, 0)
-			for h := range msg.TSpendHashes {
-				if !s.wallet.IsTSpendCached(&msg.TSpendHashes[h]) {
-					unseenTSpends = append(unseenTSpends, &msg.TSpendHashes[h])
-				}
-			}
-
-			if len(unseenTSpends) == 0 {
-				return
-			}
-
-			tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
-			if errors.Is(err, errors.NotExist) {
-				_, height := s.wallet.MainChainTip(ctx)
-				err = nil
-				// Remove notfound txs.
-				prevTxs := tspendTxs
-				tspendTxs = tspendTxs[:0]
-				for _, tx := range prevTxs {
-					if tx != nil {
-						if !stake.IsTSpend(tx) {
-							continue
-						}
-						if uint32(height) > tx.Expiry {
-							continue
-						}
-						// TODO: ideally also check the signature is valid for tspend keys
-						// for the current network and that it has not expired.
-						tspendTxs = append(tspendTxs, tx)
-					}
-				}
-			}
-			if err != nil {
-				if ctx.Err() == nil {
-					op := errors.Opf(opf, rp.RemoteAddr())
-					err := errors.E(op, err)
-					log.Warn(err)
-				}
-				return
-			}
-
-			for _, v := range tspendTxs {
-				s.wallet.AddTSpend(*v)
-			}
-		}()
+// GetInitState requests the init state, then using the tspend hashes requests all unseen
+// tspend txs and adds them to the tspends cache.
+func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
+	msg, err := rp.GetInitState(ctx)
+	if err != nil {
+		log.Errorf("Failed to get init state", err)
 	}
+
+	unseenTSpends := make([]*chainhash.Hash, 0)
+	for h := range msg.TSpendHashes {
+		if !s.wallet.IsTSpendCached(&msg.TSpendHashes[h]) {
+			unseenTSpends = append(unseenTSpends, &msg.TSpendHashes[h])
+		}
+	}
+
+	if len(unseenTSpends) == 0 {
+		return nil
+	}
+
+	tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
+	if errors.Is(err, errors.NotExist) {
+		_, height := s.wallet.MainChainTip(ctx)
+		err = nil
+		prevTxs := tspendTxs
+		tspendTxs = tspendTxs[:0]
+		for _, tx := range prevTxs {
+			if tx != nil {
+				if !stake.IsTSpend(tx) || uint32(height) > tx.Expiry {
+					continue
+				}
+				// TODO: ideally also check the signature is valid for tspend keys
+				// for the current network
+				tspendTxs = append(tspendTxs, tx)
+			}
+		}
+	}
+	if err != nil {
+		return nil
+	}
+
+	for _, v := range tspendTxs {
+		s.wallet.AddTSpend(*v)
+	}
+	return nil
 }
 
 func (s *Syncer) handleBlockInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []*chainhash.Hash) error {
@@ -1480,7 +1460,7 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		}
 	}
 
-	err = rp.GetInitState(ctx)
+	err = s.GetInitState(ctx, rp)
 	if err != nil {
 		log.Errorf("Failed to get init state", err)
 	}
