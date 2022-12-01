@@ -91,6 +91,7 @@ type config struct {
 	NoFileLogging      bool                    `long:"nofilelogging" description:"Disable file logging"`
 	Profile            []string                `long:"profile" description:"Enable HTTP profiling this interface/port"`
 	MemProfile         string                  `long:"memprofile" description:"Write mem profile to the specified file"`
+	CPUProfile         string                  `long:"cpuprofile" description:"Write cpu profile to the specified file"`
 
 	// Wallet options
 	WalletPass              string               `long:"walletpass" default-mask:"-" description:"Public wallet password; required when created with one"`

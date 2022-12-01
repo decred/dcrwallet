@@ -128,6 +128,23 @@ func run(ctx context.Context) error {
 		}
 	}
 
+	// Write cpu profile if requested.
+	if cfg.CPUProfile != "" {
+		if done(ctx) {
+			return ctx.Err()
+		}
+
+		f, err := os.Create(cfg.CPUProfile)
+		if err != nil {
+			log.Errorf("Unable to create cpu profile: %v", err.Error())
+			return err
+
+		}
+		pprof.StartCPUProfile(f)
+		defer f.Close()
+		defer pprof.StopCPUProfile()
+	}
+
 	// Write mem profile if requested.
 	if cfg.MemProfile != "" {
 		if done(ctx) {
@@ -136,12 +153,10 @@ func run(ctx context.Context) error {
 
 		f, err := os.Create(cfg.MemProfile)
 		if err != nil {
-			log.Errorf("Unable to create cpu profile: %v", err)
+			log.Errorf("Unable to create mem profile: %v", err)
 			return err
 		}
-		timer := time.NewTimer(time.Minute * 5) // 5 minutes
-		go func() {
-			<-timer.C
+		defer func() {
 			pprof.WriteHeapProfile(f)
 			f.Close()
 		}()
