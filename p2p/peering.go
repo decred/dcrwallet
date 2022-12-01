@@ -881,19 +881,6 @@ func (lp *LocalPeer) ReceiveHeadersAnnouncement(ctx context.Context) (*RemotePee
 	}
 }
 
-// ReceiveInitState waits for an init state message from a remote peer, returning the
-// peer that sent the message, and the message itself.
-func (lp *LocalPeer) ReceiveInitState(ctx context.Context) (*RemotePeer, *wire.MsgInitState, error) {
-	select {
-	case <-ctx.Done():
-		return nil, nil, ctx.Err()
-	case r := <-lp.receivedInitState:
-		rp, msg := r.rp, r.msg.(*wire.MsgInitState)
-		recycleInMsg(r)
-		return rp, msg, nil
-	}
-}
-
 func (rp *RemotePeer) pingPong(ctx context.Context) {
 	nonce, err := wire.RandomUint64()
 	if err != nil {
