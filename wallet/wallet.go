@@ -232,7 +232,7 @@ func (w *Wallet) VotingEnabled() bool {
 	return enabled
 }
 
-// IsTSpendCached returns wheater the given hash is already cached
+// IsTSpendCached returns whether the given hash is already cached.
 func (w *Wallet) IsTSpendCached(hash *chainhash.Hash) bool {
 	if _, ok := w.tspends[*hash]; ok {
 		return true

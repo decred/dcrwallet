@@ -1135,18 +1135,17 @@ func (rp *RemotePeer) deleteRequestedInitState() {
 func (rp *RemotePeer) receivedInitState(ctx context.Context, msg *wire.MsgInitState) {
 	const opf = "remotepeer(%v).receivedInitState"
 	rp.requestedInitStateMu.Lock()
-
-	if rp.requestedInitState == nil {
-		op := errors.Opf(opf, rp.raddr)
-		err := errors.E(op, errors.Protocol, "received unrequested init state")
-		rp.Disconnect(err)
-		rp.requestedInitStateMu.Unlock()
-		return
-	}
-
 	c := rp.requestedInitState
 	rp.requestedInitState = nil
 	rp.requestedInitStateMu.Unlock()
+
+	if c == nil {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "received unrequested init state")
+		rp.Disconnect(err)
+		return
+	}
+
 	select {
 	case <-ctx.Done():
 	case c <- msg:
@@ -1743,10 +1742,7 @@ func (rp *RemotePeer) GetInitState(ctx context.Context) (*wire.MsgInitState, err
 	for {
 		select {
 		case <-ctx.Done():
-			go func() {
-				<-stalled.C
-				rp.deleteRequestedInitState()
-			}()
+			rp.deleteRequestedInitState()
 			return nil, ctx.Err()
 		case <-stalled.C:
 			op := errors.Opf(opf, rp.raddr)
@@ -1754,12 +1750,16 @@ func (rp *RemotePeer) GetInitState(ctx context.Context) (*wire.MsgInitState, err
 			rp.Disconnect(err)
 			return nil, err
 		case <-rp.errc:
-			stalled.Stop()
+			if !stalled.Stop() {
+				<-stalled.C
+			}
 			return nil, rp.err
 		case out <- &msgAck{msg, nil}:
 			out = nil
 		case msg := <-c:
-			stalled.Stop()
+			if !stalled.Stop() {
+				<-stalled.C
+			}
 			return msg, nil
 		}
 	}

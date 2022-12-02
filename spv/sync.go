@@ -1527,9 +1527,11 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		}
 	}
 
-	err = s.GetInitState(ctx, rp)
-	if err != nil {
-		log.Errorf("Failed to get init state", err)
+	if rp.Pver() >= wire.InitStateVersion {
+		err = s.GetInitState(ctx, rp)
+		if err != nil {
+			log.Errorf("Failed to get init state", err)
+		}
 	}
 
 	unminedTxs, err := s.wallet.UnminedTransactions(ctx)
