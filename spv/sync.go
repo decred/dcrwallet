@@ -6,7 +6,6 @@ package spv
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -714,24 +713,24 @@ func (s *Syncer) verifyTSpendSignature(msgTx *wire.MsgTx, signature, pubKey []by
 	sigHash, err := txscript.CalcSignatureHash(nil,
 		txscript.SigHashAll, msgTx, 0, nil)
 	if err != nil {
-		return fmt.Errorf("CalcSignatureHash: %w", err)
+		return errors.Errorf("CalcSignatureHash: %w", err)
 	}
 
 	// Lift Signature from bytes.
 	sig, err := schnorr.ParseSignature(signature)
 	if err != nil {
-		return fmt.Errorf("ParseSignature: %w", err)
+		return errors.Errorf("ParseSignature: %w", err)
 	}
 
 	// Lift public PI key from bytes.
 	pk, err := schnorr.ParsePubKey(pubKey)
 	if err != nil {
-		return fmt.Errorf("ParsePubKey: %w", err)
+		return errors.Errorf("ParsePubKey: %w", err)
 	}
 
 	// Verify transaction was properly signed.
 	if !sig.Verify(sigHash, pk) {
-		return fmt.Errorf("Verify failed")
+		return errors.Errorf("Verify failed")
 	}
 
 	return nil
@@ -778,15 +777,18 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 // GetInitState requests the init state, then using the tspend hashes requests
 // all unseen tspend txs, validates them, and adds them to the tspends cache.
 func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
-	msg, err := rp.GetInitState(ctx)
+	msg := wire.NewMsgGetInitState()
+	msg.AddTypes(wire.InitStateTSpends)
+
+	initState, err := rp.GetInitState(ctx, msg)
 	if err != nil {
 		return err
 	}
 
 	unseenTSpends := make([]*chainhash.Hash, 0)
-	for h := range msg.TSpendHashes {
-		if !s.wallet.IsTSpendCached(&msg.TSpendHashes[h]) {
-			unseenTSpends = append(unseenTSpends, &msg.TSpendHashes[h])
+	for h := range initState.TSpendHashes {
+		if !s.wallet.IsTSpendCached(&initState.TSpendHashes[h]) {
+			unseenTSpends = append(unseenTSpends, &initState.TSpendHashes[h])
 		}
 	}
 

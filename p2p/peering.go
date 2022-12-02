@@ -1725,10 +1725,8 @@ func (rp *RemotePeer) SendHeadersSent() bool {
 }
 
 // GetInitState attempts to get initial state by sending a GetInitState message.
-func (rp *RemotePeer) GetInitState(ctx context.Context) (*wire.MsgInitState, error) {
+func (rp *RemotePeer) GetInitState(ctx context.Context, msg *wire.MsgGetInitState) (*wire.MsgInitState, error) {
 	const opf = "remotepeer(%v).GetInitState"
-	msg := wire.NewMsgGetInitState()
-	msg.AddTypes(wire.InitStateTSpends)
 
 	c := make(chan *wire.MsgInitState, 1)
 	newRequest := rp.addRequestedInitState(c)
