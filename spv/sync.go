@@ -6,6 +6,7 @@ package spv
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -19,7 +20,9 @@ import (
 	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -704,8 +707,76 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 	}
 }
 
-// GetInitState requests the init state, then using the tspend hashes requests all unseen
-// tspend txs and adds them to the tspends cache.
+// verifyTSpendSignature verifies that the provided signature and public key
+// were the ones that signed the provided message transaction.
+func (s *Syncer) verifyTSpendSignature(msgTx *wire.MsgTx, signature, pubKey []byte) error {
+	// Calculate signature hash.
+	sigHash, err := txscript.CalcSignatureHash(nil,
+		txscript.SigHashAll, msgTx, 0, nil)
+	if err != nil {
+		return fmt.Errorf("CalcSignatureHash: %w", err)
+	}
+
+	// Lift Signature from bytes.
+	sig, err := schnorr.ParseSignature(signature)
+	if err != nil {
+		return fmt.Errorf("ParseSignature: %w", err)
+	}
+
+	// Lift public PI key from bytes.
+	pk, err := schnorr.ParsePubKey(pubKey)
+	if err != nil {
+		return fmt.Errorf("ParsePubKey: %w", err)
+	}
+
+	// Verify transaction was properly signed.
+	if !sig.Verify(sigHash, pk) {
+		return fmt.Errorf("Verify failed")
+	}
+
+	return nil
+}
+
+func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
+	var (
+		isTSpend          bool
+		signature, pubKey []byte
+		err               error
+	)
+	signature, pubKey, err = stake.CheckTSpend(tx)
+	isTSpend = err == nil
+
+	if !isTSpend {
+		log.Debugf("Tx is not a TSpend")
+		return false
+	}
+
+	_, height := s.wallet.MainChainTip(ctx)
+	if uint32(height) > tx.Expiry {
+		log.Debugf("TSpend has been expired")
+		return false
+	}
+
+	// If we have a TSpend verify the signature.
+	// Check if this is a sanctioned PI key.
+	if !s.wallet.ChainParams().PiKeyExists(pubKey) {
+		log.Errorf("Unknown Pi Key: %x", pubKey)
+		return false
+	}
+
+	// Verify that the signature is valid and corresponds to the
+	// provided public key.
+	err = s.verifyTSpendSignature(tx, signature, pubKey)
+	if err != nil {
+		log.Errorf("Could not verify TSpend signature: %v", err)
+		return false
+	}
+
+	return true
+}
+
+// GetInitState requests the init state, then using the tspend hashes requests
+// all unseen tspend txs, validates them, and adds them to the tspends cache.
 func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 	msg, err := rp.GetInitState(ctx)
 	if err != nil {
@@ -725,17 +796,12 @@ func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 
 	tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
 	if errors.Is(err, errors.NotExist) {
-		_, height := s.wallet.MainChainTip(ctx)
 		err = nil
+		// Remove notfound txs.
 		prevTxs := tspendTxs
 		tspendTxs = tspendTxs[:0]
 		for _, tx := range prevTxs {
 			if tx != nil {
-				if !stake.IsTSpend(tx) || uint32(height) > tx.Expiry {
-					continue
-				}
-				// TODO: ideally also check the signature is valid for tspend keys
-				// for the current network
 				tspendTxs = append(tspendTxs, tx)
 			}
 		}
@@ -745,7 +811,9 @@ func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 	}
 
 	for _, v := range tspendTxs {
-		s.wallet.AddTSpend(*v)
+		if s.checkTSpend(ctx, v) {
+			s.wallet.AddTSpend(*v)
+		}
 	}
 	return nil
 }
@@ -837,7 +905,6 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
-	_, height := s.wallet.MainChainTip(ctx)
 	for _, tx := range relevant {
 		if s.wallet.ManualTickets() && stake.IsSStx(tx) {
 			continue
@@ -847,7 +914,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))
 		}
-		if stake.IsTSpend(tx) && uint32(height) < tx.Expiry {
+		if s.checkTSpend(ctx, tx) {
 			s.wallet.AddTSpend(*tx)
 		}
 	}
