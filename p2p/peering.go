@@ -109,7 +109,6 @@ type RemotePeer struct {
 
 	// init state message management.
 	requestedInitState   chan<- *wire.MsgInitState // non-nil result chan when synchronous getinitstate in process
-	sendinitstate        bool                      // whether a getinitstate message was sent
 	requestedInitStateMu sync.Mutex
 
 	invsSent     lru.Cache // Hashes from sent inventory messages
@@ -811,7 +810,6 @@ type MessageMask uint64
 const (
 	MaskGetData MessageMask = 1 << iota
 	MaskInv
-	MaskInitState
 )
 
 // AddHandledMessages adds all messages defined by the bitmask.  This operation
@@ -1117,19 +1115,15 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 	}
 }
 
-func (rp *RemotePeer) addRequestedInitState(c chan<- *wire.MsgInitState) (sendheaders, newRequest bool) {
+func (rp *RemotePeer) addRequestedInitState(c chan<- *wire.MsgInitState) (newRequest bool) {
 	rp.requestedInitStateMu.Lock()
-	if rp.sendinitstate {
-		rp.requestedInitStateMu.Unlock()
-		return true, false
-	}
 	if rp.requestedInitState != nil {
 		rp.requestedInitStateMu.Unlock()
-		return false, false
+		return false
 	}
 	rp.requestedInitState = c
 	rp.requestedInitStateMu.Unlock()
-	return false, true
+	return true
 }
 
 func (rp *RemotePeer) deleteRequestedInitState() {
@@ -1139,33 +1133,23 @@ func (rp *RemotePeer) deleteRequestedInitState() {
 }
 
 func (rp *RemotePeer) receivedInitState(ctx context.Context, msg *wire.MsgInitState) {
-	if rp.lp.messageIsMasked(MaskInitState) {
-		const opf = "remotepeer(%v).receivedInitState"
-		rp.requestedInitStateMu.Lock()
+	const opf = "remotepeer(%v).receivedInitState"
+	rp.requestedInitStateMu.Lock()
 
-		if rp.sendinitstate {
-			rp.requestedInitStateMu.Unlock()
-			select {
-			case <-ctx.Done():
-			case rp.lp.receivedInitState <- newInMsg(rp, msg):
-			}
-			return
-		}
-		if rp.requestedInitState == nil {
-			op := errors.Opf(opf, rp.raddr)
-			err := errors.E(op, errors.Protocol, "received unrequested init state")
-			rp.Disconnect(err)
-			rp.requestedInitStateMu.Unlock()
-			return
-		}
-
-		c := rp.requestedInitState
-		rp.requestedInitState = nil
+	if rp.requestedInitState == nil {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "received unrequested init state")
+		rp.Disconnect(err)
 		rp.requestedInitStateMu.Unlock()
-		select {
-		case <-ctx.Done():
-		case c <- msg:
-		}
+		return
+	}
+
+	c := rp.requestedInitState
+	rp.requestedInitState = nil
+	rp.requestedInitStateMu.Unlock()
+	select {
+	case <-ctx.Done():
+	case c <- msg:
 	}
 }
 
@@ -1748,11 +1732,7 @@ func (rp *RemotePeer) GetInitState(ctx context.Context) (*wire.MsgInitState, err
 	msg.AddTypes(wire.InitStateTSpends)
 
 	c := make(chan *wire.MsgInitState, 1)
-	sendinitstate, newRequest := rp.addRequestedInitState(c)
-	if sendinitstate {
-		op := errors.Opf(opf, rp.raddr)
-		return nil, errors.E(op, errors.Invalid, "synchronous sendinitstate after sendinitstate is unsupported")
-	}
+	newRequest := rp.addRequestedInitState(c)
 	if !newRequest {
 		op := errors.Opf(opf, rp.raddr)
 		return nil, errors.E(op, errors.Invalid, "init state is already being requested from this peer")
@@ -1765,7 +1745,7 @@ func (rp *RemotePeer) GetInitState(ctx context.Context) (*wire.MsgInitState, err
 		case <-ctx.Done():
 			go func() {
 				<-stalled.C
-				rp.deleteRequestedHeaders()
+				rp.deleteRequestedInitState()
 			}()
 			return nil, ctx.Err()
 		case <-stalled.C:

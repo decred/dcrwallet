@@ -350,7 +350,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveGetData(ctx) })
 	g.Go(func() error { return s.receiveInv(ctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
-	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv | p2p.MaskInitState)
+	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
 		for i := range s.persistentPeers {
@@ -780,7 +780,7 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 	msg, err := rp.GetInitState(ctx)
 	if err != nil {
-		log.Errorf("Failed to get init state", err)
+		return err
 	}
 
 	unseenTSpends := make([]*chainhash.Hash, 0)
