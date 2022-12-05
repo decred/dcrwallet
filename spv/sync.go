@@ -905,6 +905,12 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 		s.seenTxs.Add(*h)
 	}
 
+	for _, tx := range txs {
+		if s.checkTSpend(ctx, tx) {
+			s.wallet.AddTSpend(*tx)
+		}
+	}
+
 	// Save any relevant transaction.
 	relevant := s.filterRelevant(txs)
 	for _, tx := range relevant {
@@ -915,9 +921,6 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
 			log.Warn(errors.E(op, err))
-		}
-		if s.checkTSpend(ctx, tx) {
-			s.wallet.AddTSpend(*tx)
 		}
 	}
 	s.mempoolTxs(relevant)
