@@ -19,7 +19,9 @@ import (
 	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
@@ -704,6 +706,120 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 	}
 }
 
+// verifyTSpendSignature verifies that the provided signature and public key
+// were the ones that signed the provided message transaction.
+func (s *Syncer) verifyTSpendSignature(msgTx *wire.MsgTx, signature, pubKey []byte) error {
+	// Calculate signature hash.
+	sigHash, err := txscript.CalcSignatureHash(nil,
+		txscript.SigHashAll, msgTx, 0, nil)
+	if err != nil {
+		return errors.Errorf("CalcSignatureHash: %w", err)
+	}
+
+	// Lift Signature from bytes.
+	sig, err := schnorr.ParseSignature(signature)
+	if err != nil {
+		return errors.Errorf("ParseSignature: %w", err)
+	}
+
+	// Lift public PI key from bytes.
+	pk, err := schnorr.ParsePubKey(pubKey)
+	if err != nil {
+		return errors.Errorf("ParsePubKey: %w", err)
+	}
+
+	// Verify transaction was properly signed.
+	if !sig.Verify(sigHash, pk) {
+		return errors.Errorf("Verify failed")
+	}
+
+	return nil
+}
+
+func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
+	var (
+		isTSpend          bool
+		signature, pubKey []byte
+		err               error
+	)
+	signature, pubKey, err = stake.CheckTSpend(tx)
+	isTSpend = err == nil
+
+	if !isTSpend {
+		log.Debugf("Tx is not a TSpend")
+		return false
+	}
+
+	_, height := s.wallet.MainChainTip(ctx)
+	if uint32(height) > tx.Expiry {
+		log.Debugf("TSpend has been expired")
+		return false
+	}
+
+	// If we have a TSpend verify the signature.
+	// Check if this is a sanctioned PI key.
+	if !s.wallet.ChainParams().PiKeyExists(pubKey) {
+		log.Errorf("Unknown Pi Key: %x", pubKey)
+		return false
+	}
+
+	// Verify that the signature is valid and corresponds to the
+	// provided public key.
+	err = s.verifyTSpendSignature(tx, signature, pubKey)
+	if err != nil {
+		log.Errorf("Could not verify TSpend signature: %v", err)
+		return false
+	}
+
+	return true
+}
+
+// GetInitState requests the init state, then using the tspend hashes requests
+// all unseen tspend txs, validates them, and adds them to the tspends cache.
+func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
+	msg := wire.NewMsgGetInitState()
+	msg.AddTypes(wire.InitStateTSpends)
+
+	initState, err := rp.GetInitState(ctx, msg)
+	if err != nil {
+		return err
+	}
+
+	unseenTSpends := make([]*chainhash.Hash, 0)
+	for h := range initState.TSpendHashes {
+		if !s.wallet.IsTSpendCached(&initState.TSpendHashes[h]) {
+			unseenTSpends = append(unseenTSpends, &initState.TSpendHashes[h])
+		}
+	}
+
+	if len(unseenTSpends) == 0 {
+		return nil
+	}
+
+	tspendTxs, err := rp.Transactions(ctx, unseenTSpends)
+	if errors.Is(err, errors.NotExist) {
+		err = nil
+		// Remove notfound txs.
+		prevTxs := tspendTxs
+		tspendTxs = tspendTxs[:0]
+		for _, tx := range prevTxs {
+			if tx != nil {
+				tspendTxs = append(tspendTxs, tx)
+			}
+		}
+	}
+	if err != nil {
+		return nil
+	}
+
+	for _, v := range tspendTxs {
+		if s.checkTSpend(ctx, v) {
+			s.wallet.AddTSpend(*v)
+		}
+	}
+	return nil
+}
+
 func (s *Syncer) handleBlockInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []*chainhash.Hash) error {
 	const opf = "spv.handleBlockInvs(%v)"
 
@@ -787,6 +903,12 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	// who announce them in the future.
 	for _, h := range unseen {
 		s.seenTxs.Add(*h)
+	}
+
+	for _, tx := range txs {
+		if s.checkTSpend(ctx, tx) {
+			s.wallet.AddTSpend(*tx)
+		}
 	}
 
 	// Save any relevant transaction.
@@ -1407,6 +1529,13 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		atomic.StoreUint32(&s.atomicCatchUpTryLock, 0)
 		if err != nil {
 			return err
+		}
+	}
+
+	if rp.Pver() >= wire.InitStateVersion {
+		err = s.GetInitState(ctx, rp)
+		if err != nil {
+			log.Errorf("Failed to get init state", err)
 		}
 	}
 

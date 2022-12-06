@@ -232,6 +232,14 @@ func (w *Wallet) VotingEnabled() bool {
 	return enabled
 }
 
+// IsTSpendCached returns whether the given hash is already cached.
+func (w *Wallet) IsTSpendCached(hash *chainhash.Hash) bool {
+	if _, ok := w.tspends[*hash]; ok {
+		return true
+	}
+	return false
+}
+
 // AddTSpend adds a tspend to the cache.
 func (w *Wallet) AddTSpend(tx wire.MsgTx) error {
 	hash := tx.TxHash()

@@ -107,6 +107,10 @@ type RemotePeer struct {
 	sendheaders        bool                    // whether a sendheaders message was sent
 	requestedHeadersMu sync.Mutex
 
+	// init state message management.
+	requestedInitState   chan<- *wire.MsgInitState // non-nil result chan when synchronous getinitstate in process
+	requestedInitStateMu sync.Mutex
+
 	invsSent     lru.Cache // Hashes from sent inventory messages
 	invsRecv     lru.Cache // Hashes of received inventory messages
 	knownHeaders lru.Cache // Hashes of received headers
@@ -126,10 +130,11 @@ type LocalPeer struct {
 
 	dial DialFunc
 
-	receivedGetData  chan *inMsg
-	receivedHeaders  chan *inMsg
-	receivedInv      chan *inMsg
-	announcedHeaders chan *inMsg
+	receivedGetData   chan *inMsg
+	receivedHeaders   chan *inMsg
+	receivedInv       chan *inMsg
+	announcedHeaders  chan *inMsg
+	receivedInitState chan *inMsg
 
 	extaddr     net.Addr
 	amgr        *addrmgr.AddrManager
@@ -144,15 +149,16 @@ type LocalPeer struct {
 func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.AddrManager) *LocalPeer {
 	var dialer net.Dialer
 	lp := &LocalPeer{
-		dial:             dialer.DialContext,
-		receivedGetData:  make(chan *inMsg),
-		receivedHeaders:  make(chan *inMsg),
-		receivedInv:      make(chan *inMsg),
-		announcedHeaders: make(chan *inMsg),
-		extaddr:          extaddr,
-		amgr:             amgr,
-		chainParams:      params,
-		rpByID:           make(map[uint64]*RemotePeer),
+		dial:              dialer.DialContext,
+		receivedGetData:   make(chan *inMsg),
+		receivedHeaders:   make(chan *inMsg),
+		receivedInv:       make(chan *inMsg),
+		announcedHeaders:  make(chan *inMsg),
+		receivedInitState: make(chan *inMsg),
+		extaddr:           extaddr,
+		amgr:              amgr,
+		chainParams:       params,
+		rpByID:            make(map[uint64]*RemotePeer),
 	}
 	return lp
 }
@@ -771,6 +777,8 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				rp.receivedGetMiningState(ctx)
 			case *wire.MsgGetInitState:
 				rp.receivedGetInitState(ctx)
+			case *wire.MsgInitState:
+				rp.receivedInitState(ctx, m)
 			case *wire.MsgPing:
 				pong(ctx, m, rp)
 			case *wire.MsgPong:
@@ -1104,6 +1112,43 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 
 	if rp.lp.messageIsMasked(MaskGetData) {
 		rp.lp.receivedGetData <- newInMsg(rp, msg)
+	}
+}
+
+func (rp *RemotePeer) addRequestedInitState(c chan<- *wire.MsgInitState) (newRequest bool) {
+	rp.requestedInitStateMu.Lock()
+	if rp.requestedInitState != nil {
+		rp.requestedInitStateMu.Unlock()
+		return false
+	}
+	rp.requestedInitState = c
+	rp.requestedInitStateMu.Unlock()
+	return true
+}
+
+func (rp *RemotePeer) deleteRequestedInitState() {
+	rp.requestedInitStateMu.Lock()
+	rp.requestedInitState = nil
+	rp.requestedInitStateMu.Unlock()
+}
+
+func (rp *RemotePeer) receivedInitState(ctx context.Context, msg *wire.MsgInitState) {
+	const opf = "remotepeer(%v).receivedInitState"
+	rp.requestedInitStateMu.Lock()
+	c := rp.requestedInitState
+	rp.requestedInitState = nil
+	rp.requestedInitStateMu.Unlock()
+
+	if c == nil {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "received unrequested init state")
+		rp.Disconnect(err)
+		return
+	}
+
+	select {
+	case <-ctx.Done():
+	case c <- msg:
 	}
 }
 
@@ -1677,4 +1722,43 @@ func (rp *RemotePeer) SendHeadersSent() bool {
 	sent := rp.sendheaders
 	rp.requestedHeadersMu.Unlock()
 	return sent
+}
+
+// GetInitState attempts to get initial state by sending a GetInitState message.
+func (rp *RemotePeer) GetInitState(ctx context.Context, msg *wire.MsgGetInitState) (*wire.MsgInitState, error) {
+	const opf = "remotepeer(%v).GetInitState"
+
+	c := make(chan *wire.MsgInitState, 1)
+	newRequest := rp.addRequestedInitState(c)
+	if !newRequest {
+		op := errors.Opf(opf, rp.raddr)
+		return nil, errors.E(op, errors.Invalid, "init state is already being requested from this peer")
+	}
+
+	stalled := time.NewTimer(stallTimeout)
+	out := rp.out
+	for {
+		select {
+		case <-ctx.Done():
+			rp.deleteRequestedInitState()
+			return nil, ctx.Err()
+		case <-stalled.C:
+			op := errors.Opf(opf, rp.raddr)
+			err := errors.E(op, errors.IO, "peer appears stalled")
+			rp.Disconnect(err)
+			return nil, err
+		case <-rp.errc:
+			if !stalled.Stop() {
+				<-stalled.C
+			}
+			return nil, rp.err
+		case out <- &msgAck{msg, nil}:
+			out = nil
+		case msg := <-c:
+			if !stalled.Stop() {
+				<-stalled.C
+			}
+			return msg, nil
+		}
+	}
 }
