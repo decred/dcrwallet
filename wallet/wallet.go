@@ -127,6 +127,7 @@ type Wallet struct {
 
 	// Start up flags/settings
 	gapLimit        uint32
+	watchLast       uint32
 	accountGapLimit int
 
 	// initialHeight is the wallet's tip height prior to syncing with the
@@ -179,6 +180,7 @@ type Config struct {
 	PoolFees      float64
 
 	GapLimit                uint32
+	WatchLast               uint32
 	AccountGapLimit         int
 	MixSplitLimit           int
 	DisableCoinTypeUpgrades bool
@@ -916,8 +918,8 @@ func (w *Wallet) RangeCFiltersV2(ctx context.Context, startBlock, endBlock *Bloc
 	return nil
 }
 
-// watchHDAddrs loads the network backend's transaction filter with all HD
-// addresses for transaction notifications.
+// watchHDAddrs loads the network backend's transaction filter with HD addresses
+// for transaction notifications.
 //
 // This method does nothing if the wallet's rescan point is behind the main
 // chain tip block and firstWatch is false.  That is, it does not watch any
@@ -1053,6 +1055,9 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	}()
 	var deriveError error
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) {
+		if start == 0 && w.watchLast != 0 && end-w.gapLimit > w.watchLast {
+			start = end - w.gapLimit - w.watchLast
+		}
 		const step = 256
 		for ; start <= end; start += step {
 			addrs := make([]stdaddr.Address, 0, step)
@@ -5379,6 +5384,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		// LoaderOptions
 		gapLimit:                cfg.GapLimit,
+		watchLast:               cfg.WatchLast,
 		allowHighFees:           cfg.AllowHighFees,
 		accountGapLimit:         cfg.AccountGapLimit,
 		disableCoinTypeUpgrades: cfg.DisableCoinTypeUpgrades,

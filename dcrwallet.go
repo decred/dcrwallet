@@ -178,7 +178,7 @@ func run(ctx context.Context) error {
 		StakePoolColdExtKey: cfg.StakePoolColdExtKey,
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
-		cfg.GapLimit, cfg.AllowHighFees, cfg.RelayFee.Amount,
+		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets,
 		cfg.MixSplitLimit)
 	loader.DialCSPPServer = cfg.dialCSPPServer

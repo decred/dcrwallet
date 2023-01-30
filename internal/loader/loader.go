@@ -41,6 +41,7 @@ type Loader struct {
 
 	stakeOptions            *StakeOptions
 	gapLimit                uint32
+	watchLast               uint32
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
 	allowHighFees           bool
@@ -70,13 +71,15 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
-	allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int, disableCoinTypeUpgrades bool, manualTickets bool, mixSplitLimit int) *Loader {
+	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int,
+	disableCoinTypeUpgrades bool, manualTickets bool, mixSplitLimit int) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
 		dbDirPath:               dbDirPath,
 		stakeOptions:            stakeOptions,
 		gapLimit:                gapLimit,
+		watchLast:               watchLast,
 		accountGapLimit:         accountGapLimit,
 		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
 		allowHighFees:           allowHighFees,
@@ -186,6 +189,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
+		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
 		StakePoolColdExtKey:     so.StakePoolColdExtKey,
@@ -278,6 +282,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
+		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
 		StakePoolColdExtKey:     so.StakePoolColdExtKey,
@@ -339,6 +344,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		PoolAddress:             so.PoolAddress,
 		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
+		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
 		StakePoolColdExtKey:     so.StakePoolColdExtKey,

@@ -105,6 +105,7 @@ type config struct {
 	poolAddress             stdaddr.StakeAddress
 	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
 	GapLimit                uint32              `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
+	WatchLast               uint32              `long:"watchlast" description:"Limit watched previous addresses of each HD account branch"`
 	StakePoolColdExtKey     string              `long:"stakepoolcoldextkey" description:"xpub:maxindex for fee addresses (VSP-only option)"`
 	ManualTickets           bool                `long:"manualtickets" description:"Do not discover new tickets through network synchronization"`
 	AllowHighFees           bool                `long:"allowhighfees" description:"Do not perform high fee checks"`
