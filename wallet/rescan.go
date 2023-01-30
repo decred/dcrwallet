@@ -194,7 +194,6 @@ func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 	startHash *chainhash.Hash, height int32, p chan<- RescanProgress) error {
 
-	blockHashStorage := make([]chainhash.Hash, maxBlocksPerRescan)
 	rescanFrom := *startHash
 	inclusive := true
 	for {
@@ -204,6 +203,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		default:
 		}
 
+		blockHashStorage := make([]chainhash.Hash, maxBlocksPerRescan)
 		var rescanBlocks []chainhash.Hash
 		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
