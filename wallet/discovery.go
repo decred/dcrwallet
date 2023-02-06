@@ -905,6 +905,9 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			}
 		}
 
+		// To avoid deadlocks lock mutex before grabbing DB transaction, this is
+		// what we do in other places.
+		w.addressBuffersMu.Lock()
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			if u.extLastUsed < hd.HardenedKeyStart {
@@ -928,7 +931,6 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			// Update last used index and cursor for this account's address
 			// buffers.  The cursor must not be reset backwards to avoid the
 			// possibility of address reuse.
-			w.addressBuffersMu.Lock()
 			acctData := w.addressBuffers[acct]
 			extern := &acctData.albExternal
 			if props.LastUsedExternalIndex+1 > extern.lastUsed+1 {
@@ -946,9 +948,9 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 				}
 				intern.lastUsed = props.LastUsedInternalIndex
 			}
-			w.addressBuffersMu.Unlock()
 			return nil
 		})
+		w.addressBuffersMu.Unlock()
 		if err != nil {
 			return errors.E(op, err)
 		}
