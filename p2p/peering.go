@@ -1322,8 +1322,12 @@ func (rp *RemotePeer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash)
 	rp.requestedBlocksMu.Unlock()
 
 	// Request any blocks which have not yet been requested.
+	doneRequests := make(chan struct{}, 1)
 	if len(newReqs) > 0 {
-		go rp.requestBlocks(newReqs)
+		go func() {
+			rp.requestBlocks(newReqs)
+			doneRequests <- struct{}{}
+		}()
 	}
 
 	// Wait for all blocks to be received or to error out.
@@ -1343,6 +1347,7 @@ func (rp *RemotePeer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash)
 		}
 	}
 
+	<-doneRequests
 	return blocks, nil
 }
 
