@@ -1383,10 +1383,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		_, err := w.watchHDAddrs(ctx, false, n)
 		if err != nil {
-			log.Errorf("Failed to watch for future address usage after publishing "+
-				"transaction: %v", err)
-		}
-		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
 				"purchases: %v", err)
 		}
