@@ -138,7 +138,6 @@ func run(ctx context.Context) error {
 		if err != nil {
 			log.Errorf("Unable to create cpu profile: %v", err.Error())
 			return err
-
 		}
 		pprof.StartCPUProfile(f)
 		defer f.Close()

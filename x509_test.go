@@ -112,6 +112,7 @@ func testClientCert(t *testing.T, pub, priv interface{}, name string) {
 		return
 	}
 	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
 	if err != nil {
 		t.Error(err)
 		return
@@ -176,12 +177,11 @@ func TestUntrustedClientCert(t *testing.T) {
 	timeout := time.After(time.Second * 5)
 	for {
 		go func() {
-			req, err := http.NewRequest(http.MethodPut, s.URL, strings.NewReader("test"))
+			req, err := http.NewRequestWithContext(ctx, http.MethodPut, s.URL, strings.NewReader("test"))
 			if err != nil {
 				errChan <- err
 				return
 			}
-			req = req.WithContext(ctx)
 			_, err = s.Client().Do(req)
 			errChan <- err
 		}()

@@ -10,8 +10,8 @@ import (
 	"os"
 	"testing"
 
-	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/errors"
+	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 )
 
@@ -58,7 +58,6 @@ func TestAddDuplicateDriver(t *testing.T) {
 	}
 	db.Close()
 	_ = os.Remove(dbPath)
-
 }
 
 // TestCreateOpenFail ensures that errors which occur while opening or closing

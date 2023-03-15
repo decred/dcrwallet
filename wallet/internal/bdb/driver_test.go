@@ -12,8 +12,8 @@ import (
 	"os"
 	"testing"
 
-	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/errors"
+	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 )
 

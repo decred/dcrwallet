@@ -357,7 +357,7 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 		url.Host = host
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
 		cancels = append(cancels, cancel)
-		req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url.String(), nil)
 		if err != nil {
 			log.Errorf("Bad seeder request: %v", err)
 			continue
@@ -1482,7 +1482,6 @@ func (rp *RemotePeer) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) 
 			return f, m.ProofIndex, m.ProofHashes, nil
 		}
 	}
-
 }
 
 // filterProof is an alias to the same anonymous struct as wallet package's

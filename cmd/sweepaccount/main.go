@@ -25,7 +25,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/jessevdk/go-flags"
 	"github.com/jrick/wsrpc/v2"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var (
@@ -459,7 +459,7 @@ func sweep(ctx context.Context) error {
 			totalSwept, numPublished, transactionNoun)
 	}
 	if numErrors > 0 {
-		return fmt.Errorf("Failed to publish %d %s", numErrors, transactionNoun)
+		return fmt.Errorf("failed to publish %d %s", numErrors, transactionNoun)
 	}
 
 	return nil
@@ -468,7 +468,7 @@ func sweep(ctx context.Context) error {
 func promptSecret(what string) (string, error) {
 	fmt.Printf("%s: ", what)
 	fd := int(os.Stdin.Fd())
-	input, err := terminal.ReadPassword(fd)
+	input, err := term.ReadPassword(fd)
 	fmt.Println()
 	if err != nil {
 		return "", err

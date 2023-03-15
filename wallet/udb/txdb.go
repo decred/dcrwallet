@@ -234,9 +234,9 @@ func keyBlockRecord(height int32) []byte {
 
 func valueBlockRecordEmptyFromHeader(blockHash []byte, header []byte) []byte {
 	v := make([]byte, 47)
-	copy(v, blockHash[:])
-	byteOrder.PutUint64(v[32:40], uint64(extractBlockHeaderUnixTime(header[:])))
-	byteOrder.PutUint16(v[40:42], extractBlockHeaderVoteBits(header[:]))
+	copy(v, blockHash)
+	byteOrder.PutUint64(v[32:40], uint64(extractBlockHeaderUnixTime(header)))
+	byteOrder.PutUint16(v[40:42], extractBlockHeaderVoteBits(header))
 	byteOrder.PutUint32(v[43:47], 0)
 	return v
 }
@@ -1458,8 +1458,9 @@ const (
 )
 
 func valueUnminedCredit(amount dcrutil.Amount, change bool, opCode uint8,
-	IsCoinbase bool, hasExpiry bool, scrType scriptType, scrLoc uint32, scrLen uint32,
-	account uint32, dbVersion uint32) []byte {
+	isCoinbase, hasExpiry bool, scrType scriptType, scrLoc, scrLen,
+	account, dbVersion uint32) []byte {
+
 	v := make([]byte, unconfValueSize)
 	byteOrder.PutUint64(v, uint64(amount))
 	v[8] = condenseOpCode(opCode)
@@ -1474,7 +1475,7 @@ func valueUnminedCredit(amount dcrutil.Amount, change bool, opCode uint8,
 			v[8] |= 1 << 4
 		}
 	}
-	if IsCoinbase {
+	if isCoinbase {
 		v[8] |= 1 << 5
 	}
 
@@ -1982,7 +1983,7 @@ func existsMultisigOutUS(ns walletdb.ReadBucket, k []byte) bool {
 
 func valueRawCFilter2(key [16]byte, data []byte) []byte {
 	v := make([]byte, 16+len(data))
-	copy(v[:], key[:])
+	copy(v, key[:])
 	copy(v[16:], data)
 	return v
 }

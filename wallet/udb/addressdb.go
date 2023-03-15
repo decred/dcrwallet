@@ -1299,7 +1299,7 @@ func serializeScriptAddress(encryptedHash, script []byte) []byte {
 func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, error) {
 	bucket := ns.NestedReadBucket(addrBucketName)
 
-	serializedRow := bucket.Get(addrHash[:])
+	serializedRow := bucket.Get(addrHash)
 	if serializedRow == nil {
 		return nil, errors.E(errors.NotExist, errors.Errorf("no address with hash %x", addrHash))
 	}

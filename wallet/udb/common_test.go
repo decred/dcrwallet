@@ -45,11 +45,10 @@ func hexToBytes(origHex string) []byte {
 // createEmptyDB is a helper function for creating an empty wallet db.
 func createEmptyDB(ctx context.Context) error {
 	db, err := walletdb.Create("bdb", emptyDbPath)
-	defer db.Close()
-
 	if err != nil {
 		return err
 	}
+	defer db.Close()
 
 	err = Initialize(ctx, db, chaincfg.TestNet3Params(), seed, pubPassphrase,
 		privPassphrase)

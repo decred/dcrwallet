@@ -37,17 +37,17 @@ type BadRequestError struct {
 func (e *BadRequestError) Error() string { return e.Message }
 
 func (c *client) post(ctx context.Context, path string, addr stdaddr.Address, resp, req interface{}) error {
-	return c.do(ctx, "POST", path, addr, resp, req)
+	return c.do(ctx, http.MethodPost, path, addr, resp, req)
 }
 
 func (c *client) get(ctx context.Context, path string, resp interface{}) error {
-	return c.do(ctx, "GET", path, nil, resp, nil)
+	return c.do(ctx, http.MethodGet, path, nil, resp, nil)
 }
 
 func (c *client) do(ctx context.Context, method, path string, addr stdaddr.Address, resp, req interface{}) error {
 	var reqBody io.Reader
 	var sig []byte
-	if method == "POST" {
+	if method == http.MethodPost {
 		body, err := json.Marshal(req)
 		if err != nil {
 			return fmt.Errorf("marshal request: %w", err)

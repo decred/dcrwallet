@@ -54,7 +54,7 @@ func (s *Store) ImportCFiltersV2(dbtx walletdb.ReadWriteTx, startHeight int32, f
 		}
 		merkleRoot := extractBlockHeaderMerkleRoot(header)
 		var bcf2Key [gcs2.KeySize]byte
-		copy(bcf2Key[:], merkleRoot[:])
+		copy(bcf2Key[:], merkleRoot)
 
 		// Store the cfilter data and query key.
 		err = putRawCFilter(ns, bh[:], valueRawCFilter2(bcf2Key, fd))

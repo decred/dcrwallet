@@ -24,7 +24,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/jessevdk/go-flags"
 	"github.com/jrick/wsrpc/v2"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var (
@@ -135,7 +135,7 @@ func init() {
 func promptSecret(what string) (string, error) {
 	fmt.Printf("%s: ", what)
 	fd := int(os.Stdin.Fd())
-	input, err := terminal.ReadPassword(fd)
+	input, err := term.ReadPassword(fd)
 	fmt.Println()
 	if err != nil {
 		return "", err
@@ -224,7 +224,7 @@ func repair() error {
 
 		// Advance to next batch.
 		height += int32(len(filters))
-		copy(cfbuf[0:], nextcf[:])
+		copy(cfbuf[0:], nextcf)
 		readOffset = len(nextcf)
 
 		// Finish only after processing any data that might have been

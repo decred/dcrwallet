@@ -892,15 +892,13 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			if dp > 0 {
 				if w.chainParams.Net == wire.MainNet {
 					log.Warnf("block disapprove percent set on mainnet")
-				} else {
-					if int64(dp) > randInt63n(100) {
-						log.Infof("Disapproving block %v voted with ticket %v",
-							blockHash, ticketHash)
-						// Set the BlockValid bit to zero,
-						// disapproving the block.
-						const blockIsValidBit = uint16(0x01)
-						ticketVoteBits.Bits &= ^blockIsValidBit
-					}
+				} else if int64(dp) > randInt63n(100) {
+					log.Infof("Disapproving block %v voted with ticket %v",
+						blockHash, ticketHash)
+					// Set the BlockValid bit to zero,
+					// disapproving the block.
+					const blockIsValidBit = uint16(0x01)
+					ticketVoteBits.Bits &= ^blockIsValidBit
 				}
 			}
 
@@ -920,7 +918,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			// Iterate over all tpends and determine if they are
 			// within the voting window.
 			tVotes := make([]byte, 0, 256)
-			tVotes = append(tVotes[:], 'T', 'V')
+			tVotes = append(tVotes, 'T', 'V')
 			for _, v := range tspends {
 				if !blockchain.InsideTSpendWindow(int64(blockHeight),
 					v.Expiry, w.chainParams.TreasuryVoteInterval,
@@ -937,8 +935,8 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 				}
 
 				// Append tspend hash and vote bits
-				tVotes = append(tVotes[:], tspendHash[:]...)
-				tVotes = append(tVotes[:], byte(tspendVote))
+				tVotes = append(tVotes, tspendHash[:]...)
+				tVotes = append(tVotes, byte(tspendVote))
 			}
 			if len(tVotes) > 2 {
 				// Vote was appended. Create output and flip

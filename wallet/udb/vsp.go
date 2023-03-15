@@ -235,7 +235,7 @@ func serializeVSPHost(record *VSPHost) []byte {
 	byteOrder.PutUint32(buf[curPos:curPos+4], uint32(len(record.Host)))
 	curPos += 4
 	// Then write the host based on the length provided.
-	copy(buf[curPos:curPos+len(record.Host)], record.Host[:])
+	copy(buf[curPos:curPos+len(record.Host)], record.Host)
 
 	return buf
 }
@@ -250,13 +250,13 @@ func SetVSPPubKey(dbtx walletdb.ReadWriteTx, host []byte, record *VSPPubKey) err
 	bucket := dbtx.ReadWriteBucket(vspPubKeyBucketKey)
 	serializedRecord := serializeVSPPubKey(record)
 
-	return bucket.Put(host[:], serializedRecord)
+	return bucket.Put(host, serializedRecord)
 }
 
 // GetVSPPubKey gets a specific ticket by the host.
 func GetVSPPubKey(dbtx walletdb.ReadTx, host []byte) (*VSPPubKey, error) {
 	bucket := dbtx.ReadBucket(vspPubKeyBucketKey)
-	serializedPubKey := bucket.Get(host[:])
+	serializedPubKey := bucket.Get(host)
 	if serializedPubKey == nil {
 		err := errors.Errorf("no VSP pubkey info for host %v", &host)
 		return nil, errors.E(errors.NotExist, err)
@@ -290,7 +290,7 @@ func serializeVSPPubKey(record *VSPPubKey) []byte {
 	byteOrder.PutUint32(buf[curPos:curPos+4], uint32(len(record.PubKey)))
 	curPos += 4
 	// Then write the pubkey based on the length provided.
-	copy(buf[curPos:curPos+len(record.PubKey)], record.PubKey[:])
+	copy(buf[curPos:curPos+len(record.PubKey)], record.PubKey)
 
 	return buf
 }
