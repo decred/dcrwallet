@@ -5,7 +5,6 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/vspd/types/v2"
 )
 
 var prng lockedRand
@@ -281,7 +281,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pol
 	// If database has been updated to paid or confirmed status, we can forgo
 	// this step.
 	if !paidConfirmed {
-		err = w.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.client.url, c.client.pub)
+		err = w.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.Client.URL, c.Client.PubKey)
 		if err != nil {
 			return fp
 		}
@@ -390,40 +390,29 @@ func (fp *feePayment) receiveFeeAddress() error {
 			parentHash, err)
 	}
 
-	var response struct {
-		Timestamp  int64  `json:"timestamp"`
-		FeeAddress string `json:"feeaddress"`
-		FeeAmount  int64  `json:"feeamount"`
-		Request    []byte `json:"request"`
+	ticketHex, err := marshalTx(ticket)
+	if err != nil {
+		return err
 	}
-	requestBody, err := json.Marshal(&struct {
-		Timestamp  int64          `json:"timestamp"`
-		TicketHash string         `json:"tickethash"`
-		TicketHex  json.Marshaler `json:"tickethex"`
-		ParentHex  json.Marshaler `json:"parenthex"`
-	}{
+	parentHex, err := marshalTx(parent)
+	if err != nil {
+		return err
+	}
+
+	req := types.FeeAddressRequest{
 		Timestamp:  time.Now().Unix(),
 		TicketHash: fp.ticketHash.String(),
-		TicketHex:  txMarshaler(ticket),
-		ParentHex:  txMarshaler(parent),
-	})
-	if err != nil {
-		return err
+		TicketHex:  ticketHex,
+		ParentHex:  parentHex,
 	}
-	err = fp.client.post(ctx, "/api/v3/feeaddress", fp.commitmentAddr, &response,
-		json.RawMessage(requestBody))
+
+	resp, err := fp.client.FeeAddress(ctx, req, fp.commitmentAddr)
 	if err != nil {
 		return err
 	}
 
-	// verify initial request matches server
-	if !bytes.Equal(requestBody, response.Request) {
-		return fmt.Errorf("server response has differing request: %#v != %#v",
-			requestBody, response.Request)
-	}
-
-	feeAmount := dcrutil.Amount(response.FeeAmount)
-	feeAddr, err := stdaddr.DecodeAddress(response.FeeAddress, params)
+	feeAmount := dcrutil.Amount(resp.FeeAmount)
+	feeAddr, err := stdaddr.DecodeAddress(resp.FeeAddress, params)
 	if err != nil {
 		return fmt.Errorf("server fee address invalid: %w", err)
 	}
@@ -590,7 +579,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	if err != nil {
 		return err
 	}
-	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
+	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.URL, fp.client.PubKey)
 	if err != nil {
 		return err
 	}
@@ -604,18 +593,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	return nil
 }
 
-type ticketStatus struct {
-	Timestamp       int64             `json:"timestamp"`
-	TicketConfirmed bool              `json:"ticketconfirmed"`
-	FeeTxStatus     string            `json:"feetxstatus"`
-	FeeTxHash       string            `json:"feetxhash"`
-	VoteChoices     map[string]string `json:"votechoices"`
-	TSpendPolicy    map[string]string `json:"tspendpolicy"`
-	TreasuryPolicy  map[string]string `json:"treasurypolicy"`
-	Request         []byte            `json:"request"`
-}
-
-func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticketStatus, error) {
+func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*types.TicketStatusResponse, error) {
 	w := c.Wallet
 	params := w.ChainParams()
 
@@ -636,31 +614,18 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*ticke
 			ticketHash, err)
 	}
 
-	var resp ticketStatus
-	requestBody, err := json.Marshal(&struct {
-		TicketHash string `json:"tickethash"`
-	}{
+	req := types.TicketStatusRequest{
 		TicketHash: ticketHash.String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	err = c.post(ctx, "/api/v3/ticketstatus", commitmentAddr, &resp,
-		json.RawMessage(requestBody))
-	if err != nil {
-		return nil, err
 	}
 
-	// verify initial request matches server
-	if !bytes.Equal(requestBody, resp.Request) {
-		log.Warnf("server response has differing request: %#v != %#v",
-			requestBody, resp.Request)
-		return nil, fmt.Errorf("server response contains differing request")
+	resp, err := c.Client.TicketStatus(ctx, req, commitmentAddr)
+	if err != nil {
+		return nil, err
 	}
 
 	// XXX validate server timestamp?
 
-	return &resp, nil
+	return resp, nil
 }
 
 func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
@@ -693,35 +658,17 @@ func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
 		agendaChoices[c.AgendaID] = c.ChoiceID
 	}
 
-	var resp ticketStatus
-	requestBody, err := json.Marshal(&struct {
-		Timestamp      int64             `json:"timestamp"`
-		TicketHash     string            `json:"tickethash"`
-		VoteChoices    map[string]string `json:"votechoices"`
-		TSpendPolicy   map[string]string `json:"tspendpolicy"`
-		TreasuryPolicy map[string]string `json:"treasurypolicy"`
-	}{
+	req := types.SetVoteChoicesRequest{
 		Timestamp:      time.Now().Unix(),
 		TicketHash:     ticketHash.String(),
 		VoteChoices:    agendaChoices,
 		TSpendPolicy:   tspendPolicy,
 		TreasuryPolicy: treasuryPolicy,
-	})
-	if err != nil {
-		return err
 	}
 
-	err = c.post(ctx, "/api/v3/setvotechoices", commitmentAddr, &resp,
-		json.RawMessage(requestBody))
+	_, err = c.Client.SetVoteChoices(ctx, req, commitmentAddr)
 	if err != nil {
 		return err
-	}
-
-	// verify initial request matches server
-	if !bytes.Equal(requestBody, resp.Request) {
-		log.Warnf("server response has differing request: %#v != %#v",
-			requestBody, resp.Request)
-		return fmt.Errorf("server response contains differing request")
 	}
 
 	// XXX validate server timestamp?
@@ -752,8 +699,8 @@ func (fp *feePayment) reconcilePayment() error {
 	if feeTx == nil || len(feeTx.TxOut) == 0 {
 		err := fp.makeFeeTx(nil)
 		if err != nil {
-			var apiErr *BadRequestError
-			if errors.As(err, &apiErr) && apiErr.Code == codeTicketCannotVote {
+			var apiErr types.ErrorResponse
+			if errors.As(err, &apiErr) && apiErr.Code == types.ErrTicketCannotVote {
 				fp.remove("ticket cannot vote")
 				// Attempt to Revoke Tickets, we're not returning any errors here
 				// and just logging.
@@ -788,21 +735,21 @@ func (fp *feePayment) reconcilePayment() error {
 	fp.mu.Lock()
 	feeHash := fp.feeHash
 	fp.mu.Unlock()
-	var apiErr *BadRequestError
+	var apiErr types.ErrorResponse
 	if errors.As(err, &apiErr) {
 		switch apiErr.Code {
-		case codeFeeAlreadyReceived:
+		case types.ErrFeeAlreadyReceived:
 			err = w.SetPublished(ctx, &feeHash, true)
 			if err != nil {
 				return err
 			}
-			err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
+			err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.URL, fp.client.PubKey)
 			if err != nil {
 				return err
 			}
 			err = nil
-		case codeInvalidFeeTx, codeCannotBroadcastFee:
-			err := w.UpdateVspTicketFeeToErrored(ctx, &fp.ticketHash, fp.client.url, fp.client.pub)
+		case types.ErrInvalidFeeTx, types.ErrCannotBroadcastFee:
+			err := w.UpdateVspTicketFeeToErrored(ctx, &fp.ticketHash, fp.client.URL, fp.client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -820,7 +767,7 @@ func (fp *feePayment) reconcilePayment() error {
 		return err
 	}
 
-	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
+	err = w.UpdateVspTicketFeeToPaid(ctx, &fp.ticketHash, &feeHash, fp.client.URL, fp.client.PubKey)
 	if err != nil {
 		return err
 	}
@@ -883,35 +830,25 @@ func (fp *feePayment) submitPayment() (err error) {
 		voteChoices[agendaChoice.AgendaID] = agendaChoice.ChoiceID
 	}
 
-	var payfeeResponse struct {
-		Timestamp int64  `json:"timestamp"`
-		Request   []byte `json:"request"`
+	feeTxHex, err := marshalTx(feeTx)
+	if err != nil {
+		return err
 	}
-	requestBody, err := json.Marshal(&struct {
-		Timestamp      int64             `json:"timestamp"`
-		TicketHash     string            `json:"tickethash"`
-		FeeTx          json.Marshaler    `json:"feetx"`
-		VotingKey      string            `json:"votingkey"`
-		VoteChoices    map[string]string `json:"votechoices"`
-		TSpendPolicy   map[string]string `json:"tspendpolicy"`
-		TreasuryPolicy map[string]string `json:"treasurypolicy"`
-	}{
+
+	req := types.PayFeeRequest{
 		Timestamp:      time.Now().Unix(),
 		TicketHash:     fp.ticketHash.String(),
-		FeeTx:          txMarshaler(feeTx),
+		FeeTx:          feeTxHex,
 		VotingKey:      votingKey,
 		VoteChoices:    voteChoices,
 		TSpendPolicy:   w.TSpendPolicyForTicket(&fp.ticketHash),
 		TreasuryPolicy: w.TreasuryKeyPolicyForTicket(&fp.ticketHash),
-	})
-	if err != nil {
-		return err
 	}
-	err = fp.client.post(ctx, "/api/v3/payfee", fp.commitmentAddr,
-		&payfeeResponse, json.RawMessage(requestBody))
+
+	_, err = fp.client.PayFee(ctx, req, fp.commitmentAddr)
 	if err != nil {
-		var apiErr *BadRequestError
-		if errors.As(err, &apiErr) && apiErr.Code == codeFeeExpired {
+		var apiErr types.ErrorResponse
+		if errors.As(err, &apiErr) && apiErr.Code == types.ErrFeeExpired {
 			// Fee has been expired, so abandon current feetx, set fp.feeTx
 			// to nil and retry submit payment to make a new fee tx.
 			feeHash := feeTx.TxHash()
@@ -924,13 +861,6 @@ func (fp *feePayment) submitPayment() (err error) {
 		return fmt.Errorf("payfee: %w", err)
 	}
 
-	// Check for matching original request.
-	// This is signed by the VSP, and the signature
-	// has already been checked above.
-	if !bytes.Equal(requestBody, payfeeResponse.Request) {
-		return fmt.Errorf("server response has differing request: %#v != %#v",
-			requestBody, payfeeResponse.Request)
-	}
 	// TODO - validate server timestamp?
 
 	log.Infof("successfully processed %v", fp.ticketHash)
@@ -975,7 +905,7 @@ func (fp *feePayment) confirmPayment() (err error) {
 		}
 		if confs >= 6 {
 			fp.remove("confirmed")
-			err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &feeHash, fp.client.url, fp.client.pub)
+			err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &feeHash, fp.client.URL, fp.client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -999,7 +929,7 @@ func (fp *feePayment) confirmPayment() (err error) {
 	case "confirmed":
 		fp.remove("confirmed by VSP")
 		// nothing scheduled
-		err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &fp.feeHash, fp.client.url, fp.client.pub)
+		err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &fp.feeHash, fp.client.URL, fp.client.PubKey)
 		if err != nil {
 			return err
 		}
@@ -1018,20 +948,9 @@ func (fp *feePayment) confirmPayment() (err error) {
 	return nil
 }
 
-type marshaler struct {
-	marshaled []byte
-	err       error
-}
-
-func (m *marshaler) MarshalJSON() ([]byte, error) {
-	return m.marshaled, m.err
-}
-
-func txMarshaler(tx *wire.MsgTx) json.Marshaler {
+func marshalTx(tx *wire.MsgTx) (string, error) {
 	var buf bytes.Buffer
-	buf.Grow(2 + tx.SerializeSize()*2)
-	buf.WriteByte('"')
+	buf.Grow(tx.SerializeSize() * 2)
 	err := tx.Serialize(hex.NewEncoder(&buf))
-	buf.WriteByte('"')
-	return &marshaler{buf.Bytes(), err}
+	return buf.String(), err
 }
