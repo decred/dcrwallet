@@ -45,8 +45,8 @@ import (
 	"os"
 	"time"
 
-	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/errors"
+	_ "decred.org/dcrwallet/v3/wallet/internal/bdb"
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake"

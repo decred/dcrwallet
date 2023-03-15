@@ -1283,7 +1283,7 @@ func unencryptedRedeemScriptsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase [
 // for the genesis block which doesn't have any previous scripts.
 type genesisPrevScripter struct{}
 
-func (_ genesisPrevScripter) PrevScript(*wire.OutPoint) (uint16, []byte, bool) {
+func (genesisPrevScripter) PrevScript(*wire.OutPoint) (uint16, []byte, bool) {
 	return 0, nil, false
 }
 

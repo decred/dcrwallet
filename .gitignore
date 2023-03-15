@@ -1,5 +1,8 @@
 cmd/movefunds/movefunds
+cmd/repaircfilters/repaircfilters
 cmd/sweepaccount/sweepaccount
+cmd/treasurykey/treasurykey
+
 /dcrwallet
 vendor
 *~
@@ -7,6 +10,7 @@ vendor
 .idea
 rpc/tools/bin/
 *.sw*
+*.key
 rpc/grpc_example/grpc_example
 rpc/grpc_example/*.pem
 rpc/rpc_example/rpc_example

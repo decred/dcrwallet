@@ -4338,7 +4338,7 @@ func marshalVSPTrackedTickets(tickets []*vsp.TicketInfo) []*pb.GetTrackedVSPTick
 	return res
 }
 
-func (w *walletServer) GetTrackedVSPTickets(ctx context.Context, req *pb.GetTrackedVSPTicketsRequest) (*pb.GetTrackedVSPTicketsResponse, error) {
+func (s *walletServer) GetTrackedVSPTickets(ctx context.Context, req *pb.GetTrackedVSPTicketsRequest) (*pb.GetTrackedVSPTicketsResponse, error) {
 	vspClients := loader.AllVSPs()
 	res := &pb.GetTrackedVSPTicketsResponse{
 		Vsps: make([]*pb.GetTrackedVSPTicketsResponse_VSP, 0, len(vspClients)),
@@ -4355,13 +4355,13 @@ func (w *walletServer) GetTrackedVSPTickets(ctx context.Context, req *pb.GetTrac
 	return res, nil
 }
 
-func (w *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageRequest) (*pb.DiscoverUsageResponse, error) {
-	n, err := w.requireNetworkBackend()
+func (s *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageRequest) (*pb.DiscoverUsageResponse, error) {
+	n, err := s.requireNetworkBackend()
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "Unable to retrieve network backend. Error: %v", err)
 	}
 
-	startBlock := w.wallet.ChainParams().GenesisHash
+	startBlock := s.wallet.ChainParams().GenesisHash
 	if req.StartingBlockHash != nil {
 		h, err := chainhash.NewHash(req.StartingBlockHash)
 		if err != nil {
@@ -4370,12 +4370,12 @@ func (w *walletServer) DiscoverUsage(ctx context.Context, req *pb.DiscoverUsageR
 		startBlock = *h
 	}
 
-	gapLimit := w.wallet.GapLimit()
+	gapLimit := s.wallet.GapLimit()
 	if req.GapLimit != 0 {
 		gapLimit = req.GapLimit
 	}
 
-	err = w.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, req.DiscoverAccounts, gapLimit)
+	err = s.wallet.DiscoverActiveAddresses(ctx, n, &startBlock, req.DiscoverAccounts, gapLimit)
 	if err != nil {
 		return nil, err
 	}
