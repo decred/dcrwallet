@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
+	vspd "github.com/decred/vspd/client/v2"
 )
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -29,7 +30,7 @@ type Policy struct {
 type Client struct {
 	Wallet *wallet.Wallet
 	Policy Policy
-	*client
+	*vspd.Client
 
 	mu   sync.Mutex
 	jobs map[chainhash.Hash]*feePayment
@@ -66,7 +67,12 @@ func New(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("wallet option not set")
 	}
 
-	client := newClient(u.String(), pubKey, cfg.Wallet)
+	client := &vspd.Client{
+		URL:    u.String(),
+		PubKey: pubKey,
+		Sign:   cfg.Wallet.SignMessage,
+		Log:    log,
+	}
 	client.Transport = &http.Transport{
 		DialContext: cfg.Dialer,
 	}
@@ -74,17 +80,14 @@ func New(cfg Config) (*Client, error) {
 	v := &Client{
 		Wallet: cfg.Wallet,
 		Policy: cfg.Policy,
-		client: client,
+		Client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
 	}
 	return v, nil
 }
 
 func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
-	var resp struct {
-		FeePercentage float64 `json:"feepercentage"`
-	}
-	err := c.get(ctx, "/api/v3/vspinfo", &resp)
+	resp, err := c.Client.VspInfo(ctx)
 	if err != nil {
 		return -1, err
 	}
@@ -183,7 +186,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.client.url, c.client.pub)
+			err = c.Wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -193,7 +196,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.client.url, c.client.pub)
+			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -240,7 +243,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		// transaction, submit it then confirm.
 		fp := c.feePayment(ctx, ticketHash, policy, false)
 		if fp == nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -253,7 +256,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		fp.mu.Unlock()
 		err := fp.receiveFeeAddress()
 		if err != nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -264,7 +267,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		}
 		err = fp.makeFeeTx(feeTx)
 		if err != nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.client.url, c.client.pub)
+			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -273,7 +276,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		return fp.submitPayment()
 	case udb.VSPFeeProcessPaid:
 		// If a VSP ticket has been paid, but confirm payment.
-		if len(vspTicket.Host) > 0 && vspTicket.Host != c.client.url {
+		if len(vspTicket.Host) > 0 && vspTicket.Host != c.Client.URL {
 			// Cannot confirm a paid ticket that is already with another VSP.
 			return fmt.Errorf("ticket already paid or confirmed with another vsp")
 		}
