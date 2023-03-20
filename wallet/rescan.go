@@ -148,12 +148,12 @@ func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 	delete(f.unspent, *op)
 }
 
-// SaveRescanned records transactions from a rescanned block.  This
+// saveRescanned records transactions from a rescanned block.  This
 // does not update the network backend with data to watch for future
 // relevant transactions as the rescanner is assumed to handle this
 // task.
-func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []*wire.MsgTx) error {
-	const op errors.Op = "wallet.SaveRescanned"
+func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash, txs []*wire.MsgTx) error {
+	const op errors.Op = "wallet.saveRescanned"
 
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
@@ -174,7 +174,7 @@ func (w *Wallet) SaveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 			if err != nil {
 				return err
 			}
-			_, err = w.processTransactionRecord(ctx, dbtx, rec, header, &blockMeta)
+			_, err = w.processTransactionRecord(context.Background(), dbtx, rec, header, &blockMeta)
 			if err != nil {
 				return err
 			}
@@ -230,7 +230,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
 		saveRescanned := func(block *chainhash.Hash, txs []*wire.MsgTx) error {
-			return w.SaveRescanned(ctx, block, txs)
+			return w.saveRescanned(ctx, block, txs)
 		}
 		err = n.Rescan(ctx, rescanBlocks, saveRescanned)
 		if err != nil {
