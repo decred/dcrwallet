@@ -1378,9 +1378,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// relevant transactions
 	var watchOutPoints []wire.OutPoint
 	defer func() {
-		if ctx.Err() != nil {
-			return
-		}
+		// Cancellation of the request context should not prevent the
+		// watching of addresses and outpoints that need to be watched.
+		// A better solution would be to watch for the data first,
+		// before publishing transactions.
+		ctx := context.TODO()
 		_, err := w.watchHDAddrs(ctx, false, n)
 		if err != nil {
 			log.Errorf("Failed to watch for future addresses after ticket "+
