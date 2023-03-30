@@ -19,6 +19,7 @@ func MsgTxFromHex(hexTx string) (*wire.MsgTx, error) {
 }
 
 func TestIsMixTx(t *testing.T) {
+	t.Parallel()
 
 	// 11x 2.68435456
 	tx0, err := MsgTxFromHex(mix0Hex)

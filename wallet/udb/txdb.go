@@ -1667,10 +1667,6 @@ func (it *unminedCreditIterator) next() bool {
 // 	return nil
 // }
 
-func (it *unminedCreditIterator) reposition(txHash *chainhash.Hash, index uint32) {
-	it.c.Seek(canonicalOutPoint(txHash, index))
-}
-
 func (it *unminedCreditIterator) close() {
 	if it.c == nil {
 		return

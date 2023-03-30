@@ -72,9 +72,6 @@ type dbBIP0044AccountRow struct {
 	lastReturnedExternalIndex uint32 // Added in version 5
 	lastReturnedInternalIndex uint32 // Added in version 5
 	name                      string
-
-	// variables subbucket is used to record remaining fields
-	uniqueKey *kdf.Argon2idParams
 }
 
 func (r *dbBIP0044AccountRow) accountType() accountType { return actBIP0044Legacy }

@@ -96,7 +96,10 @@ func (r *RPC) ExistsLiveTicket(ctx context.Context, ticket *chainhash.Hash) (boo
 func (r *RPC) ExistsLiveExpiredTickets(ctx context.Context, tickets []*chainhash.Hash) (live, _ bitset.Bytes, err error) {
 	const op errors.Op = "dcrd.ExistsLiveExpiredTickets"
 	// Reuse the single json.RawMessage for both calls
-	ticketArray, _ := json.Marshal(hashSliceToStrings(tickets))
+	ticketArray, err := json.Marshal(hashSliceToStrings(tickets))
+	if err != nil {
+		return nil, nil, err
+	}
 	errs := make(chan error, 1)
 	go func() { errs <- exists(ctx, r, "existslivetickets", &live, ticketArray) }()
 	for i := 0; i < cap(errs); i++ {
@@ -124,9 +127,12 @@ func (r *RPC) ExistsExpiredMissedTickets(ctx context.Context, tickets []*chainha
 // existsaddress index to be enabled.
 func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error) {
 	const op errors.Op = "dcrd.UsedAddresses"
-	addrArray, _ := json.Marshal(addrSliceToStrings(addrs))
+	addrArray, err := json.Marshal(addrSliceToStrings(addrs))
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 	var bits bitset.Bytes
-	err := exists(ctx, r, "existsaddresses", &bits, addrArray)
+	err = exists(ctx, r, "existsaddresses", &bits, addrArray)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -137,9 +143,12 @@ func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitse
 // currently live.
 func (r *RPC) ExistsLiveTickets(ctx context.Context, tickets []*chainhash.Hash) (bitset.Bytes, error) {
 	const op errors.Op = "dcrd.ExistsLiveTickets"
-	ticketArray, _ := json.Marshal(hashSliceToStrings(tickets))
+	ticketArray, err := json.Marshal(hashSliceToStrings(tickets))
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
 	var bits bitset.Bytes
-	err := exists(ctx, r, "existslivetickets", &bits, ticketArray)
+	err = exists(ctx, r, "existslivetickets", &bits, ticketArray)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
