@@ -44,8 +44,6 @@ var dbUpgradeTests = [...]struct {
 var pubPass = []byte("public")
 
 func TestUpgrades(t *testing.T) {
-	t.Parallel()
-
 	ctx := context.Background()
 	d, err := os.MkdirTemp("", "dcrwallet_udb_TestUpgrades")
 	if err != nil {

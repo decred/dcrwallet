@@ -1653,7 +1653,6 @@ func (rp *RemotePeer) HeadersAsync(ctx context.Context, blockLocators []*chainha
 			stalled.Stop()
 			return rp.err
 		case out <- &msgAck{m, nil}:
-			out = nil
 			return nil
 		}
 	}
