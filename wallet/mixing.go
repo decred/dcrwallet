@@ -276,7 +276,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		const minconf = 1
 		const targetAmount = 0
 		var minAmount = splitPoints[len(splitPoints)-1]
-		const maxResults = 32
+		var maxResults = cap(w.mixSems.splitSems[0]) * len(splitPoints)
 		credits, err = w.findEligibleOutputsAmount(dbtx, changeAccount, minconf,
 			targetAmount, tipHeight, minAmount, maxResults)
 		return err
