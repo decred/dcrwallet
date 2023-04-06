@@ -1055,6 +1055,9 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	if atx.ChangeIndex >= 0 {
 		change = atx.Tx.TxOut[atx.ChangeIndex]
 	}
+	if change != nil && dcrutil.Amount(change.Value) < smallestMixChange(relayFee) {
+		change = nil
+	}
 	const (
 		txVersion = 1
 		locktime  = 0

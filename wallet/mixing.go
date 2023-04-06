@@ -38,6 +38,15 @@ var splitPoints = [...]dcrutil.Amount{
 	1 << 18, // 000.00262144
 }
 
+func smallestMixChange(feeRate dcrutil.Amount) dcrutil.Amount {
+	inScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	outScriptSizes := []int{txsizes.P2PKHPkScriptSize}
+	size := txsizes.EstimateSerializeSizeFromScriptSizes(
+		inScriptSizes, outScriptSizes, 0)
+	fee := txrules.FeeForSerializeSize(feeRate, size)
+	return fee + splitPoints[len(splitPoints)-1]
+}
+
 type mixSemaphores struct {
 	splitSems [len(splitPoints)]chan struct{}
 }
@@ -103,6 +112,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	var i, count int
 	var mixValue, remValue, changeValue dcrutil.Amount
 	var feeRate = w.RelayFee()
+	var smallestMixChange = smallestMixChange(feeRate)
 SplitPoints:
 	for i = 0; i < len(splitPoints); i++ {
 		last := i == len(splitPoints)-1
@@ -158,7 +168,7 @@ SplitPoints:
 				}
 				changeValue = 0
 			}
-			if txrules.IsDustAmount(changeValue, P2PKHv0Len, feeRate) {
+			if changeValue < smallestMixChange {
 				changeValue = 0
 			}
 
