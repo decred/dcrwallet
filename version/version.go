@@ -19,7 +19,7 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 const (
 	Major = 1
 	Minor = 7
-	Patch = 5
+	Patch = 7
 )
 
 // Integer is an integer encoding of the major.minor.patch version.
