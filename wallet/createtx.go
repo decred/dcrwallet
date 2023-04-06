@@ -124,7 +124,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 				minConf, tipHeight, ignoreInput)
 			switch algo {
 			case OutputSelectionAlgorithmDefault:
-				inputSource = randomInputSource(sourceImpl.SelectInputs)
+				inputSource = sourceImpl.SelectInputs
 			case OutputSelectionAlgorithmAll:
 				// Wrap the source with one that always fetches the max amount
 				// available and ignores insufficient balance issues.
@@ -371,8 +371,8 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
-		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs,
-			a.account, a.minconf, tipHeight, ignoreInput)
+		inputSource := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, a.account,
+			a.minconf, tipHeight, ignoreInput)
 		var changeSource txauthor.ChangeSource
 		if a.isTreasury {
 			changeSource = &p2PKHTreasuryChangeSource{
@@ -394,7 +394,7 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(a.outputs, a.txFee,
-			randomInputSource(inputSource.SelectInputs), changeSource,
+			inputSource.SelectInputs, changeSource,
 			w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
@@ -566,8 +566,10 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 
 	// Instead of taking reward addresses by arg, just create them now  and
 	// automatically find all eligible outputs from all current utxos.
+	const minAmount = 0
+	const maxResults = 0
 	eligible, err := w.findEligibleOutputsAmount(dbtx, account, minconf,
-		amountRequired, topHeight)
+		amountRequired, topHeight, minAmount, maxResults)
 	if err != nil {
 		return txToMultisigError(errors.E(op, err))
 	}
@@ -1033,7 +1035,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 		var err error
 		atx, err = txauthor.NewUnsignedTransaction(mixOut, relayFee,
-			randomInputSource(inputSource.SelectInputs), changeSource,
+			inputSource.SelectInputs, changeSource,
 			w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
@@ -1789,7 +1791,10 @@ func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, am
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		var err error
-		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, amount, tipHeight)
+		const minAmount = 0
+		const maxResults = 0
+		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, amount, tipHeight,
+			minAmount, maxResults)
 		if err != nil {
 			return err
 		}
@@ -1835,6 +1840,9 @@ func (w *Wallet) reserveOutputs(ctx context.Context, account uint32, minconf int
 	return outputs, nil
 }
 
+// This can't be optimized to use the random selection because it must read all
+// outputs.  Prefer to use findEligibleOutputsAmount with various filter options
+// instead.
 func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minconf int32,
 	currentHeight int32) ([]Input, error) {
 
@@ -1931,33 +1939,33 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 // findEligibleOutputsAmount uses wtxmgr to find a number of unspent outputs
 // while doing maturity checks there.
 func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32, minconf int32,
-	amount dcrutil.Amount, currentHeight int32) ([]Input, error) {
+	amount dcrutil.Amount, currentHeight int32, minAmount dcrutil.Amount, maxResults int) ([]Input, error) {
 
 	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 
-	unspent, err := w.txStore.UnspentOutputs(dbtx)
-	if err != nil {
-		return nil, err
-	}
-	shuffle(len(unspent), func(i, j int) {
-		unspent[i], unspent[j] = unspent[j], unspent[i]
-	})
-
-	eligible := make([]Input, 0, len(unspent))
+	var eligible []Input
 	var outTotal dcrutil.Amount
-	for i := range unspent {
-		output := unspent[i]
+	seen := make(map[outpoint]struct{})
+	skip := func(output *udb.Credit) bool {
+		if _, ok := seen[outpoint{output.Hash, output.Index}]; ok {
+			return true
+		}
 
 		// Locked unspent outputs are skipped.
 		if _, locked := w.lockedOutpoints[outpoint{output.Hash, output.Index}]; locked {
-			continue
+			return true
 		}
 
 		// Only include this output if it meets the required number of
 		// confirmations.  Coinbase transactions must have have reached
 		// maturity before their outputs may be spent.
 		if !confirmed(minconf, output.Height, currentHeight) {
-			continue
+			return true
+		}
+
+		// When a minumum amount is required, skip when it is less.
+		if minAmount != 0 && output.Amount < minAmount {
+			return true
 		}
 
 		// Filter out unspendable outputs, that is, remove those that
@@ -1967,35 +1975,35 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		// sendrawtransaction).
 		class, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
 		if len(addrs) != 1 {
-			continue
+			return true
 		}
 
 		// Make sure everything we're trying to spend is actually mature.
 		switch class {
 		case stdscript.STStakeGenPubKeyHash, stdscript.STStakeGenScriptHash:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
-				continue
+				return true
 			}
 		case stdscript.STStakeRevocationPubKeyHash, stdscript.STStakeRevocationScriptHash:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
-				continue
+				return true
 			}
 		case stdscript.STTreasuryAdd, stdscript.STTreasuryGenPubKeyHash, stdscript.STTreasuryGenScriptHash:
 			if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
-				continue
+				return true
 			}
 		case stdscript.STStakeChangePubKeyHash, stdscript.STStakeChangeScriptHash:
 			if !ticketChangeMatured(w.chainParams, output.Height, currentHeight) {
-				continue
+				return true
 			}
 		case stdscript.STPubKeyHashEcdsaSecp256k1:
 			if output.FromCoinBase {
 				if !coinbaseMatured(w.chainParams, output.Height, currentHeight) {
-					continue
+					return true
 				}
 			}
 		default:
-			continue
+			return true
 		}
 
 		// Only include the output if it is associated with the passed
@@ -2003,6 +2011,68 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		// P2PKH script.
 		addrAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 		if err != nil || addrAcct != account {
+			return true
+		}
+
+		return false
+	}
+
+	randTries := 0
+	maxTries := 0
+	if (amount != 0 || maxResults != 0) && minconf > 0 {
+		numUnspent := w.txStore.UnspentOutputCount(dbtx)
+		log.Debugf("Unspent bucket k/v count: %v", numUnspent)
+		maxTries = numUnspent / 2
+	}
+	for ; randTries < maxTries; randTries++ {
+		output, err := w.txStore.RandomUTXO(dbtx, minconf, currentHeight)
+		if err != nil {
+			return nil, err
+		}
+		if output == nil {
+			break
+		}
+		if skip(output) {
+			continue
+		}
+		seen[outpoint{output.Hash, output.Index}] = struct{}{}
+
+		txOut := &wire.TxOut{
+			Value:    int64(output.Amount),
+			Version:  wire.DefaultPkScriptVersion, // XXX
+			PkScript: output.PkScript,
+		}
+		eligible = append(eligible, Input{
+			OutPoint: output.OutPoint,
+			PrevOut:  *txOut,
+		})
+		outTotal += output.Amount
+		if amount != 0 && outTotal >= amount {
+			return eligible, nil
+		}
+		if maxResults != 0 && len(eligible) == maxResults {
+			return eligible, nil
+		}
+	}
+	if randTries > 0 {
+		log.Debugf("Abandoned random UTXO selection "+
+			"attempts after %v tries", randTries)
+	}
+
+	eligible = eligible[:0]
+	seen = nil
+	outTotal = 0
+	unspent, err := w.txStore.UnspentOutputs(dbtx)
+	if err != nil {
+		return nil, err
+	}
+	shuffle(len(unspent), func(i, j int) {
+		unspent[i], unspent[j] = unspent[j], unspent[i]
+	})
+
+	for i := range unspent {
+		output := unspent[i]
+		if skip(output) {
 			continue
 		}
 
@@ -2016,11 +2086,14 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 			PrevOut:  *txOut,
 		})
 		outTotal += output.Amount
-		if outTotal >= amount {
-			break
+		if amount != 0 && outTotal >= amount {
+			return eligible, nil
+		}
+		if maxResults != 0 && len(eligible) == maxResults {
+			return eligible, nil
 		}
 	}
-	if outTotal < amount {
+	if amount != 0 && outTotal < amount {
 		return nil, errors.InsufficientBalance
 	}
 

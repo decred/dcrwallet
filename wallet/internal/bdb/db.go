@@ -184,6 +184,14 @@ func (b *bucket) Delete(key []byte) error {
 	return convertErr((*bolt.Bucket)(b).Delete(key))
 }
 
+// KeyN returns the number of keys and value pairs inside a bucket.
+//
+// This function is NOT part of the walletdb.ReadBucket interface implementation
+// and must be type asserted to be called.
+func (b *bucket) KeyN() int {
+	return (*bolt.Bucket)(b).Stats().KeyN
+}
+
 func (b *bucket) ReadCursor() walletdb.ReadCursor {
 	return b.ReadWriteCursor()
 }
