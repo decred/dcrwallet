@@ -1,6 +1,6 @@
 module decred.org/dcrwallet/v2
 
-go 1.16
+go 1.17
 
 require (
 	decred.org/cspp/v2 v2.0.0
@@ -33,10 +33,24 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	github.com/jrick/wsrpc/v2 v2.3.4
 	go.etcd.io/bbolt v1.3.5
-	golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/crypto v0.6.0
+	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.23.0
+)
+
+require (
+	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
+	github.com/companyzero/sntrup4591761 v0.0.0-20200131011700-2b0d299dbd22 // indirect
+	github.com/dchest/siphash v1.2.2 // indirect
+	github.com/decred/base58 v1.0.3 // indirect
+	github.com/decred/dcrd/database/v3 v3.0.0 // indirect
+	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.2 // indirect
+	golang.org/x/net v0.6.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
 )
 
 retract v2.0.6 // Tagged wrong branch
