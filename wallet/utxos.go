@@ -115,7 +115,6 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if policy.Account != udb.ImportedAddrAccount {
@@ -128,7 +127,7 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 			}
 		}
 
-		sourceImpl := w.txStore.MakeInputSource(txmgrNs, addrmgrNs, policy.Account,
+		sourceImpl := w.txStore.MakeInputSource(dbtx, policy.Account,
 			policy.RequiredConfirmations, tipHeight, nil)
 		var err error
 		inputDetail, err = sourceImpl.SelectInputs(targetAmount)

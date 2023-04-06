@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/v3/internal/uniformprng"
-	"decred.org/dcrwallet/v3/wallet/txauthor"
 )
 
 var prng *uniformprng.Source
@@ -45,12 +44,4 @@ func shuffle(n int, swap func(i, j int)) {
 		j := prng.Uint32n(uint32(n)-i) + i
 		swap(int(i), int(j))
 	}
-}
-
-func shuffleUTXOs(u *txauthor.InputDetail) {
-	shuffle(len(u.Inputs), func(i, j int) {
-		u.Inputs[i], u.Inputs[j] = u.Inputs[j], u.Inputs[i]
-		u.Scripts[i], u.Scripts[j] = u.Scripts[j], u.Scripts[i]
-		u.RedeemScriptSizes[i], u.RedeemScriptSizes[j] = u.RedeemScriptSizes[j], u.RedeemScriptSizes[i]
-	})
 }

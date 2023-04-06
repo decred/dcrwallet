@@ -80,6 +80,9 @@ type ReadBucket interface {
 	// implementations.
 	Get(key []byte) []byte
 
+	// KeyN returns the number of keys and value pairs inside a bucket.
+	KeyN() int
+
 	ReadCursor() ReadCursor
 }
 

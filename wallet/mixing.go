@@ -14,7 +14,6 @@ import (
 	"decred.org/cspp/v2"
 	"decred.org/cspp/v2/coinjoin"
 	"decred.org/dcrwallet/v3/errors"
-	"decred.org/dcrwallet/v3/wallet/txauthor"
 	"decred.org/dcrwallet/v3/wallet/txrules"
 	"decred.org/dcrwallet/v3/wallet/txsizes"
 	"decred.org/dcrwallet/v3/wallet/udb"
@@ -274,27 +273,17 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	var credits []Input
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		credits, err = w.findEligibleOutputs(dbtx, changeAccount, 1, tipHeight)
+		const minconf = 1
+		const targetAmount = 0
+		var minAmount = splitPoints[len(splitPoints)-1]
+		const maxResults = 32
+		credits, err = w.findEligibleOutputsAmount(dbtx, changeAccount, minconf,
+			targetAmount, tipHeight, minAmount, maxResults)
 		return err
 	})
 	if err != nil {
 		w.lockedOutpointMu.Unlock()
 		return errors.E(op, err)
-	}
-	validCredits := credits[:0]
-	for i := range credits {
-		amount := dcrutil.Amount(credits[i].PrevOut.Value)
-		if amount <= splitPoints[len(splitPoints)-1] {
-			continue
-		}
-		validCredits = append(validCredits, credits[i])
-	}
-	credits = validCredits
-	shuffle(len(credits), func(i, j int) {
-		credits[i], credits[j] = credits[j], credits[i]
-	})
-	if len(credits) > 32 { // simple throttle
-		credits = credits[:32]
 	}
 	w.lockedOutpointMu.Unlock()
 
@@ -320,39 +309,6 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 		return errors.E(op, err)
 	}
 	return nil
-}
-
-// randomInputSource wraps an InputSource to randomly pick UTXOs.
-// This involves reading all UTXOs from the underlying source into memory.
-func randomInputSource(source txauthor.InputSource) txauthor.InputSource {
-	all, err := source(dcrutil.MaxAmount)
-	if err == nil {
-		shuffleUTXOs(all)
-	}
-	var n int
-	var tot dcrutil.Amount
-	return func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
-		if err != nil {
-			return nil, err
-		}
-		if all.Amount <= target {
-			return all, nil
-		}
-		for n < len(all.Inputs) {
-			tot += dcrutil.Amount(all.Inputs[n].ValueIn)
-			n++
-			if tot >= target {
-				break
-			}
-		}
-		selected := &txauthor.InputDetail{
-			Amount:            tot,
-			Inputs:            all.Inputs[:n],
-			Scripts:           all.Scripts[:n],
-			RedeemScriptSizes: all.RedeemScriptSizes[:n],
-		}
-		return selected, nil
-	}
 }
 
 // PossibleCoinJoin tests if a transaction may be a CSPP-mixed transaction.
