@@ -254,36 +254,42 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	splitAccount := cfg.TicketSplitAccount
 	changeAccount := cfg.ChangeAccount
 
-	// Determine how many tickets to buy
-	bal, err := w.AccountBalance(ctx, account, minconf)
-	if err != nil {
-		return err
-	}
-	spendable := bal.Spendable
-
-	if spendable < maintain {
-		log.Debugf("Skipping purchase: low available balance")
-		return nil
-	}
-	spendable -= maintain
 	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tip)
 	if err != nil {
 		return err
 	}
-	buy := int(spendable / sdiff)
-	if buy == 0 {
-		log.Debugf("Skipping purchase: low available balance")
-		return nil
-	}
-	max := int(w.ChainParams().MaxFreshStakePerBlock)
-	if buy > max {
-		buy = max
+
+	// Determine how many tickets to buy
+	var buy int
+	if maintain != 0 {
+		bal, err := w.AccountBalance(ctx, account, minconf)
+		if err != nil {
+			return err
+		}
+		spendable := bal.Spendable
+		if spendable < maintain {
+			log.Debugf("Skipping purchase: low available balance")
+			return nil
+		}
+		spendable -= maintain
+		buy = int(spendable / sdiff)
+		if buy == 0 {
+			log.Debugf("Skipping purchase: low available balance")
+			return nil
+		}
+		max := int(w.ChainParams().MaxFreshStakePerBlock)
+		if buy > max {
+			buy = max
+		}
+	} else {
+		buy = int(w.ChainParams().MaxFreshStakePerBlock)
 	}
 	if limit == 0 && csppServer != "" {
 		buy = 1
 	} else if limit > 0 && buy > limit {
 		buy = limit
 	}
+
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
