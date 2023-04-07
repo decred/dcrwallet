@@ -115,7 +115,7 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if policy.Account != udb.ImportedAddrAccount {
