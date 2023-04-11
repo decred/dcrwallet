@@ -13,7 +13,9 @@ import (
 	"decred.org/dcrwallet/v3/wallet"
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	vspd "github.com/decred/vspd/client/v2"
@@ -27,8 +29,43 @@ type Policy struct {
 	FeeAcct    uint32 // to pay fees from, if inputs are not provided to Process
 }
 
+var _ WalletFetcher = (*wallet.Wallet)(nil)
+
+type WalletFetcher interface {
+	Spender(ctx context.Context, out *wire.OutPoint) (*wire.MsgTx, uint32, error)
+	MainChainTip(ctx context.Context) (hash chainhash.Hash, height int32)
+	ChainParams() *chaincfg.Params
+	TxBlock(ctx context.Context, hash *chainhash.Hash) (chainhash.Hash, int32, error)
+	DumpWIFPrivateKey(ctx context.Context, addr stdaddr.Address) (string, error)
+	VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.Hash) (chainhash.Hash, error)
+	UpdateVspTicketFeeToStarted(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error
+	GetTransactionsByHashes(ctx context.Context, txHashes []*chainhash.Hash) (txs []*wire.MsgTx, notFound []*wire.InvVect, err error)
+	ReserveOutputsForAmount(ctx context.Context, account uint32, amount dcrutil.Amount, minconf int32) ([]wallet.Input, error)
+	UnlockOutpoint(txHash *chainhash.Hash, index uint32)
+	NewChangeAddress(ctx context.Context, account uint32) (stdaddr.Address, error)
+	RelayFee() dcrutil.Amount
+	SignTransaction(ctx context.Context, tx *wire.MsgTx, hashType txscript.SigHashType, additionalPrevScripts map[wire.OutPoint][]byte,
+		additionalKeysByAddress map[string]*dcrutil.WIF, p2shRedeemScriptsByAddress map[string][]byte) ([]wallet.SignatureError, error)
+	SetPublished(ctx context.Context, hash *chainhash.Hash, published bool) error
+	AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *chainhash.Hash) error
+	UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error
+	NetworkBackend() (wallet.NetworkBackend, error)
+	RevokeTickets(ctx context.Context, rpcCaller wallet.Caller) error
+	UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash *chainhash.Hash, host string, pubkey []byte) error
+	AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices []wallet.AgendaChoice, voteBits uint16, err error)
+	TSpendPolicyForTicket(ticketHash *chainhash.Hash) map[string]string
+	TreasuryKeyPolicyForTicket(ticketHash *chainhash.Hash) map[string]string
+	AbandonTransaction(ctx context.Context, hash *chainhash.Hash) error
+	TxConfirms(ctx context.Context, hash *chainhash.Hash) (int32, error)
+	ForUnspentUnexpiredTickets(ctx context.Context, f func(hash *chainhash.Hash) error) error
+	IsVSPTicketConfirmed(ctx context.Context, ticketHash *chainhash.Hash) (bool, error)
+	UpdateVspTicketFeeToConfirmed(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error
+	VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*wallet.VSPTicket, error)
+	SignMessage(ctx context.Context, msg string, addr stdaddr.Address) (sig []byte, err error)
+}
+
 type Client struct {
-	Wallet *wallet.Wallet
+	Wallet WalletFetcher
 	Policy Policy
 	*vspd.Client
 
@@ -47,7 +84,7 @@ type Config struct {
 	Dialer DialFunc
 
 	// Wallet specifies a loaded wallet.
-	Wallet *wallet.Wallet
+	Wallet WalletFetcher
 
 	// Default policy for fee payments unless another is provided by the
 	// caller.
