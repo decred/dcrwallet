@@ -4691,7 +4691,7 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		ticketHash = hash
 	}
 
-	choice := []wallet.AgendaChoice{
+	choice := wallet.AgendaChoices{
 		{
 			AgendaID: cmd.AgendaID,
 			ChoiceID: cmd.ChoiceID,
@@ -4708,7 +4708,8 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 }
 
 func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, ticketHash *chainhash.Hash,
-	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+	choices wallet.AgendaChoices, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+
 	if ticketHash != nil {
 		vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
 		if err != nil {
@@ -4722,7 +4723,7 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		if err != nil {
 			return err
 		}
-		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
+		err = vspClient.SetVoteChoice(ctx, ticketHash, choices.Map(), tspendPolicy, treasuryPolicy)
 		return err
 	}
 	var firstErr error
@@ -4743,7 +4744,7 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		}
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
-		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
+		err = vspClient.SetVoteChoice(ctx, hash, choices.Map(), tspendPolicy, treasuryPolicy)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}

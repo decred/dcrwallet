@@ -398,18 +398,30 @@ type AgendaChoice struct {
 	ChoiceID string
 }
 
+type AgendaChoices []AgendaChoice
+
+// Map returns the agenda choices formatted as map["AgendaID"] = "ChoiceID".
+func (a AgendaChoices) Map() map[string]string {
+	choices := make(map[string]string, len(a))
+
+	for _, c := range a {
+		choices[c.AgendaID] = c.ChoiceID
+	}
+	return choices
+}
+
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
 // version.  Abstains are included.  Returns choice IDs set for the specified
 // non-nil ticket hash, or the default choice IDs if the ticket hash is nil or
 // there are no choices set for the ticket.
-func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices []AgendaChoice, voteBits uint16, err error) {
+func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices AgendaChoices, voteBits uint16, err error) {
 	const op errors.Op = "wallet.AgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		return nil, 0, nil
 	}
 
-	choices = make([]AgendaChoice, len(deployments))
+	choices = make(AgendaChoices, len(deployments))
 	for i := range choices {
 		choices[i].AgendaID = deployments[i].Vote.Id
 		choices[i].ChoiceID = "abstain"

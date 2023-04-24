@@ -3354,7 +3354,7 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
 	}
-	choices := make([]wallet.AgendaChoice, len(req.Choices))
+	choices := make(wallet.AgendaChoices, len(req.Choices))
 	for i, c := range req.Choices {
 		choices[i] = wallet.AgendaChoice{
 			AgendaID: c.AgendaId,
@@ -4312,7 +4312,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 			return err
 		}
 		if ticketHost == vspHost {
-			_ = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
+			_ = vspClient.SetVoteChoice(ctx, hash, choices.Map(), tSpendChoices, treasuryChoices)
 		}
 		return nil
 	})

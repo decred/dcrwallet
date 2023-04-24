@@ -292,7 +292,7 @@ func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx 
 // the connected VSP. The status provides the current voting preferences so we
 // can just update from there if need be.
 func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash,
-	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
 	// Retrieve current voting preferences from VSP.
 	status, err := c.status(ctx, hash)
@@ -309,19 +309,17 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash,
 	update := false
 
 	// Check consensus vote choices.
-	for _, newChoice := range choices {
-		vspChoice, ok := status.VoteChoices[newChoice.AgendaID]
+	for newAgenda, newChoice := range choices {
+		vspChoice, ok := status.VoteChoices[newAgenda]
 		if !ok {
 			update = true
 			break
 		}
-		if vspChoice != newChoice.ChoiceID {
+		if vspChoice != newChoice {
 			update = true
 			break
 		}
 	}
-
-	// Apply the above changes to the two checks below.
 
 	// Check tspend policies.
 	for newTSpend, newChoice := range tspendPolicy {
