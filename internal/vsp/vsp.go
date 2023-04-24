@@ -96,7 +96,7 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 
 // ProcessUnprocessedTickets processes all tickets that don't currently have
 // any association with a VSP.
-func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
+func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 	var wg sync.WaitGroup
 	c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip tickets which have a fee tx already associated with
@@ -151,7 +151,7 @@ func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error 
 // a VSP and begins syncing them in the background.  This is used to recover VSP
 // tracking after seed restores, and is only performed on unspent and unexpired
 // tickets.
-func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
+func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 	err := c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
@@ -200,10 +200,10 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			_ = c.feePayment(ctx, hash, policy, true)
+			_ = c.feePayment(ctx, hash, true)
 		} else {
 			// Fee hasn't been paid at the provided VSP, so this should do that if needed.
-			_ = c.feePayment(ctx, hash, policy, false)
+			_ = c.feePayment(ctx, hash, false)
 		}
 
 		return nil
@@ -220,14 +220,6 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 // error.  The fee transaction is also recorded as unpublised in the wallet, and
 // the fee hash is associated with the ticket.
 func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
-	return c.ProcessWithPolicy(ctx, ticketHash, feeTx, c.Policy)
-}
-
-// ProcessWithPolicy is the same as Process but allows a fee payment policy to
-// be specified, instead of using the client's default policy.
-func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
-	policy Policy) error {
-
 	vspTicket, err := c.wallet.VSPTicketInfo(ctx, ticketHash)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
@@ -241,7 +233,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 	case udb.VSPFeeProcessStarted, udb.VSPFeeProcessErrored:
 		// If VSPTicket has been started or errored then attempt to create a new fee
 		// transaction, submit it then confirm.
-		fp := c.feePayment(ctx, ticketHash, policy, false)
+		fp := c.feePayment(ctx, ticketHash, false)
 		if fp == nil {
 			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
@@ -280,7 +272,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 			// Cannot confirm a paid ticket that is already with another VSP.
 			return fmt.Errorf("ticket already paid or confirmed with another vsp")
 		}
-		fp := c.feePayment(ctx, ticketHash, policy, true)
+		fp := c.feePayment(ctx, ticketHash, true)
 		if fp == nil {
 			// Don't update VSPStatus to Errored if it was already paid or
 			// confirmed.
