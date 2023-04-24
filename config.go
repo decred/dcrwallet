@@ -974,6 +974,25 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 
+	// If either VSP pubkey or URL are specified, validate VSP options.
+	if cfg.VSPOpts.PubKey != "" || cfg.VSPOpts.URL != "" {
+		if cfg.VSPOpts.PubKey == "" {
+			err := errors.New("vsp pubkey can not be null")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+		if cfg.VSPOpts.URL == "" {
+			err := errors.New("vsp URL can not be null")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+		if cfg.VSPOpts.MaxFee.Amount == 0 {
+			err := errors.New("vsp max fee must be greater than zero")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+	}
+
 	// Expand environment variable and leading ~ for filepaths.
 	cfg.CAFile.Value = cleanAndExpandPath(cfg.CAFile.Value)
 	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
