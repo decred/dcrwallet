@@ -29,7 +29,7 @@ type Policy struct {
 
 type Client struct {
 	wallet *wallet.Wallet
-	Policy Policy
+	policy Policy
 	*vspd.Client
 
 	mu   sync.Mutex
@@ -79,7 +79,7 @@ func New(cfg Config) (*Client, error) {
 
 	v := &Client{
 		wallet: cfg.Wallet,
-		Policy: cfg.Policy,
+		policy: cfg.Policy,
 		Client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
 	}
