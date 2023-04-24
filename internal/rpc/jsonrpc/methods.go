@@ -3423,12 +3423,11 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		}
 	}
 
-	var vspHost string
-	var vspPubKey string
 	var vspClient *vsp.Client
 	if s.cfg.VSPHost != "" || s.cfg.VSPPubKey != "" {
-		vspHost = s.cfg.VSPHost
-		vspPubKey = s.cfg.VSPPubKey
+		vspHost := s.cfg.VSPHost
+		vspPubKey := s.cfg.VSPPubKey
+		vspMaxFee := s.cfg.VSPMaxFee
 		if vspPubKey == "" {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"vsp pubkey can not be null")
@@ -3437,13 +3436,17 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"vsp host can not be null")
 		}
+		if vspMaxFee == 0 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"vsp max fee must be greater than zero")
+		}
 		cfg := vsp.Config{
 			URL:    vspHost,
 			PubKey: vspPubKey,
 			Dialer: s.cfg.Dial,
 			Wallet: w,
 			Policy: vsp.Policy{
-				MaxFee:     0.2e8,
+				MaxFee:     vspMaxFee,
 				FeeAcct:    account,
 				ChangeAcct: changeAccount,
 			},

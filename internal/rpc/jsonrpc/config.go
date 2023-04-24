@@ -7,6 +7,8 @@ package jsonrpc
 import (
 	"context"
 	"net"
+
+	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 // Options contains the required options for running the legacy RPC server.
@@ -26,5 +28,6 @@ type Options struct {
 
 	VSPHost   string
 	VSPPubKey string
+	VSPMaxFee dcrutil.Amount
 	Dial      func(ctx context.Context, network, addr string) (net.Conn, error)
 }
