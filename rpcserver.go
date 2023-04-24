@@ -25,6 +25,7 @@ import (
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/internal/cfgutil"
 	"decred.org/dcrwallet/v3/internal/loader"
+	"decred.org/dcrwallet/v3/internal/loggers"
 	"decred.org/dcrwallet/v3/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/v3/internal/rpc/rpcserver"
 
@@ -401,7 +402,7 @@ func serviceName(method string) string {
 func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	p, ok := peer.FromContext(ss.Context())
 	if ok {
-		grpcLog.Debugf("Streaming method %s invoked by %s", info.FullMethod,
+		loggers.GrpcLog.Debugf("Streaming method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
 	}
 	err := rpcserver.ServiceReady(serviceName(info.FullMethod))
@@ -410,12 +411,12 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 	}
 	err = handler(srv, ss)
 	if err != nil && ok {
-		logf := grpcLog.Errorf
+		logf := loggers.GrpcLog.Errorf
 		if status.Code(err) == codes.Canceled && done(ss.Context()) {
 			// Canceled contexts in streaming calls are expected
 			// when client-initiated, so only log them with debug
 			// level to reduce clutter.
-			logf = grpcLog.Debugf
+			logf = loggers.GrpcLog.Debugf
 		}
 
 		logf("Streaming method %s invoked by %s errored: %v",
@@ -427,7 +428,7 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
-		grpcLog.Debugf("Unary method %s invoked by %s", info.FullMethod,
+		loggers.GrpcLog.Debugf("Unary method %s invoked by %s", info.FullMethod,
 			p.Addr.String())
 	}
 	err = rpcserver.ServiceReady(serviceName(info.FullMethod))
@@ -436,7 +437,7 @@ func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServer
 	}
 	resp, err = handler(ctx, req)
 	if err != nil && ok {
-		grpcLog.Errorf("Unary method %s invoked by %s errored: %v",
+		loggers.GrpcLog.Errorf("Unary method %s invoked by %s errored: %v",
 			info.FullMethod, p.Addr.String(), err)
 	}
 	return resp, err

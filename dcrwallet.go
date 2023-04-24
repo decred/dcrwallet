@@ -21,6 +21,7 @@ import (
 	"decred.org/dcrwallet/v3/chain"
 	"decred.org/dcrwallet/v3/errors"
 	ldr "decred.org/dcrwallet/v3/internal/loader"
+	"decred.org/dcrwallet/v3/internal/loggers"
 	"decred.org/dcrwallet/v3/internal/prompt"
 	"decred.org/dcrwallet/v3/internal/rpc/rpcserver"
 	"decred.org/dcrwallet/v3/internal/vsp"
@@ -83,11 +84,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	cfg = tcfg
-	defer func() {
-		if logRotator != nil {
-			logRotator.Close()
-		}
-	}()
+	defer loggers.CloseLogRotator()
 
 	// Show version at startup.
 	log.Infof("Version %s (Go version %s %s/%s)", version.String(), runtime.Version(),
@@ -575,7 +572,7 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 		})
 		err := syncer.Run(ctx)
 		if err != nil {
-			syncLog.Errorf("Wallet synchronization stopped: %v", err)
+			loggers.SyncLog.Errorf("Wallet synchronization stopped: %v", err)
 			select {
 			case <-ctx.Done():
 				return

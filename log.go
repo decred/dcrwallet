@@ -6,12 +6,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"decred.org/dcrwallet/v3/chain"
 	"decred.org/dcrwallet/v3/internal/loader"
+	"decred.org/dcrwallet/v3/internal/loggers"
 	"decred.org/dcrwallet/v3/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/v3/internal/rpc/rpcserver"
 	"decred.org/dcrwallet/v3/internal/vsp"
@@ -22,98 +21,36 @@ import (
 	"decred.org/dcrwallet/v3/wallet/udb"
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/slog"
-	"github.com/jrick/logrotate/rotator"
 )
 
-// logWriter implements an io.Writer that outputs to both standard output and
-// the write-end pipe of an initialized log rotator.
-type logWriter struct{}
-
-func (logWriter) Write(p []byte) (n int, err error) {
-	os.Stdout.Write(p)
-	if logRotator != nil {
-		logRotator.Write(p)
-	}
-	return len(p), nil
-}
-
-// Loggers per subsystem.  A single backend logger is created and all subsytem
-// loggers created from it will write to the backend.  When adding new
-// subsystems, add the subsystem logger variable here and to the
-// subsystemLoggers map.
-//
-// Loggers can not be used before the log rotator has been initialized with a
-// log file.  This must be performed early during application startup by calling
-// initLogRotator.
-var (
-	// backendLog is the logging backend used to create all subsystem loggers.
-	// The backend must not be used before the log rotator has been initialized,
-	// or data races and/or nil pointer dereferences will occur.
-	backendLog = slog.NewBackend(logWriter{})
-
-	// logRotator is one of the logging outputs.  It should be closed on
-	// application shutdown.
-	logRotator *rotator.Rotator
-
-	log        = backendLog.Logger("DCRW")
-	loaderLog  = backendLog.Logger("LODR")
-	walletLog  = backendLog.Logger("WLLT")
-	tkbyLog    = backendLog.Logger("TKBY")
-	syncLog    = backendLog.Logger("SYNC")
-	grpcLog    = backendLog.Logger("GRPC")
-	jsonrpcLog = backendLog.Logger("RPCS")
-	cmgrLog    = backendLog.Logger("CMGR")
-	vspcLog    = backendLog.Logger("VSPC")
-)
+var log = loggers.MainLog
 
 // Initialize package-global logger variables.
 func init() {
-	loader.UseLogger(loaderLog)
-	wallet.UseLogger(walletLog)
-	udb.UseLogger(walletLog)
-	ticketbuyer.UseLogger(tkbyLog)
-	chain.UseLogger(syncLog)
-	spv.UseLogger(syncLog)
-	p2p.UseLogger(syncLog)
-	rpcserver.UseLogger(grpcLog)
-	jsonrpc.UseLogger(jsonrpcLog)
-	connmgr.UseLogger(cmgrLog)
-	vsp.UseLogger(vspcLog)
+	loader.UseLogger(loggers.LoaderLog)
+	wallet.UseLogger(loggers.WalletLog)
+	udb.UseLogger(loggers.WalletLog)
+	ticketbuyer.UseLogger(loggers.TkbyLog)
+	chain.UseLogger(loggers.SyncLog)
+	spv.UseLogger(loggers.SyncLog)
+	p2p.UseLogger(loggers.SyncLog)
+	rpcserver.UseLogger(loggers.GrpcLog)
+	jsonrpc.UseLogger(loggers.JsonrpcLog)
+	connmgr.UseLogger(loggers.CmgrLog)
+	vsp.UseLogger(loggers.VspcLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.
 var subsystemLoggers = map[string]slog.Logger{
-	"DCRW": log,
-	"LODR": loaderLog,
-	"WLLT": walletLog,
-	"TKBY": tkbyLog,
-	"SYNC": syncLog,
-	"GRPC": grpcLog,
-	"RPCS": jsonrpcLog,
-	"CMGR": cmgrLog,
-	"VSPC": vspcLog,
-}
-
-// initLogRotator initializes the logging rotater to write logs to logFile and
-// create roll files in the same directory.  logSize is the size in KiB after
-// which a log file will be rotated and compressed.
-//
-// This function must be called before the package-global log rotater variables
-// are used.
-func initLogRotator(logFile string, logSize int64) {
-	logDir, _ := filepath.Split(logFile)
-	err := os.MkdirAll(logDir, 0700)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create log directory: %v\n", err)
-		os.Exit(1)
-	}
-	r, err := rotator.New(logFile, logSize, false, 0)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create file rotator: %v\n", err)
-		os.Exit(1)
-	}
-
-	logRotator = r
+	"DCRW": loggers.MainLog,
+	"LODR": loggers.LoaderLog,
+	"WLLT": loggers.WalletLog,
+	"TKBY": loggers.TkbyLog,
+	"SYNC": loggers.SyncLog,
+	"GRPC": loggers.GrpcLog,
+	"RPCS": loggers.JsonrpcLog,
+	"CMGR": loggers.CmgrLog,
+	"VSPC": loggers.VspcLog,
 }
 
 // setLogLevel sets the logging level for provided subsystem.  Invalid
@@ -147,6 +84,6 @@ func setLogLevels(logLevel string) {
 func fatalf(format string, args ...interface{}) {
 	log.Errorf(format, args...)
 	os.Stdout.Sync()
-	logRotator.Close()
+	loggers.CloseLogRotator()
 	os.Exit(1)
 }

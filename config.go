@@ -21,6 +21,7 @@ import (
 
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/internal/cfgutil"
+	"decred.org/dcrwallet/v3/internal/loggers"
 	"decred.org/dcrwallet/v3/internal/netparams"
 	"decred.org/dcrwallet/v3/version"
 	"decred.org/dcrwallet/v3/wallet"
@@ -518,7 +519,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 		// Initialize log rotation.  After log rotation has been initialized, the
 		// logger variables may be used.
-		initLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename), logsize)
+		loggers.InitLogRotator(filepath.Join(cfg.LogDir.Value, defaultLogFilename), logsize)
 	}
 
 	// Special show command to list supported subsystems and exit.
