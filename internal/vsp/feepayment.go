@@ -215,7 +215,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pai
 		client:     c,
 		ctx:        ctx,
 		ticketHash: *ticketHash,
-		policy:     c.Policy,
+		policy:     c.policy,
 	}
 
 	// No VSP interaction is required for spent tickets.
