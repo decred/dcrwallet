@@ -629,7 +629,7 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*types
 }
 
 func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
-	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 	w := c.wallet
 	params := w.ChainParams()
 
@@ -651,17 +651,10 @@ func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
 			ticketHash, err)
 	}
 
-	agendaChoices := make(map[string]string, len(choices))
-
-	// Prepare agenda choice
-	for _, c := range choices {
-		agendaChoices[c.AgendaID] = c.ChoiceID
-	}
-
 	req := types.SetVoteChoicesRequest{
 		Timestamp:      time.Now().Unix(),
 		TicketHash:     ticketHash.String(),
-		VoteChoices:    agendaChoices,
+		VoteChoices:    choices,
 		TSpendPolicy:   tspendPolicy,
 		TreasuryPolicy: treasuryPolicy,
 	}
