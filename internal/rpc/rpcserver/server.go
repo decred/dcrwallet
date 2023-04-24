@@ -4153,7 +4153,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	// process tickets fee if needed.
 	for _, ticketHash := range failedTicketsFee {
 		feeTx := new(wire.MsgTx)
-		err := vspClient.ProcessWithPolicy(ctx, &ticketHash, feeTx, policy)
+		err := vspClient.Process(ctx, &ticketHash, feeTx)
 		if err != nil {
 			// if it fails to process again, we log it and continue with
 			// the wallet start.
@@ -4191,7 +4191,7 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
 
-	err = vspClient.ProcessManagedTickets(ctx, policy)
+	err = vspClient.ProcessManagedTickets(ctx)
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "ProcessManagedTickets failed. Error: %v", err)
 	}
@@ -4236,7 +4236,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		return nil
 	})
 	if errors.Is(err, errUnmanagedTickets) {
-		vspClient.ProcessUnprocessedTickets(ctx, policy)
+		vspClient.ProcessUnprocessedTickets(ctx)
 	}
 
 	return &pb.ProcessUnmanagedTicketsResponse{}, nil

@@ -180,7 +180,7 @@ func (fp *feePayment) remove(reason string) {
 
 // feePayment returns an existing managed fee payment, or creates and begins
 // processing a fee payment for a ticket.
-func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, policy Policy, paidConfirmed bool) (fp *feePayment) {
+func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, paidConfirmed bool) (fp *feePayment) {
 	c.mu.Lock()
 	fp = c.jobs[*ticketHash]
 	c.mu.Unlock()
@@ -215,7 +215,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pol
 		client:     c,
 		ctx:        ctx,
 		ticketHash: *ticketHash,
-		policy:     policy,
+		policy:     c.Policy,
 	}
 
 	// No VSP interaction is required for spent tickets.

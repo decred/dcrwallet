@@ -432,7 +432,7 @@ func run(ctx context.Context) error {
 
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
 			if vspClient != nil && cfg.VSPOpts.Sync {
-				vspClient.ProcessManagedTickets(ctx, vspClient.Policy)
+				vspClient.ProcessManagedTickets(ctx)
 			}
 
 			if cfg.SPV {
