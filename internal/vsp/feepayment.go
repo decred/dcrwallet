@@ -138,13 +138,13 @@ func parseTicket(ticket *wire.MsgTx, params *chaincfg.Params) (
 func (fp *feePayment) ticketSpent() bool {
 	ctx := fp.ctx
 	ticketOut := wire.OutPoint{Hash: fp.ticketHash, Index: 0, Tree: 1}
-	_, _, err := fp.client.Wallet.Spender(ctx, &ticketOut)
+	_, _, err := fp.client.wallet.Spender(ctx, &ticketOut)
 	return err == nil
 }
 
 func (fp *feePayment) ticketExpired() bool {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 	_, tipHeight := w.MainChainTip(ctx)
 
 	fp.mu.Lock()
@@ -208,7 +208,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pol
 		}
 	}()
 
-	w := c.Wallet
+	w := c.wallet
 	params := w.ChainParams()
 
 	fp = &feePayment{
@@ -293,7 +293,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pol
 }
 
 func (c *Client) tx(ctx context.Context, hash *chainhash.Hash) (*wire.MsgTx, error) {
-	txs, _, err := c.Wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
+	txs, _, err := c.wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func (fp *feePayment) schedule(name string, method func() error) {
 }
 
 func (fp *feePayment) next() time.Duration {
-	w := fp.client.Wallet
+	w := fp.client.wallet
 	params := w.ChainParams()
 	_, tipHeight := w.MainChainTip(fp.ctx)
 
@@ -368,7 +368,7 @@ func (fp *feePayment) stop() {
 
 func (fp *feePayment) receiveFeeAddress() error {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 	params := w.ChainParams()
 
 	// stop processing if ticket is expired or spent
@@ -441,7 +441,7 @@ func (fp *feePayment) receiveFeeAddress() error {
 // be dereferenced.
 func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 
 	fp.mu.Lock()
 	fee := fp.fee
@@ -594,7 +594,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 }
 
 func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*types.TicketStatusResponse, error) {
-	w := c.Wallet
+	w := c.wallet
 	params := w.ChainParams()
 
 	ticketTx, err := c.tx(ctx, ticketHash)
@@ -630,7 +630,7 @@ func (c *Client) status(ctx context.Context, ticketHash *chainhash.Hash) (*types
 
 func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
 	choices []wallet.AgendaChoice, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
-	w := c.Wallet
+	w := c.wallet
 	params := w.ChainParams()
 
 	ticketTx, err := c.tx(ctx, ticketHash)
@@ -678,7 +678,7 @@ func (c *Client) setVoteChoices(ctx context.Context, ticketHash *chainhash.Hash,
 
 func (fp *feePayment) reconcilePayment() error {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 
 	// stop processing if ticket is expired or spent
 	// XXX if ticket is no longer saved by wallet (because the tx expired,
@@ -788,7 +788,7 @@ func (fp *feePayment) reconcilePayment() error {
 
 func (fp *feePayment) submitPayment() (err error) {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 
 	// stop processing if ticket is expired or spent
 	if fp.removedExpiredOrSpent() {
@@ -869,7 +869,7 @@ func (fp *feePayment) submitPayment() (err error) {
 
 func (fp *feePayment) confirmPayment() (err error) {
 	ctx := fp.ctx
-	w := fp.client.Wallet
+	w := fp.client.wallet
 
 	// stop processing if ticket is expired or spent
 	if fp.removedExpiredOrSpent() {

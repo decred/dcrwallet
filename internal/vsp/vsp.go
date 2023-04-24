@@ -28,7 +28,7 @@ type Policy struct {
 }
 
 type Client struct {
-	Wallet *wallet.Wallet
+	wallet *wallet.Wallet
 	Policy Policy
 	*vspd.Client
 
@@ -78,7 +78,7 @@ func New(cfg Config) (*Client, error) {
 	}
 
 	v := &Client{
-		Wallet: cfg.Wallet,
+		wallet: cfg.Wallet,
 		Policy: cfg.Policy,
 		Client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
@@ -98,14 +98,14 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 // any association with a VSP.
 func (c *Client) ProcessUnprocessedTickets(ctx context.Context, policy Policy) {
 	var wg sync.WaitGroup
-	c.Wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip tickets which have a fee tx already associated with
 		// them; they are already processed by some vsp.
-		_, err := c.Wallet.VSPFeeHashForTicket(ctx, hash)
+		_, err := c.wallet.VSPFeeHashForTicket(ctx, hash)
 		if err == nil {
 			return nil
 		}
-		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
 		if err != nil && !errors.Is(err, errors.NotExist) {
 			log.Error(err)
 			return nil
@@ -152,9 +152,9 @@ func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error 
 // tracking after seed restores, and is only performed on unspent and unexpired
 // tickets.
 func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error {
-	err := c.Wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+	err := c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
-		confirmed, err := c.Wallet.IsVSPTicketConfirmed(ctx, hash)
+		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
 		if err != nil && !errors.Is(err, errors.NotExist) {
 			log.Error(err)
 			return nil
@@ -186,7 +186,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
+			err = c.wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -196,7 +196,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, policy Policy) error
 			if err != nil {
 				return err
 			}
-			err = c.Wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
+			err = c.wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -228,7 +228,7 @@ func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx 
 func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx,
 	policy Policy) error {
 
-	vspTicket, err := c.Wallet.VSPTicketInfo(ctx, ticketHash)
+	vspTicket, err := c.wallet.VSPTicketInfo(ctx, ticketHash)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
 	}
@@ -243,7 +243,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		// transaction, submit it then confirm.
 		fp := c.feePayment(ctx, ticketHash, policy, false)
 		if fp == nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -256,7 +256,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		fp.mu.Unlock()
 		err := fp.receiveFeeAddress()
 		if err != nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -267,7 +267,7 @@ func (c *Client) ProcessWithPolicy(ctx context.Context, ticketHash *chainhash.Ha
 		}
 		err = fp.makeFeeTx(feeTx)
 		if err != nil {
-			err := c.Wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
