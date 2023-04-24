@@ -849,7 +849,9 @@ func (fp *feePayment) submitPayment() (err error) {
 			if err != nil {
 				log.Errorf("error abandoning expired fee tx %v", err)
 			}
+			fp.mu.Lock()
 			fp.feeTx = nil
+			fp.mu.Unlock()
 		}
 		return fmt.Errorf("payfee: %w", err)
 	}
@@ -922,7 +924,10 @@ func (fp *feePayment) confirmPayment() (err error) {
 	case "confirmed":
 		fp.remove("confirmed by VSP")
 		// nothing scheduled
-		err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &fp.feeHash, fp.client.URL, fp.client.PubKey)
+		fp.mu.Lock()
+		feeHash := fp.feeHash
+		fp.mu.Unlock()
+		err = w.UpdateVspTicketFeeToConfirmed(ctx, &fp.ticketHash, &feeHash, fp.client.URL, fp.client.PubKey)
 		if err != nil {
 			return err
 		}

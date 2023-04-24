@@ -386,7 +386,7 @@ func (c *Client) TrackedTickets() []*TicketInfo {
 	}
 	c.mu.Unlock()
 
-	tickets := make([]*TicketInfo, 0, len(c.jobs))
+	tickets := make([]*TicketInfo, 0, len(jobs))
 	for _, job := range jobs {
 		job.mu.Lock()
 		tickets = append(tickets, &TicketInfo{
