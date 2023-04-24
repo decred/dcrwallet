@@ -57,6 +57,7 @@ const (
 	defaultDisableCoinTypeUpgrades = false
 	defaultCircuitLimit            = 32
 	defaultMixSplitLimit           = 10
+	defaultVSPMaxFee               = dcrutil.Amount(0.2e8)
 
 	// ticket buyer options
 	defaultBalanceToMaintainAbsolute = 0
@@ -378,7 +379,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		},
 
 		VSPOpts: vspOptions{
-			MaxFee: cfgutil.NewAmountFlag(0.2e8),
+			MaxFee: cfgutil.NewAmountFlag(defaultVSPMaxFee),
 		},
 	}
 
