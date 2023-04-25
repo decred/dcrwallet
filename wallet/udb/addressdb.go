@@ -1773,7 +1773,7 @@ func upgradeManager(ns walletdb.ReadWriteBucket) error {
 
 	// Ensure the manager version is equal to the version used by the code.
 	// This causes failures if the database was not upgraded to the latest
-	// version or the there is a newer version that this code does not
+	// version or if there is a newer version that this code does not
 	// understand.
 	if version != latestMgrVersion {
 		return errors.E(errors.Invalid, errors.Errorf("incompatible address manager version %d", version))
