@@ -11,7 +11,6 @@ import (
 
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/internal/uniformprng"
-	"decred.org/dcrwallet/v3/rpc/client/dcrd"
 	"decred.org/dcrwallet/v3/wallet"
 	"decred.org/dcrwallet/v3/wallet/txrules"
 	"decred.org/dcrwallet/v3/wallet/txsizes"
@@ -695,19 +694,6 @@ func (fp *feePayment) reconcilePayment() error {
 			var apiErr types.ErrorResponse
 			if errors.As(err, &apiErr) && apiErr.Code == types.ErrTicketCannotVote {
 				fp.remove("ticket cannot vote")
-				// Attempt to Revoke Tickets, we're not returning any errors here
-				// and just logging.
-				n, err := w.NetworkBackend()
-				if err != nil {
-					log.Errorf("unable to get network backend for revoking tickets %v", err)
-				} else {
-					if rpc, ok := n.(*dcrd.RPC); ok {
-						err := w.RevokeTickets(ctx, rpc)
-						if err != nil {
-							log.Errorf("cannot revoke vsp tickets %v", err)
-						}
-					}
-				}
 			}
 			return err
 		}
