@@ -482,7 +482,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	}
 
 	// Reserve new outputs to pay the fee if outputs have not already been
-	// reserved.  This will the the case for fee payments that were begun on
+	// reserved.  This will be the case for fee payments that were begun on
 	// already purchased tickets, where the caller did not ensure that fee
 	// outputs would already be reserved.
 	if len(tx.TxIn) == 0 {

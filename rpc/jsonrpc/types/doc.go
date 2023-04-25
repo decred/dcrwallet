@@ -6,7 +6,7 @@
 Package types implements concrete types for the dcrwallet JSON-RPC API.
 
 When communicating via the JSON-RPC protocol, all of the commands need to be
-marshalled to and from the the wire in the appropriate format.  This package
+marshalled to and from the wire in the appropriate format.  This package
 provides data structures and primitives that are registered with dcrjson to ease
 this process.  An overview specific to this package is provided here, however it
 is also instructive to read the documentation for the dcrjson package

@@ -141,7 +141,7 @@ func (sk *SecretKey) deriveKey(op errors.Op, password *[]byte) error {
 func (sk *SecretKey) Marshal() []byte {
 	params := &sk.Parameters
 
-	// The marshalled format for the the params is as follows:
+	// The marshalled format for the params is as follows:
 	//   <salt><digest><N><R><P>
 	//
 	// KeySize + sha256.Size + N (8 bytes) + R (8 bytes) + P (8 bytes)
@@ -169,7 +169,7 @@ func (sk *SecretKey) Unmarshal(marshalled []byte) error {
 		sk.Key = (*CryptoKey)(&[KeySize]byte{})
 	}
 
-	// The marshalled format for the the params is as follows:
+	// The marshalled format for the params is as follows:
 	//   <salt><digest><N><R><P>
 	//
 	// KeySize + sha256.Size + N (8 bytes) + R (8 bytes) + P (8 bytes)

@@ -1118,8 +1118,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			passHash = passHasher.Sum(nil)
 		}
 
-		// Save the new keys and params to the the db in a single
-		// transaction.
+		// Save the new keys and params to the db in a single transaction.
 		err = putCryptoKeys(ns, nil, encPriv)
 		if err != nil {
 			return err
@@ -1145,8 +1144,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 			return errors.E(errors.Crypto, errors.Errorf("encrypt crypto pubkey: %v", err))
 		}
 
-		// Save the new keys and params to the the db in a single
-		// transaction.
+		// Save the new keys and params to the db in a single transaction.
 		err = putCryptoKeys(ns, encryptedPub, nil)
 		if err != nil {
 			return err
@@ -1203,10 +1201,10 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 		m.lock()
 	}
 
-	// This section clears and removes the encrypted private key material
-	// that is ordinarily used to unlock the manager.  Since the the manager
-	// is being converted to watching-only, the encrypted private key
-	// material is no longer needed.
+	// This section clears and removes the encrypted private key material that
+	// is ordinarily used to unlock the manager.  Since the manager is being
+	// converted to watching-only, the encrypted private key material is no
+	// longer needed.
 
 	// Clear and remove all of the encrypted acount private keys.
 	for _, acctInfo := range m.acctInfo {

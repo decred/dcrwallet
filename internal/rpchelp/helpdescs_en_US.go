@@ -95,7 +95,7 @@ var helpDescsEnUS = map[string]string{
 	"createsignature-serializedtransaction": "The hex encoded transaction to add input signatures to.",
 	"createsignature-inputindex":            "The index of the transaction input to sign.",
 	"createsignature-hashtype":              "The signature hash flags to use.",
-	"createsignature-previouspkscript":      "The the hex encoded previous output script or P2SH redeem script.",
+	"createsignature-previouspkscript":      "The hex encoded previous output script or P2SH redeem script.",
 
 	// DisapprovePercentCmd help.
 	"disapprovepercent--synopsis": "Returns the wallet's current block disapprove percent per vote. i.e. 100 means that all votes disapprove the block they are called on. Only used for testing purposes.",
@@ -926,7 +926,7 @@ var helpDescsEnUS = map[string]string{
 	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
 
 	// TransactionInput help.
-	"transactioninput-amount": "The the previous output amount",
+	"transactioninput-amount": "The previous output amount",
 	"transactioninput-txid":   "The transaction hash of the referenced output",
 	"transactioninput-vout":   "The output index of the referenced output",
 	"transactioninput-tree":   "The tree to generate transaction for",
