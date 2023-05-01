@@ -6,11 +6,11 @@ require (
 	decred.org/cspp/v2 v2.0.0
 	github.com/decred/dcrd/addrmgr/v2 v2.0.1
 	github.com/decred/dcrd/blockchain/stake/v5 v5.0.0
-	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0
+	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.1-0.20230430213532-f95870f9c6af
 	github.com/decred/dcrd/blockchain/v5 v5.0.0-20221022042529-0a0cc3b3bf92
 	github.com/decred/dcrd/certgen v1.1.1
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
-	github.com/decred/dcrd/chaincfg/v3 v3.1.1
+	github.com/decred/dcrd/chaincfg/v3 v3.1.2-0.20230412145739-9aa79ec168f6
 	github.com/decred/dcrd/connmgr/v3 v3.1.0
 	github.com/decred/dcrd/crypto/blake256 v1.0.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.1

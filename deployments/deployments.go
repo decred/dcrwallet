@@ -74,8 +74,8 @@ func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 }
 
 const (
-	lockedinStatus = "lockedin"
-	activeStatus   = "active"
+	lockedinStatus = dcrdtypes.AgendaInfoStatusLockedIn
+	activeStatus   = dcrdtypes.AgendaInfoStatusActive
 )
 
 // DCP0010Active returns whether the consensus rules for the next block with the
@@ -104,6 +104,42 @@ func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
 		return false, err
 	}
 	d, ok := resp.Deployments[chaincfg.VoteIDChangeSubsidySplit]
+	if !ok {
+		return false, nil
+	}
+	switch {
+	case d.Status == lockedinStatus && height == int32(d.Since)+rcai-1:
+		return true, nil
+	case d.Status == activeStatus:
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// DCP0012Active returns whether the consensus rules for the next block with the
+// current chain tip height requires the version 2 subsidy split as specified in
+// DCP0012.  DCP0012 requires the RPC syncer to detect activation on mainnet,
+// testnet3 and simnet.
+func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
+	syncer interface{}) (bool, error) {
+
+	net := params.Net
+	rcai := int32(params.RuleChangeActivationInterval)
+
+	if net != wire.MainNet && net != wire.TestNet3 && net != wire.SimNet {
+		return false, nil
+	}
+	rpc, ok := syncer.(*dcrd.RPC)
+	if !ok {
+		return false, errors.E(errors.Bug, "DCP0012 activation check requires RPC syncer")
+	}
+	var resp dcrdtypes.GetBlockChainInfoResult
+	err := rpc.Call(ctx, "getblockchaininfo", &resp)
+	if err != nil {
+		return false, err
+	}
+	d, ok := resp.Deployments[chaincfg.VoteIDChangeSubsidySplitR2]
 	if !ok {
 		return false, nil
 	}

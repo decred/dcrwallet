@@ -28,8 +28,8 @@ github.com/decred/dcrd/addrmgr/v2 v2.0.1 h1:o+AetOWZcSa2j2uVRf0gHvTSCmt4jMviKKpX
 github.com/decred/dcrd/addrmgr/v2 v2.0.1/go.mod h1:HcDrmMGqo2ilwjMi73YLwJQScv8djDPHgTV8kON8Wx4=
 github.com/decred/dcrd/blockchain/stake/v5 v5.0.0-20221022042529-0a0cc3b3bf92 h1:GTIg6r54cgNhUyZMNmTsmxM8OneEJ8t6QcWQCqu+al0=
 github.com/decred/dcrd/blockchain/stake/v5 v5.0.0-20221022042529-0a0cc3b3bf92/go.mod h1:fij5xS9IBfJ5e/F5ytp/g/TWjrETEMXUFlE6C7KYOvA=
-github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0 h1:aXh7a+86p+H65MGy0QKu4Juf3/j+Y5koVSyVYFMdqP0=
-github.com/decred/dcrd/blockchain/standalone/v2 v2.1.0/go.mod h1:t2qaZ3hNnxHZ5kzVJDgW5sp47/8T5hYJt7SR+/JtRhI=
+github.com/decred/dcrd/blockchain/standalone/v2 v2.1.1-0.20230430213532-f95870f9c6af h1:tmfTIkxkq7NdeLj3mrMk0uEdRyU1/oO1MWx8dfwOmm8=
+github.com/decred/dcrd/blockchain/standalone/v2 v2.1.1-0.20230430213532-f95870f9c6af/go.mod h1:PpM/jdMaD5MnBcSoFd+rJZE4q8tU0xPTTAyVzgegLQI=
 github.com/decred/dcrd/blockchain/v5 v5.0.0-20221022042529-0a0cc3b3bf92 h1:AYgHfuWXQh5NTv3mciQleTm2K1IuM7ozgfXy1Vg6V7k=
 github.com/decred/dcrd/blockchain/v5 v5.0.0-20221022042529-0a0cc3b3bf92/go.mod h1:RTUDExWsbCsPBRdLeK/Zix/Go87jG/3BfmEWy3xbCaI=
 github.com/decred/dcrd/certgen v1.1.1 h1:MYPG5jCysnbF4OiJ1++YumFEu2p/MsM/zxmmqC9mVFg=
@@ -39,8 +39,9 @@ github.com/decred/dcrd/chaincfg/chainhash v1.0.3/go.mod h1:BpbrGgrPTr3YJYRN3Bm+D
 github.com/decred/dcrd/chaincfg/chainhash v1.0.4 h1:zRCv6tdncLfLTKYqu7hrXvs7hW+8FO/NvwoFvGsrluU=
 github.com/decred/dcrd/chaincfg/chainhash v1.0.4/go.mod h1:hA86XxlBWwHivMvxzXTSD0ZCG/LoYsFdWnCekkTMCqY=
 github.com/decred/dcrd/chaincfg/v3 v3.1.0/go.mod h1:4XF9nlx2NeGD4xzw1+L0DGICZMl0a5rKV8nnuHLgk8o=
-github.com/decred/dcrd/chaincfg/v3 v3.1.1 h1:Ki8kq5IXGmjriiQyPCrCTF1aZSBiORb91/Sr5xW4otw=
 github.com/decred/dcrd/chaincfg/v3 v3.1.1/go.mod h1:4XF9nlx2NeGD4xzw1+L0DGICZMl0a5rKV8nnuHLgk8o=
+github.com/decred/dcrd/chaincfg/v3 v3.1.2-0.20230412145739-9aa79ec168f6 h1:rKAzrv3gIEQaEQpnWU4IKxXrvx6QfXkdiOUKLvwEpQw=
+github.com/decred/dcrd/chaincfg/v3 v3.1.2-0.20230412145739-9aa79ec168f6/go.mod h1:aEEti0kQSBFAlzHln4FB+3L30k9ZN1M7YDfYuK5VWtc=
 github.com/decred/dcrd/connmgr/v3 v3.1.0 h1:M197w+xsZQ8CVidigrchoab31wWRUlZhudQDDlq7/Gk=
 github.com/decred/dcrd/connmgr/v3 v3.1.0/go.mod h1:NVzQpMSu87fzwEgYmoz+xfVHI6un4+xMkvcMoDjdaRs=
 github.com/decred/dcrd/crypto/blake256 v1.0.0/go.mod h1:sQl2p6Y26YV+ZOcSTP6thNdn47hh8kt6rqSlvmrXFAc=

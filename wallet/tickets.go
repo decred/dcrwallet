@@ -30,6 +30,7 @@ func (w *Wallet) GenerateVoteTx(ctx context.Context, blockHash *chainhash.Hash, 
 
 	var vote *wire.MsgTx
 	const dcp0010Active = false
+	const dcp0012Active = false
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -39,7 +40,7 @@ func (w *Wallet) GenerateVoteTx(ctx context.Context, blockHash *chainhash.Hash, 
 		}
 		vote, err = createUnsignedVote(ticketHash, ticketPurchase,
 			height, blockHash, voteBits, w.subsidyCache, w.chainParams,
-			dcp0010Active)
+			dcp0010Active, dcp0012Active)
 		if err != nil {
 			return errors.E(op, err)
 		}
