@@ -523,6 +523,7 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
 	amgr := addrmgr.New(amgrDir, cfg.lookup)
 	lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
+	lp.SetDialFunc(cfg.dial)
 	syncer := spv.NewSyncer(w, lp)
 	if len(cfg.SPVConnect) > 0 {
 		syncer.SetPersistentPeers(cfg.SPVConnect)
