@@ -88,40 +88,6 @@ func (r *RPC) ExistsLiveTicket(ctx context.Context, ticket *chainhash.Hash) (boo
 	return exists, err
 }
 
-// ExistsLiveExpiredTickets returns bitsets identifying whether each ticket is
-// currently live or expired.  Following the activation of DCP0009, this method
-// will never return any expired tickets.
-//
-// Deprecated: Use ExistsLiveTickets instead.
-func (r *RPC) ExistsLiveExpiredTickets(ctx context.Context, tickets []*chainhash.Hash) (live, _ bitset.Bytes, err error) {
-	const op errors.Op = "dcrd.ExistsLiveExpiredTickets"
-	// Reuse the single json.RawMessage for both calls
-	ticketArray, err := json.Marshal(hashSliceToStrings(tickets))
-	if err != nil {
-		return nil, nil, err
-	}
-	errs := make(chan error, 1)
-	go func() { errs <- exists(ctx, r, "existslivetickets", &live, ticketArray) }()
-	for i := 0; i < cap(errs); i++ {
-		if e := <-errs; err == nil && e != nil {
-			// Must only return after all exists calls are
-			// known to be completed to avoid a data race on the
-			// return values.  Set the final error to return, and
-			// only return after all errors have been read.
-			err = errors.E(op, e)
-		}
-	}
-	return
-}
-
-// ExistsExpiredMissedTckets no longer performs any RPC as there should never be
-// unspent expired or missed tickets after the activation of DCP0009.
-//
-// Deprecated: this method will be removed in the next major version.
-func (r *RPC) ExistsExpiredMissedTickets(ctx context.Context, tickets []*chainhash.Hash) (_, _ bitset.Bytes, _ error) {
-	return
-}
-
 // UsedAddresses returns a bitset identifying whether each address has been
 // publically used on the blockchain.  This feature requires the optional dcrd
 // existsaddress index to be enabled.

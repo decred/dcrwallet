@@ -65,45 +65,6 @@ func RelevantTxAccepted(params json.RawMessage) (tx *wire.MsgTx, err error) {
 	return
 }
 
-// MissedTickets extracts the missed ticket hashes from the parameters of a
-// spentandmissedtickets JSON-RPC notification.
-//
-// Deprecated: The missedtickets notification was removed from dcrd and this
-// function will be removed in the next major version.
-func MissedTickets(params json.RawMessage) (missed []*chainhash.Hash, err error) {
-	// Parameters (array):
-	// 0: Block hash (reversed hex)
-	// 1: Block height (numeric)
-	// 2: Stake difficulty (numeric)
-	// 3: Object of tickets (keyed by ticket hash, value is "missed" or "spent")
-	//
-	// Of these, we only need the hashes of missed tickets.
-	var paramArray []json.RawMessage
-	err = json.Unmarshal(params, &paramArray)
-	if err != nil {
-		return nil, errors.E(errors.Encoding, err)
-	}
-	if len(paramArray) < 4 {
-		return nil, errors.E(errors.Protocol, "missing notification parameters")
-	}
-	ticketObj := make(map[string]string)
-	err = json.Unmarshal(paramArray[3], &ticketObj)
-	if err != nil {
-		return nil, errors.E(errors.Encoding, err)
-	}
-	for k, v := range ticketObj {
-		if v != "missed" {
-			continue
-		}
-		hash, err := chainhash.NewHashFromStr(k)
-		if err != nil {
-			return nil, errors.E(errors.Encoding, err)
-		}
-		missed = append(missed, hash)
-	}
-	return missed, nil
-}
-
 // TSpend extracts the parameters from a tspend JSON-RPC notification.
 func TSpend(params json.RawMessage) (tx *wire.MsgTx, err error) {
 	// Parameters (array):

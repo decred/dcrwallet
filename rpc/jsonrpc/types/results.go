@@ -11,11 +11,6 @@ type FundRawTransactionResult struct {
 	Fee float64 `json:"fee"`
 }
 
-// GenerateVoteResult models the data from the generatevote command.
-type GenerateVoteResult struct {
-	Hex string `json:"hex"`
-}
-
 // GetAccountBalanceResult models the account data from the getbalance command.
 type GetAccountBalanceResult struct {
 	AccountName             string  `json:"accountname"`

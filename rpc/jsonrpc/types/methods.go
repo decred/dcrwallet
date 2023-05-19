@@ -199,27 +199,6 @@ func NewFundRawTransactionCmd(hexString string, fundAccount string, options *Fun
 	}
 }
 
-// GenerateVoteCmd is a type handling custom marshaling and
-// unmarshaling of generatevote JSON wallet extension commands.
-type GenerateVoteCmd struct {
-	BlockHash   string
-	Height      int64
-	TicketHash  string
-	VoteBits    uint16
-	VoteBitsExt string
-}
-
-// NewGenerateVoteCmd creates a new GenerateVoteCmd.
-func NewGenerateVoteCmd(blockhash string, height int64, tickethash string, votebits uint16, voteBitsExt string) *GenerateVoteCmd {
-	return &GenerateVoteCmd{
-		BlockHash:   blockhash,
-		Height:      height,
-		TicketHash:  tickethash,
-		VoteBits:    votebits,
-		VoteBitsExt: voteBitsExt,
-	}
-}
-
 // GetAccountCmd defines the getaccount JSON-RPC command.
 type GetAccountCmd struct {
 	Address string
@@ -1253,7 +1232,6 @@ func init() {
 		{"discoverusage", (*DiscoverUsageCmd)(nil)},
 		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
 		{"fundrawtransaction", (*FundRawTransactionCmd)(nil)},
-		{"generatevote", (*GenerateVoteCmd)(nil)},
 		{"getaccount", (*GetAccountCmd)(nil)},
 		{"getaccountaddress", (*GetAccountAddressCmd)(nil)},
 		{"getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil)},

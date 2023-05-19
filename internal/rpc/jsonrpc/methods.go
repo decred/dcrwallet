@@ -100,7 +100,6 @@ var handlers = map[string]handler{
 	"discoverusage":             {fn: (*Server).discoverUsage},
 	"dumpprivkey":               {fn: (*Server).dumpPrivKey},
 	"fundrawtransaction":        {fn: (*Server).fundRawTransaction},
-	"generatevote":              {fn: (*Server).generateVote},
 	"getaccount":                {fn: (*Server).getAccount},
 	"getaccountaddress":         {fn: (*Server).getAccountAddress},
 	"getaddressesbyaccount":     {fn: (*Server).getAddressesByAccount},
@@ -154,7 +153,6 @@ var handlers = map[string]handler{
 	"redeemmultisigouts":        {fn: (*Server).redeemMultiSigOuts},
 	"renameaccount":             {fn: (*Server).renameAccount},
 	"rescanwallet":              {fn: (*Server).rescanWallet},
-	"revoketickets":             {fn: (*Server).revokeTickets},
 	"sendfrom":                  {fn: (*Server).sendFrom},
 	"sendfromtreasury":          {fn: (*Server).sendFromTreasury},
 	"sendmany":                  {fn: (*Server).sendMany},
@@ -951,53 +949,6 @@ func (s *Server) fundRawTransaction(ctx context.Context, icmd interface{}) (inte
 		Fee: fee.ToCoin(),
 	}
 	return res, nil
-}
-
-// generateVote handles a generatevote request by constructing a signed
-// vote and returning it.
-func (s *Server) generateVote(ctx context.Context, icmd interface{}) (interface{}, error) {
-	cmd := icmd.(*types.GenerateVoteCmd)
-	w, ok := s.walletLoader.LoadedWallet()
-	if !ok {
-		return nil, errUnloadedWallet
-	}
-
-	blockHash, err := chainhash.NewHashFromStr(cmd.BlockHash)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
-	}
-
-	ticketHash, err := chainhash.NewHashFromStr(cmd.TicketHash)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
-	}
-
-	var voteBitsExt []byte
-	voteBitsExt, err = hex.DecodeString(cmd.VoteBitsExt)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCDecodeHexString, err)
-	}
-	voteBits := stake.VoteBits{
-		Bits:         cmd.VoteBits,
-		ExtendedBits: voteBitsExt,
-	}
-
-	ssgentx, err := w.GenerateVoteTx(ctx, blockHash, int32(cmd.Height), ticketHash,
-		voteBits)
-	if err != nil {
-		return nil, err
-	}
-
-	var b strings.Builder
-	b.Grow(2 * ssgentx.SerializeSize())
-	err = ssgentx.Serialize(hex.NewEncoder(&b))
-	if err != nil {
-		return nil, err
-	}
-	resp := &types.GenerateVoteResult{
-		Hex: b.String(),
-	}
-	return resp, nil
 }
 
 // getAddressesByAccount handles a getaddressesbyaccount request by returning
@@ -4222,14 +4173,6 @@ func (s *Server) rescanWallet(ctx context.Context, icmd interface{}) (interface{
 
 	err := w.RescanFromHeight(ctx, n, int32(*cmd.BeginHeight))
 	return nil, err
-}
-
-// revoketickets no longer revokes any tickets since revocations are now
-// automatically created per DCP0009.
-//
-// Deprecated: this method will be removed in the next major RPC API version.
-func (s *Server) revokeTickets(ctx context.Context, icmd interface{}) (interface{}, error) {
-	return nil, nil
 }
 
 // stakePoolUserInfo returns the ticket information for a given user from the

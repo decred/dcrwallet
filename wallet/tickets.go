@@ -10,51 +10,11 @@ import (
 	"decred.org/dcrwallet/v3/errors"
 	"decred.org/dcrwallet/v3/rpc/client/dcrd"
 	"decred.org/dcrwallet/v3/wallet/walletdb"
-	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
-	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
 )
-
-// GenerateVoteTx creates a vote transaction for a chosen ticket purchase hash
-// using the provided votebits.  The ticket purchase transaction must be stored
-// by the wallet.
-//
-// Deprecated: This method will not produce the proper vote subsidy after
-// DCP0010 activation.
-func (w *Wallet) GenerateVoteTx(ctx context.Context, blockHash *chainhash.Hash, height int32,
-	ticketHash *chainhash.Hash, voteBits stake.VoteBits) (*wire.MsgTx, error) {
-	const op errors.Op = "wallet.GenerateVoteTx"
-
-	var vote *wire.MsgTx
-	const dcp0010Active = false
-	const dcp0012Active = false
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
-		if err != nil {
-			return err
-		}
-		vote, err = createUnsignedVote(ticketHash, ticketPurchase,
-			height, blockHash, voteBits, w.subsidyCache, w.chainParams,
-			dcp0010Active, dcp0012Active)
-		if err != nil {
-			return errors.E(op, err)
-		}
-		err = w.signVote(addrmgrNs, ticketPurchase, vote)
-		if err != nil {
-			return errors.E(op, err)
-		}
-		return err
-	})
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-	return vote, nil
-}
 
 // LiveTicketHashes returns the hashes of live tickets that the wallet has
 // purchased or has voting authority for.
@@ -223,28 +183,4 @@ func (w *Wallet) TicketHashesForVotingAddress(ctx context.Context, votingAddr st
 		return nil, errors.E(op, err)
 	}
 	return ticketHashes, nil
-}
-
-// RevokeTickets no longer revokes any tickets since revocations are now
-// automatically created per DCP0009.
-//
-// Deprecated: this method will be removed in the next major version.
-func (w *Wallet) RevokeTickets(ctx context.Context, rpcCaller Caller) error {
-	return nil
-}
-
-// RevokeExpiredTickets no longer revokes any tickets since revocations are now
-// automatically created per DCP0009.
-//
-// Deprecated: this method will be removed in the next major version.
-func (w *Wallet) RevokeExpiredTickets(ctx context.Context, p Peer) (err error) {
-	return nil
-}
-
-// RevokeTicket no longer revokes any tickets since revocations are now
-// automatically created per DCP0009.
-//
-// Deprecated: this method will be removed in the next major version.
-func (w *Wallet) RevokeTicket(ctx context.Context, ticketHash *chainhash.Hash, p Peer) error {
-	return nil
 }

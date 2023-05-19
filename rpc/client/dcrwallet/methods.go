@@ -701,14 +701,6 @@ func (c *Client) FundRawTransaction(ctx context.Context, rawhex string, fundAcco
 	return res, err
 }
 
-// GenerateVote returns hex of an SSGen.
-func (c *Client) GenerateVote(ctx context.Context, blockHash *chainhash.Hash, height int64, sstxHash *chainhash.Hash, voteBits uint16, voteBitsExt string) (*types.GenerateVoteResult, error) {
-	res := new(types.GenerateVoteResult)
-	err := c.Call(ctx, "generatevote", res, blockHash.String(), height, sstxHash.String(),
-		voteBits, voteBitsExt)
-	return res, err
-}
-
 // GetInfoWallet calls the getinfo method.  It is named differently to avoid a
 // naming clash for dcrd clients with a GetInfo method.
 func (c *Client) GetInfo(ctx context.Context) (*types.InfoWalletResult, error) {

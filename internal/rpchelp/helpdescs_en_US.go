@@ -123,15 +123,6 @@ var helpDescsEnUS = map[string]string{
 	"fundrawtransactionresult-hex":            "Funded transaction in hex encoding",
 	"fundrawtransactionresult-fee":            "Absolute fee of funded transaction",
 
-	// GenerateVote help.
-	"generatevote--synopsis":   "Returns the vote transaction encoded as a hexadecimal string",
-	"generatevote-blockhash":   "Block hash for the ticket",
-	"generatevote-height":      "Block height for the ticket",
-	"generatevote-tickethash":  "The hash of the ticket",
-	"generatevote-votebits":    "The voteBits to set for the ticket",
-	"generatevote-votebitsext": "The extended voteBits to set for the ticket",
-	"generatevoteresult-hex":   "The hex encoded transaction",
-
 	// GetAccountAddressCmd help.
 	"getaccountaddress--synopsis": "DEPRECATED -- Returns the most recent external payment address for an account that has not been seen publicly.\n" +
 		"A new address is generated for the account if the most recently generated address has been seen on the blockchain or in mempool.",
@@ -720,9 +711,6 @@ var helpDescsEnUS = map[string]string{
 	// RescanWallet help.
 	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
 	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
-
-	// RevokeTickets help.
-	"revoketickets--synopsis": "DEPRECATED -- Performs no action and will be removed in a later API version.",
 
 	// SendFromCmd help.
 	"sendfrom--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
