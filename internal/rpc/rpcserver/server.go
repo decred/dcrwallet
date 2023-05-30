@@ -36,7 +36,6 @@ import (
 	"decred.org/dcrwallet/v4/internal/cfgutil"
 	"decred.org/dcrwallet/v4/internal/loader"
 	"decred.org/dcrwallet/v4/internal/netparams"
-	"decred.org/dcrwallet/v4/internal/vsp"
 	"decred.org/dcrwallet/v4/p2p"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	pb "decred.org/dcrwallet/v4/rpc/walletrpc"
@@ -59,6 +58,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
+	vsp "github.com/decred/vspd/client/v2"
 )
 
 // Public API version constants
@@ -1806,7 +1806,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	// new vspd request
 	var vspHost string
 	var vspPubKey string
-	var vspClient *vsp.Client
+	var vspClient *vsp.AutoClient
 	if req.VspHost != "" || req.VspPubkey != "" {
 		vspHost = req.VspHost
 		vspPubKey = req.VspPubkey
@@ -2669,7 +2669,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	// new vspd request
 	var vspHost string
 	var vspPubKey string
-	var vspClient *vsp.Client
+	var vspClient *vsp.AutoClient
 	if req.VspHost != "" || req.VspPubkey != "" {
 		vspHost = req.VspHost
 		vspPubKey = req.VspPubkey

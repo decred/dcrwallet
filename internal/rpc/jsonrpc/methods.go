@@ -23,7 +23,6 @@ import (
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/loader"
-	"decred.org/dcrwallet/v4/internal/vsp"
 	"decred.org/dcrwallet/v4/p2p"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/rpc/jsonrpc/types"
@@ -49,6 +48,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
+	vsp "github.com/decred/vspd/client/v2"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -3378,7 +3378,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 		}
 	}
 
-	var vspClient *vsp.Client
+	var vspClient *vsp.AutoClient
 	if s.cfg.VSPHost != "" {
 		cfg := vsp.Config{
 			URL:    s.cfg.VSPHost,

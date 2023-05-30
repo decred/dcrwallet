@@ -24,7 +24,6 @@ import (
 	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/internal/prompt"
 	"decred.org/dcrwallet/v4/internal/rpc/rpcserver"
-	"decred.org/dcrwallet/v4/internal/vsp"
 	"decred.org/dcrwallet/v4/p2p"
 	"decred.org/dcrwallet/v4/spv"
 	"decred.org/dcrwallet/v4/ticketbuyer"
@@ -32,6 +31,7 @@ import (
 	"decred.org/dcrwallet/v4/wallet"
 	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/wire"
+	vsp "github.com/decred/vspd/client/v2"
 )
 
 func init() {
@@ -197,7 +197,7 @@ func run(ctx context.Context) error {
 	}()
 
 	// Open the wallet when --noinitialload was not set.
-	var vspClient *vsp.Client
+	var vspClient *vsp.AutoClient
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)

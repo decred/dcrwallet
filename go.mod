@@ -26,8 +26,7 @@ require (
 	github.com/decred/dcrd/wire v1.6.0
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.2.0
-	github.com/decred/vspd/client/v2 v2.0.0
-	github.com/decred/vspd/types/v2 v2.0.0
+	github.com/decred/vspd/client/v2 v2.1.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jrick/bitset v1.0.0
@@ -42,13 +41,17 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
+replace github.com/decred/vspd => ../vspd
+
 require (
+	decred.org/dcrwallet/v3 v3.0.0-20230519033517-96817277627d // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/decred/base58 v1.0.5 // indirect
 	github.com/decred/dcrd/database/v3 v3.0.1 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
+	github.com/decred/vspd/types/v2 v2.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	golang.org/x/net v0.8.0 // indirect
