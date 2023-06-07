@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -67,9 +67,12 @@ func (w *Wallet) findPrevTestNetDifficulty(dbtx walletdb.ReadTx, h *wire.BlockHe
 	return lastBits, nil
 }
 
-// nextRequiredPoWDifficulty calculates the required proof-of-work difficulty
-// for the block that references header as a parent.
-func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.BlockHeader, chain []*BlockNode, newBlockTime time.Time) (uint32, error) {
+// calcNextBlake256Diff calculates the required difficulty for the block AFTER
+// the passed header based on the difficulty retarget rules for the blake256
+// hash algorithm used at Decred launch.
+func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHeader,
+	chain []*BlockNode, newBlockTime time.Time) (uint32, error) {
+
 	// Get the old difficulty; if we aren't at a block height where it changes,
 	// just return this.
 	oldDiff := header.Bits
@@ -247,6 +250,279 @@ func (w *Wallet) nextRequiredPoWDifficulty(dbtx walletdb.ReadTx, header *wire.Bl
 	return nextDiffBits, nil
 }
 
+func (w *Wallet) loadCachedBlake3WorkDiffCandidateAnchor() *wire.BlockHeader {
+	w.cachedBlake3WorkDiffCandidateAnchorMu.Lock()
+	defer w.cachedBlake3WorkDiffCandidateAnchorMu.Unlock()
+
+	return w.cachedBlake3WorkDiffCandidateAnchor
+}
+
+func (w *Wallet) storeCachedBlake3WorkDiffCandidateAnchor(candidate *wire.BlockHeader) {
+	w.cachedBlake3WorkDiffCandidateAnchorMu.Lock()
+	defer w.cachedBlake3WorkDiffCandidateAnchorMu.Unlock()
+
+	w.cachedBlake3WorkDiffCandidateAnchor = candidate
+}
+
+// isBlake3PowAgendaForcedActive returns whether or not the agenda to change the
+// proof of work hash function to blake3, as defined in DCP0011, is forced
+// active by the chain parameters.
+func (w *Wallet) isBlake3PowAgendaForcedActive() bool {
+	const deploymentID = chaincfg.VoteIDBlake3Pow
+	deployment, ok := w.deploymentsByID[deploymentID]
+	if !ok {
+		return false
+	}
+
+	return deployment.ForcedChoiceID == "yes"
+}
+
+// calcNextBlake3DiffFromAnchor calculates the required difficulty for the block
+// AFTER the passed previous block node relative to the given anchor block based
+// on the difficulty retarget rules defined in DCP0011.
+//
+// This function is safe for concurrent access.
+func (w *Wallet) calcNextBlake3DiffFromAnchor(prevNode, blake3Anchor *wire.BlockHeader) uint32 {
+	// Calculate the time and height deltas as the difference between the
+	// provided block and the blake3 anchor block.
+	//
+	// Notice that if the difficulty prior to the activation point were being
+	// maintained, this would need to be the timestamp and height of the parent
+	// of the blake3 anchor block (except when the anchor is the genesis block)
+	// in order for the absolute calculations to exactly match the behavior of
+	// relative calculations.
+	//
+	// However, since the initial difficulty is reset with the agenda, no
+	// additional offsets are needed.
+	timeDelta := prevNode.Timestamp.Unix() - blake3Anchor.Timestamp.Unix()
+	heightDelta := int64(prevNode.Height) - int64(blake3Anchor.Height)
+
+	// Calculate the next target difficulty using the ASERT algorithm.
+	//
+	// Note that the difficulty of the anchor block is NOT used for the initial
+	// difficulty because the difficulty must be reset due to the change to
+	// blake3 for proof of work.  The initial difficulty comes from the chain
+	// parameters instead.
+	params := w.chainParams
+	nextDiff := blockchain.CalcASERTDiff(params.WorkDiffV2Blake3StartBits,
+		params.PowLimit, int64(params.TargetTimePerBlock.Seconds()), timeDelta,
+		heightDelta, params.WorkDiffV2HalfLifeSecs)
+
+	// Prevent the difficulty from going higher than a maximum allowed
+	// difficulty on the test network.  This is to prevent runaway difficulty on
+	// testnet by ASICs and GPUs since it's not reasonable to require
+	// high-powered hardware to keep the test network running smoothly.
+	//
+	// Smaller numbers result in a higher difficulty, so imposing a maximum
+	// difficulty equates to limiting the minimum target value.
+	if w.minTestNetTarget != nil && nextDiff < w.minTestNetDiffBits {
+		nextDiff = w.minTestNetDiffBits
+	}
+
+	return nextDiff
+}
+
+// calcWantHeight calculates the height of the final block of the previous
+// interval given a stake validation height, stake validation interval, and
+// block height.
+func calcWantHeight(stakeValidationHeight, interval, height int64) int64 {
+	// The adjusted height accounts for the fact the starting validation
+	// height does not necessarily start on an interval and thus the
+	// intervals might not be zero-based.
+	intervalOffset := stakeValidationHeight % interval
+	adjustedHeight := height - intervalOffset - 1
+	return (adjustedHeight - ((adjustedHeight + 1) % interval)) +
+		intervalOffset
+}
+
+// checkDifficultyPositional ensures the difficulty specified in the block
+// header matches the calculated difficulty based on the difficulty retarget
+// rules.  These checks do not, and must not, rely on having the full block data
+// of all ancestors available.
+//
+// This function is safe for concurrent access.
+func (w *Wallet) checkDifficultyPositional(dbtx walletdb.ReadTx, header *wire.BlockHeader,
+	prevNode *wire.BlockHeader, chain []*BlockNode) error {
+	// -------------------------------------------------------------------------
+	// The ability to determine whether or not the blake3 proof of work agenda
+	// is active is not possible in the general case here because that relies on
+	// additional context that is not available in the positional checks.
+	// However, it is important to check for valid bits in the positional checks
+	// to protect against various forms of malicious behavior.
+	//
+	// Thus, with the exception of the special cases where it is possible to
+	// definitively determine the agenda is active, allow valid difficulty bits
+	// under both difficulty algorithms while rejecting blocks that satisify
+	// neither here in the positional checks and allow the contextual checks
+	// that happen later to ensure the difficulty bits are valid specifically
+	// for the correct difficulty algorithm as determined by the state of the
+	// blake3 proof of work agenda.
+	// -------------------------------------------------------------------------
+
+	// Ensure the difficulty specified in the block header matches the
+	// calculated difficulty using the algorithm defined in DCP0011 when the
+	// blake3 proof of work agenda is always active.
+	//
+	// Apply special handling for networks where the agenda is always active to
+	// always require the initial starting difficulty for the first block and to
+	// treat the first block as the anchor once it has been mined.
+	//
+	// This is to done to help provide better difficulty target behavior for the
+	// initial blocks on such networks since the genesis block will necessarily
+	// have a hard-coded timestamp that will very likely be outdated by the time
+	// mining starts.  As a result, merely using the genesis block as the anchor
+	// for all blocks would likely result in a lot of the initial blocks having
+	// a significantly lower difficulty than desired because they would all be
+	// behind the ideal schedule relative to that outdated timestamp.
+	if w.isBlake3PowAgendaForcedActive() {
+		var blake3Diff uint32
+
+		// Use the initial starting difficulty for the first block.
+		if prevNode.Height == 0 {
+			blake3Diff = w.chainParams.WorkDiffV2Blake3StartBits
+		} else {
+			// Treat the first block as the anchor for all descendants of it.
+			anchor, err := w.ancestorHeaderAtHeight(dbtx, prevNode, chain, 1)
+			if err != nil {
+				return err
+			}
+			blake3Diff = w.calcNextBlake3DiffFromAnchor(prevNode, anchor)
+		}
+
+		if header.Bits != blake3Diff {
+			err := errors.Errorf("%w: block difficulty of %d is not the expected "+
+				"value of %d (difficulty algorithm: ASERT)",
+				blockchain.ErrUnexpectedDifficulty, header.Bits, blake3Diff)
+			return errors.E(errors.Consensus, err)
+		}
+
+		return nil
+	}
+
+	// Only the original difficulty algorithm needs to be checked when it is
+	// impossible for the blake3 proof of work agenda to be active or the block
+	// is not solved for blake3.
+	//
+	// Note that since the case where the blake3 proof of work agenda is always
+	// active is already handled above, the only remaining way for the agenda to
+	// be active is for it to have been voted in which requires voting to be
+	// possible (stake validation height), at least one interval of voting, and
+	// one interval of being locked in.
+	isSolvedBlake3 := func(header *wire.BlockHeader) bool {
+		powHash := header.PowHashV2()
+		err := blockchain.CheckProofOfWorkHash(&powHash, header.Bits)
+		return err == nil
+	}
+	rcai := int64(w.chainParams.RuleChangeActivationInterval)
+	svh := w.chainParams.StakeValidationHeight
+	firstPossibleActivationHeight := svh + rcai*2
+	minBlake3BlockVersion := uint32(10)
+	if w.chainParams.Net != wire.MainNet {
+		minBlake3BlockVersion++
+	}
+	isBlake3PossiblyActive := uint32(header.Version) >= minBlake3BlockVersion &&
+		int64(header.Height) >= firstPossibleActivationHeight
+	if !isBlake3PossiblyActive || !isSolvedBlake3(header) {
+		// Ensure the difficulty specified in the block header matches the
+		// calculated difficulty based on the previous block and difficulty
+		// retarget rules for the blake256 hash algorithm used at Decred launch.
+		blake256Diff, err := w.calcNextBlake256Diff(dbtx, prevNode, chain, header.Timestamp)
+		if err != nil {
+			return err
+		}
+		if header.Bits != blake256Diff {
+			err := errors.Errorf("%w: block difficulty of %d is not the expected "+
+				"value of %d (difficulty algorithm: EMA)",
+				blockchain.ErrUnexpectedDifficulty, header.Bits, blake256Diff)
+			return errors.E(errors.Consensus, err)
+		}
+
+		return nil
+	}
+
+	// At this point, the blake3 proof of work agenda might possibly be active
+	// and the block is solved using blake3, so the agenda is very likely
+	// active.
+	//
+	// Calculating the required difficulty once the agenda activates for the
+	// algorithm defined in DCP0011 requires the block prior to the activation
+	// of the agenda as an anchor.  However, as previously discussed, the
+	// additional context needed to definitively determine when the agenda
+	// activated is not available here in the positional checks.
+	//
+	// In light of that, the following logic uses the fact that the agenda could
+	// have only possibly activated at a rule change activation interval to
+	// iterate backwards one interval at a time through all possible candidate
+	// anchors until one of them results in a required difficulty that matches.
+	//
+	// In the case there is a match, the header is assumed to be valid enough to
+	// make it through the positional checks.
+	//
+	// As an additional optimization to avoid a bunch of extra work during the
+	// initial header sync, a candidate anchor that results in a matching
+	// required difficulty is cached and tried first on subsequent descendant
+	// headers since it is very likely to be the correct one.
+	cachedCandidate := w.loadCachedBlake3WorkDiffCandidateAnchor()
+	if cachedCandidate != nil {
+		isAncestor, err := w.isAncestorOf(dbtx, cachedCandidate, prevNode, chain)
+		if err != nil {
+			return err
+		}
+		if isAncestor {
+			blake3Diff := w.calcNextBlake3DiffFromAnchor(prevNode, cachedCandidate)
+			if header.Bits == blake3Diff {
+				return nil
+			}
+		}
+	}
+
+	// Iterate backwards through all possible anchor candidates which
+	// consist of the final blocks of previous rule change activation
+	// intervals so long as the block also has a version that is at least
+	// the minimum version that is enforced before voting on the agenda
+	// could have even started and the agenda could still possibly be
+	// active.
+	finalNodeHeight := calcWantHeight(svh, rcai, int64(header.Height))
+	candidate, err := w.ancestorHeaderAtHeight(dbtx, prevNode, chain, int32(finalNodeHeight))
+	if err != nil {
+		return err
+	}
+	for candidate != nil &&
+		uint32(candidate.Version) >= minBlake3BlockVersion &&
+		int64(candidate.Height) >= firstPossibleActivationHeight-1 {
+
+		blake3Diff := w.calcNextBlake3DiffFromAnchor(prevNode, candidate)
+		if header.Bits == blake3Diff {
+			w.storeCachedBlake3WorkDiffCandidateAnchor(candidate)
+			return nil
+		}
+		candidate, err = w.relativeAncestor(dbtx, candidate, rcai, chain)
+		if err != nil {
+			return err
+		}
+	}
+
+	// At this point, none of the possible difficulties for blake3 matched, so
+	// the agenda is very likely not actually active and therefore the only
+	// remaining valid option is the original difficulty algorithm.
+	//
+	// Ensure the difficulty specified in the block header matches the
+	// calculated difficulty based on the previous block and difficulty retarget
+	// rules for the blake256 hash algorithm used at Decred launch.
+	blake256Diff, err := w.calcNextBlake256Diff(dbtx, prevNode, chain, header.Timestamp)
+	if err != nil {
+		return err
+	}
+	if header.Bits != blake256Diff {
+		err := errors.Errorf("%w: block difficulty of %d is not the expected value "+
+			"of %d (difficulty algorithm: EMA)",
+			blockchain.ErrUnexpectedDifficulty, header.Bits, blake256Diff)
+		return errors.E(errors.Consensus, err)
+	}
+
+	return nil
+}
+
 // estimateSupply returns an estimate of the coin supply for the provided block
 // height.  This is primarily used in the stake difficulty algorithm and relies
 // on an estimate to simplify the necessary calculations.  The actual total
@@ -401,6 +677,31 @@ func (w *Wallet) ancestorHeaderAtHeight(dbtx walletdb.ReadTx, h *wire.BlockHeade
 	return w.txStore.GetBlockHeader(dbtx, &hash)
 }
 
+// isAncestorOf returns whether or not node is an ancestor of the provided
+// target node.
+//
+// Replaces dcrd's internal/blockchain func (node *blockNode).IsAncestorOf(target *blockNode).
+func (w *Wallet) isAncestorOf(dbtx walletdb.ReadTx, node, target *wire.BlockHeader,
+	chain []*BlockNode) (bool, error) {
+
+	ancestorHeader, err := w.ancestorHeaderAtHeight(dbtx, target, chain, int32(node.Height))
+	if err != nil {
+		return false, err
+	}
+	return ancestorHeader.BlockHash() == node.BlockHash(), nil
+}
+
+// relativeAncestor returns the ancestor block node a relative 'distance' blocks
+// before this node.  This is equivalent to calling Ancestor with the node's
+// height minus provided distance.
+//
+// Replaces dcrd's internal/blockchain func (node *blockNode) RelativeAncestor(distance int64).
+func (w *Wallet) relativeAncestor(dbtx walletdb.ReadTx, node *wire.BlockHeader,
+	distance int64, chain []*BlockNode) (*wire.BlockHeader, error) {
+
+	return w.ancestorHeaderAtHeight(dbtx, node, chain, int32(node.Height)-int32(distance))
+}
+
 // nextRequiredDCP0001PoSDifficulty calculates the required stake difficulty for
 // the block after the passed previous block node based on the algorithm defined
 // in DCP0001.
@@ -553,16 +854,18 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		}
 
 		// Validate advertised and performed work
-		bits, err := w.nextRequiredPoWDifficulty(dbtx, parent, chain, h.Timestamp)
+		err := w.checkDifficultyPositional(dbtx, h, parent, chain)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
-		if h.Bits != bits {
-			err := errors.Errorf("%v has invalid PoW difficulty, got %x, want %x",
-				hash, h.Bits, bits)
-			return chain[idx:], errors.E(op, errors.Consensus, err)
-		}
+		// Check V1 Proof of Work
 		err = blockchain.CheckProofOfWork(hash, h.Bits, w.chainParams.PowLimit)
+		if err != nil {
+			// Check V2 Proof of Work
+			blake3PowHash := n.Header.PowHashV2()
+			err = blockchain.CheckProofOfWork(&blake3PowHash, h.Bits,
+				w.chainParams.PowLimit)
+		}
 		if err != nil {
 			return chain[idx:], errors.E(op, errors.Consensus, err)
 		}

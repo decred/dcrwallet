@@ -118,7 +118,6 @@ type Wallet struct {
 	stakePoolEnabled   bool
 	stakePoolColdAddrs map[string]struct{}
 	subsidyCache       *blockchain.SubsidyCache
-	minTestNetTarget   *big.Int
 	tspends            map[chainhash.Hash]wire.MsgTx
 	tspendPolicy       map[chainhash.Hash]stake.TreasuryVoteT
 	tspendKeyPolicy    map[string]stake.TreasuryVoteT // keyed by politeia key
@@ -162,9 +161,16 @@ type Wallet struct {
 	// Mix rate limiting
 	mixSems mixSemaphores
 
+	// Cached Blake3 anchor candidate
+	cachedBlake3WorkDiffCandidateAnchor   *wire.BlockHeader
+	cachedBlake3WorkDiffCandidateAnchorMu sync.Mutex
+
 	NtfnServer *NotificationServer
 
-	chainParams *chaincfg.Params
+	chainParams        *chaincfg.Params
+	deploymentsByID    map[string]*chaincfg.ConsensusDeployment
+	minTestNetTarget   *big.Int
+	minTestNetDiffBits uint32
 }
 
 // Config represents the configuration options needed to initialize a wallet.
@@ -278,13 +284,13 @@ func (w *Wallet) GetAllTSpends(ctx context.Context) []*wire.MsgTx {
 func voteVersion(params *chaincfg.Params) uint32 {
 	switch params.Net {
 	case wire.MainNet:
-		return 9
+		return 10
 	case 0x48e7a065: // TestNet2
 		return 6
 	case wire.TestNet3:
-		return 10
+		return 11
 	case wire.SimNet:
-		return 10
+		return 11
 	default:
 		return 1
 	}
@@ -5373,10 +5379,25 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	// difficulty on testnet by ASICs and GPUs since it's not reasonable to
 	// require high-powered hardware to keep the test network running smoothly.
 	var minTestNetTarget *big.Int
-	if cfg.Params.Net == wire.TestNet3 {
+	var minTestNetDiffBits uint32
+	params := cfg.Params
+	if params.Net == wire.TestNet3 {
 		// This equates to a maximum difficulty of 2^6 = 64.
 		const maxTestDiffShift = 6
 		minTestNetTarget = new(big.Int).Rsh(cfg.Params.PowLimit, maxTestDiffShift)
+		minTestNetDiffBits = blockchain.BigToCompact(minTestNetTarget)
+	}
+	// Deployment IDs are guaranteed to be unique across all stake versions.
+	deploymentsByID := make(map[string]*chaincfg.ConsensusDeployment)
+	for _, deployments := range params.Deployments {
+		for i := range deployments {
+			deployment := &deployments[i]
+			id := deployment.Vote.Id
+			if _, ok := deploymentsByID[id]; ok {
+				panic(fmt.Sprintf("reused deployment ID %q", id))
+			}
+			deploymentsByID[id] = deployment
+		}
 	}
 
 	w := &Wallet{
@@ -5403,9 +5424,11 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		manualTickets:           cfg.ManualTickets,
 
 		// Chain params
-		subsidyCache:     blockchain.NewSubsidyCache(cfg.Params),
-		chainParams:      cfg.Params,
-		minTestNetTarget: minTestNetTarget,
+		subsidyCache:       blockchain.NewSubsidyCache(params),
+		chainParams:        params,
+		deploymentsByID:    deploymentsByID,
+		minTestNetTarget:   minTestNetTarget,
+		minTestNetDiffBits: minTestNetDiffBits,
 
 		lockedOutpoints: make(map[outpoint]struct{}),
 
@@ -5417,7 +5440,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	}
 
 	// Open database managers
-	w.manager, w.txStore, w.stakeMgr, err = udb.Open(ctx, db, cfg.Params, cfg.PubPassphrase)
+	w.manager, w.txStore, w.stakeMgr, err = udb.Open(ctx, db, params, cfg.PubPassphrase)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -5509,7 +5532,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	w.vspTSpendKeyPolicy = vspTreasuryKeyPolicy
 
 	w.stakePoolColdAddrs, err = decodeStakePoolColdExtKey(cfg.StakePoolColdExtKey,
-		cfg.Params)
+		params)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}

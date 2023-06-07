@@ -6,11 +6,11 @@ require (
 	decred.org/cspp/v2 v2.0.0
 	github.com/decred/dcrd/addrmgr/v2 v2.0.1
 	github.com/decred/dcrd/blockchain/stake/v5 v5.0.0
-	github.com/decred/dcrd/blockchain/standalone/v2 v2.1.1-0.20230430213532-f95870f9c6af
+	github.com/decred/dcrd/blockchain/standalone/v2 v2.2.0
 	github.com/decred/dcrd/blockchain/v5 v5.0.0-20230523014406-32f0544d4f85
 	github.com/decred/dcrd/certgen v1.1.2
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
-	github.com/decred/dcrd/chaincfg/v3 v3.1.2-0.20230412145739-9aa79ec168f6
+	github.com/decred/dcrd/chaincfg/v3 v3.1.2-0.20230607154737-85e3701a67fa
 	github.com/decred/dcrd/connmgr/v3 v3.1.0
 	github.com/decred/dcrd/crypto/blake256 v1.0.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
@@ -23,7 +23,7 @@ require (
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.0.0
 	github.com/decred/dcrd/rpcclient/v8 v8.0.0-20230523014406-32f0544d4f85
 	github.com/decred/dcrd/txscript/v4 v4.0.0
-	github.com/decred/dcrd/wire v1.5.0
+	github.com/decred/dcrd/wire v1.6.0
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.2.0
 	github.com/decred/vspd/client/v2 v2.0.0
@@ -55,8 +55,10 @@ require (
 	github.com/decred/dcrd/database/v3 v3.0.0 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	golang.org/x/net v0.6.0 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
+	lukechampine.com/blake3 v1.2.1 // indirect
 )
