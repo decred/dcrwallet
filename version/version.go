@@ -29,12 +29,12 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 // so it can be modified at link time (e.g.
 // `-ldflags "-X decred.org/dcrwallet/v3/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
-var PreRelease = "pre"
+var PreRelease = ""
 
 // BuildMetadata defines additional build metadata.  It is modified at link time
 // for official releases.  It must only contain characters from the semantic
 // version alphabet.
-var BuildMetadata = ""
+var BuildMetadata = "release.local"
 
 func init() {
 	if BuildMetadata == "" {
