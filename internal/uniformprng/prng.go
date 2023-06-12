@@ -87,3 +87,36 @@ func (s *Source) Int63n(n int64) int64 {
 		}
 	}
 }
+
+// Int63 returns a random non-negative int64, with randomness read from rand.
+func Int63(rand io.Reader) (int64, error) {
+	buf := make([]byte, 8)
+	_, err := io.ReadFull(rand, buf)
+	if err != nil {
+		return 0, err
+	}
+	return int64(binary.LittleEndian.Uint64(buf) &^ (1 << 63)), nil
+
+}
+
+// Int63n returns, as an int64, a pseudo-random 63-bit positive integer in [0,n)
+// without modulo bias.
+// Randomness is read from rand.
+// It panics if n <= 0.
+func Int63n(rand io.Reader, n int64) (int64, error) {
+	if n <= 0 {
+		panic("invalid argument to Int63n")
+	}
+	n--
+	mask := int64(^uint64(0) >> bits.LeadingZeros64(uint64(n)))
+	for {
+		v, err := Int63(rand)
+		if err != nil {
+			return 0, err
+		}
+		v &= mask
+		if v <= n {
+			return v, nil
+		}
+	}
+}

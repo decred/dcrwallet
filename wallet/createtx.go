@@ -18,6 +18,7 @@ import (
 	"decred.org/cspp/v2/coinjoin"
 	"decred.org/dcrwallet/v3/deployments"
 	"decred.org/dcrwallet/v3/errors"
+	"decred.org/dcrwallet/v3/internal/uniformprng"
 	"decred.org/dcrwallet/v3/rpc/client/dcrd"
 	"decred.org/dcrwallet/v3/wallet/txauthor"
 	"decred.org/dcrwallet/v3/wallet/txrules"
@@ -1614,6 +1615,29 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
+	// Calculate trickle times for published mixed tickets.
+	// Random times between 20s to 1m from now are chosen for each ticket,
+	// and tickets will not be published until their trickle time is reached.
+	var trickleTickets []time.Time
+	if req.CSPPServer != "" {
+		now := time.Now()
+		trickleTickets = make([]time.Time, 0, len(splitOutputIndexes))
+		for range splitOutputIndexes {
+			delay, err := uniformprng.Int63n(rand.Reader,
+				int64(40*time.Second))
+			if err != nil {
+				return nil, err
+			}
+			t := now.Add(time.Duration(delay) + 20*time.Second)
+			trickleTickets = append(trickleTickets, t)
+		}
+		sort.Slice(trickleTickets, func(i, j int) bool {
+			t1 := trickleTickets[i]
+			t2 := trickleTickets[j]
+			return t1.Before(t2)
+		})
+	}
+
 	// Create each ticket.
 	ticketHashes := make([]*chainhash.Hash, 0, req.Count)
 	tickets := make([]*wire.MsgTx, 0, req.Count)
@@ -1670,7 +1694,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if err != nil {
 				return nil, err
 			}
-			_, err := w.signingAddressAtIdx(ctx, op, w.persistReturnedChild(ctx, nil), req.VotingAccount, idx)
+			_, err := w.signingAddressAtIdx(ctx, op, w.persistReturnedChild(ctx, nil),
+				req.VotingAccount, idx)
 			if err != nil {
 				return nil, err
 			}
@@ -1762,39 +1787,55 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return purchaseTicketsResponse, errors.E(op, err)
 		}
-		// TODO: Send all tickets, and all split transactions, together.  Purge
-		// transactions from DB if tickets cannot be sent.
-		if !req.DontSignTx {
-			err = n.PublishTransactions(ctx, ticket)
-			if err != nil {
-				return purchaseTicketsResponse, errors.E(op, err)
-			}
-			log.Infof("Published ticket purchase %v", ticket.TxHash())
-		}
 	}
 
-	if !req.DontSignTx && req.VSPFeePaymentProcess != nil {
-		unlockCredits = false
-		for i, ticketHash := range purchaseTicketsResponse.TicketHashes {
-			feeTx := wire.NewMsgTx()
-			for j := range vspFeeCredits[i] {
-				in := &vspFeeCredits[i][j]
-				feeTx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
-			}
-
-			err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
-			if err != nil {
-				// unlock outpoints in case of error
-				for _, outpoint := range vspFeeCredits[i] {
-					w.UnlockOutpoint(&outpoint.OutPoint.Hash, outpoint.OutPoint.Index)
+	for i, ticket := range tickets {
+		// Wait for trickle time if this was a mixed buy.
+		if len(trickleTickets) > 0 {
+			t := trickleTickets[0]
+			trickleTickets = trickleTickets[1:]
+			timer := time.NewTimer(time.Until(t))
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
 				}
-				continue
+				return purchaseTicketsResponse, errors.E(op, ctx.Err())
+			case <-timer.C:
 			}
-			// watch for outpoints change.
-			_, err = udb.NewTxRecordFromMsgTx(feeTx, time.Now())
-			if err != nil {
-				return nil, err
+		}
+
+		// Publish transaction
+		err = n.PublishTransactions(ctx, ticket)
+		if err != nil {
+			return purchaseTicketsResponse, errors.E(op, err)
+		}
+		log.Infof("Published ticket purchase %v", ticket.TxHash())
+
+		// Pay VSP fee when configured to do so.
+		if req.VSPFeePaymentProcess == nil {
+			continue
+		}
+		unlockCredits = false
+		feeTx := wire.NewMsgTx()
+		for j := range vspFeeCredits[i] {
+			in := &vspFeeCredits[i][j]
+			feeTx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
+		}
+		ticketHash := purchaseTicketsResponse.TicketHashes[i]
+		err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
+		if err != nil {
+			// unlock outpoints in case of error
+			for _, outpoint := range vspFeeCredits[i] {
+				w.UnlockOutpoint(&outpoint.OutPoint.Hash,
+					outpoint.OutPoint.Index)
 			}
+			continue
+		}
+		// watch for outpoints change.
+		_, err = udb.NewTxRecordFromMsgTx(feeTx, time.Now())
+		if err != nil {
+			return nil, err
 		}
 	}
 
