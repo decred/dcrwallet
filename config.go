@@ -101,7 +101,7 @@ type config struct {
 	Pass                    string               `long:"pass" description:"Unlock with private passphrase"`
 	PromptPublicPass        bool                 `long:"promptpublicpass" description:"Prompt for public passphrase from terminal"`
 	EnableTicketBuyer       bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting            bool                 `long:"enablevoting" description:"Automatically create votes and revocations"`
+	EnableVoting            bool                 `long:"enablevoting" description:"Automatically vote on winning tickets"`
 	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
 	poolAddress             stdaddr.StakeAddress
