@@ -14,3 +14,6 @@ rpc/tools/bin/
 rpc/grpc_example/grpc_example
 rpc/grpc_example/*.pem
 rpc/rpc_example/rpc_example
+
+# Temporary database files created by tests.
+wallet/udb/*.kv
