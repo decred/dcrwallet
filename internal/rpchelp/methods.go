@@ -8,7 +8,7 @@
 package rpchelp
 
 import (
-	"decred.org/dcrwallet/v3/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v4/rpc/jsonrpc/types"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 )
 

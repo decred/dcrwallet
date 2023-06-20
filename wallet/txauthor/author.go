@@ -7,9 +7,9 @@
 package txauthor
 
 import (
-	"decred.org/dcrwallet/v3/errors"
-	"decred.org/dcrwallet/v3/wallet/txrules"
-	"decred.org/dcrwallet/v3/wallet/txsizes"
+	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v4/wallet/txrules"
+	"decred.org/dcrwallet/v4/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"

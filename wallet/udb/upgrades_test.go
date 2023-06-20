@@ -15,8 +15,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	_ "decred.org/dcrwallet/v3/wallet/drivers/bdb"
-	"decred.org/dcrwallet/v3/wallet/walletdb"
+	_ "decred.org/dcrwallet/v4/wallet/drivers/bdb"
+	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"

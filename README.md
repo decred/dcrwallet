@@ -91,7 +91,7 @@ https://decred.org/downloads/
   to download, build, and install without needing to clone the repo. Run:
 
   ```sh
-  $ go install decred.org/dcrwallet/v3@master
+  $ go install decred.org/dcrwallet/v4@master
   ```
 
   to build the latest master branch, or:

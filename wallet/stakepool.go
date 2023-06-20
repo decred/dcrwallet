@@ -7,9 +7,9 @@ package wallet
 import (
 	"context"
 
-	"decred.org/dcrwallet/v3/errors"
-	"decred.org/dcrwallet/v3/wallet/udb"
-	"decred.org/dcrwallet/v3/wallet/walletdb"
+	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v4/wallet/udb"
+	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 

@@ -13,4 +13,4 @@
 //	if err != nil { /* handle error */ }
 package bdb
 
-import _ "decred.org/dcrwallet/v3/wallet/internal/bdb" // Register bdb driver during init
+import _ "decred.org/dcrwallet/v4/wallet/internal/bdb" // Register bdb driver during init

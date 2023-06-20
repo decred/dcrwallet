@@ -3,8 +3,8 @@ package loader
 import (
 	"sync"
 
-	"decred.org/dcrwallet/v3/errors"
-	"decred.org/dcrwallet/v3/internal/vsp"
+	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v4/internal/vsp"
 )
 
 var vspClients = struct {

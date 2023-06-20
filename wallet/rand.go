@@ -8,7 +8,7 @@ import (
 	"crypto/rand"
 	"sync"
 
-	"decred.org/dcrwallet/v3/internal/uniformprng"
+	"decred.org/dcrwallet/v4/internal/uniformprng"
 )
 
 var prng *uniformprng.Source

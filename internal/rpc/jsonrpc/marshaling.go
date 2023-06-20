@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"decred.org/dcrwallet/v3/wallet"
+	"decred.org/dcrwallet/v4/wallet"
 )
 
 type marshalJSONFunc func() ([]byte, error)
