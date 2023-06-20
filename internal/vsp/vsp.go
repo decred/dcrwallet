@@ -13,6 +13,7 @@ import (
 	"decred.org/dcrwallet/v4/wallet"
 	"decred.org/dcrwallet/v4/wallet/udb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
@@ -29,11 +30,13 @@ type Policy struct {
 
 type Client struct {
 	wallet *wallet.Wallet
-	policy Policy
+	policy *Policy
 	*vspd.Client
 
 	mu   sync.Mutex
 	jobs map[chainhash.Hash]*feePayment
+
+	params *chaincfg.Params
 }
 
 type Config struct {
@@ -51,7 +54,9 @@ type Config struct {
 
 	// Default policy for fee payments unless another is provided by the
 	// caller.
-	Policy Policy
+	Policy *Policy
+
+	Params *chaincfg.Params
 }
 
 func New(cfg Config) (*Client, error) {
@@ -65,6 +70,10 @@ func New(cfg Config) (*Client, error) {
 	}
 	if cfg.Wallet == nil {
 		return nil, fmt.Errorf("wallet option not set")
+	}
+
+	if cfg.Params == nil {
+		return nil, fmt.Errorf("params option not set")
 	}
 
 	client := &vspd.Client{
@@ -82,6 +91,7 @@ func New(cfg Config) (*Client, error) {
 		policy: cfg.Policy,
 		Client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
+		params: cfg.Params,
 	}
 	return v, nil
 }
@@ -140,11 +150,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 
 // ProcessTicket attempts to process a given ticket based on the hash provided.
 func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error {
-	err := c.Process(ctx, hash, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.Process(ctx, hash, nil)
 }
 
 // ProcessManagedTickets discovers tickets which were previously registered with
@@ -365,7 +371,7 @@ type TicketInfo struct {
 	TicketHash     chainhash.Hash
 	CommitmentAddr stdaddr.StakeAddress
 	VotingAddr     stdaddr.StakeAddress
-	State          uint32
+	State          State
 	Fee            dcrutil.Amount
 	FeeHash        chainhash.Hash
 
@@ -393,7 +399,7 @@ func (c *Client) TrackedTickets() []*TicketInfo {
 			TicketHash:     job.ticketHash,
 			CommitmentAddr: job.commitmentAddr,
 			VotingAddr:     job.votingAddr,
-			State:          uint32(job.state),
+			State:          job.state,
 			Fee:            job.fee,
 			FeeHash:        job.feeHash,
 		})

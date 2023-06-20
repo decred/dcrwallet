@@ -283,11 +283,12 @@ func run(ctx context.Context) error {
 				PubKey: cfg.VSPOpts.PubKey,
 				Dialer: cfg.dial,
 				Wallet: w,
-				Policy: vsp.Policy{
+				Policy: &vsp.Policy{
 					MaxFee:     cfg.VSPOpts.MaxFee.Amount,
 					FeeAcct:    purchaseAcct,
 					ChangeAcct: changeAcct,
 				},
+				Params: w.ChainParams(),
 			}
 			vspClient, err = ldr.VSP(vspCfg)
 			if err != nil {

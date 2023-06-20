@@ -26,6 +26,7 @@ import (
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/v4/validate"
+	"decred.org/dcrwallet/v4/wallet/txauthor"
 	"decred.org/dcrwallet/v4/wallet/txrules"
 	"decred.org/dcrwallet/v4/wallet/txsizes"
 	"decred.org/dcrwallet/v4/wallet/udb"
@@ -398,39 +399,20 @@ func (w *Wallet) VoteBits() stake.VoteBits {
 	return vb
 }
 
-// AgendaChoice describes a user's choice for a consensus deployment agenda.
-type AgendaChoice struct {
-	AgendaID string
-	ChoiceID string
-}
-
-type AgendaChoices []AgendaChoice
-
-// Map returns the agenda choices formatted as map["AgendaID"] = "ChoiceID".
-func (a AgendaChoices) Map() map[string]string {
-	choices := make(map[string]string, len(a))
-
-	for _, c := range a {
-		choices[c.AgendaID] = c.ChoiceID
-	}
-	return choices
-}
-
 // AgendaChoices returns the choice IDs for every agenda of the supported stake
 // version.  Abstains are included.  Returns choice IDs set for the specified
 // non-nil ticket hash, or the default choice IDs if the ticket hash is nil or
 // there are no choices set for the ticket.
-func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices AgendaChoices, voteBits uint16, err error) {
+func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) (choices map[string]string, voteBits uint16, err error) {
 	const op errors.Op = "wallet.AgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
 		return nil, 0, nil
 	}
 
-	choices = make(AgendaChoices, len(deployments))
-	for i := range choices {
-		choices[i].AgendaID = deployments[i].Vote.Id
-		choices[i].ChoiceID = "abstain"
+	choices = make(map[string]string, len(deployments))
+	for _, d := range deployments {
+		choices[d.Vote.Id] = "abstain"
 	}
 
 	var ownTicket bool
@@ -458,7 +440,7 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 				continue
 			}
 			hasSavedPrefs = true
-			choices[i].ChoiceID = choice
+			choices[agenda.Id] = choice
 			for j := range agenda.Choices {
 				if agenda.Choices[j].Id == choice {
 					voteBits |= agenda.Choices[j].Bits
@@ -486,7 +468,7 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 // new votebits after each change is made are returned.
 // If a ticketHash is provided, agenda choices are only set for that ticket and
 // the new votebits for that ticket is returned.
-func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Hash, choices ...AgendaChoice) (voteBits uint16, err error) {
+func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Hash, choices map[string]string) (voteBits uint16, err error) {
 	const op errors.Op = "wallet.SetAgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
@@ -515,34 +497,34 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 	var appliedChoices []maskChoice
 
 	err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-		for _, c := range choices {
+		for agendaID, choiceID := range choices {
 			var matchingAgenda *chaincfg.Vote
 			for i := range deployments {
-				if deployments[i].Vote.Id == c.AgendaID {
+				if deployments[i].Vote.Id == agendaID {
 					matchingAgenda = &deployments[i].Vote
 					break
 				}
 			}
 			if matchingAgenda == nil {
-				return errors.E(errors.Invalid, errors.Errorf("no agenda with ID %q", c.AgendaID))
+				return errors.E(errors.Invalid, errors.Errorf("no agenda with ID %q", agendaID))
 			}
 
 			var matchingChoice *chaincfg.Choice
 			for i := range matchingAgenda.Choices {
-				if matchingAgenda.Choices[i].Id == c.ChoiceID {
+				if matchingAgenda.Choices[i].Id == choiceID {
 					matchingChoice = &matchingAgenda.Choices[i]
 					break
 				}
 			}
 			if matchingChoice == nil {
-				return errors.E(errors.Invalid, errors.Errorf("agenda %q has no choice ID %q", c.AgendaID, c.ChoiceID))
+				return errors.E(errors.Invalid, errors.Errorf("agenda %q has no choice ID %q", agendaID, choiceID))
 			}
 
 			var err error
 			if ticketHash == nil {
-				err = udb.SetDefaultAgendaPreference(tx, version, c.AgendaID, c.ChoiceID)
+				err = udb.SetDefaultAgendaPreference(tx, version, agendaID, choiceID)
 			} else {
-				err = udb.SetTicketAgendaPreference(tx, ticketHash, version, c.AgendaID, c.ChoiceID)
+				err = udb.SetTicketAgendaPreference(tx, ticketHash, version, agendaID, choiceID)
 			}
 			if err != nil {
 				return err
@@ -4714,6 +4696,108 @@ func (s sigDataSource) GetKey(a stdaddr.Address) ([]byte, dcrec.SignatureType, b
 	return s.key(a)
 }
 func (s sigDataSource) GetScript(a stdaddr.Address) ([]byte, error) { return s.script(a) }
+
+// CreateVspPayment receives a tx and ensures that it pays the correct fee
+// amount to the correct address. It then signs that tx and adds it to the
+// wallet without broadcasting it to the network.
+func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrutil.Amount,
+	feeAddr stdaddr.Address, feeAcct uint32, changeAcct uint32) error {
+
+	// Reserve new outputs to pay the fee if outputs have not already been
+	// reserved.  This will be the case for fee payments that were begun on
+	// already purchased tickets, where the caller did not ensure that fee
+	// outputs would already be reserved.
+	if len(tx.TxIn) == 0 {
+		const minconf = 1
+		inputs, err := w.ReserveOutputsForAmount(ctx, feeAcct, fee, minconf)
+		if err != nil {
+			return fmt.Errorf("unable to reserve outputs: %w", err)
+		}
+		for _, in := range inputs {
+			tx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
+		}
+		// The transaction will be added to the wallet in an unpublished
+		// state, so there is no need to leave the outputs locked.
+		defer func() {
+			for _, in := range inputs {
+				w.UnlockOutpoint(&in.OutPoint.Hash, in.OutPoint.Index)
+			}
+		}()
+	}
+
+	var input int64
+	for _, in := range tx.TxIn {
+		input += in.ValueIn
+	}
+	if input < int64(fee) {
+		err := fmt.Errorf("not enough input value to pay fee: %v < %v",
+			dcrutil.Amount(input), fee)
+		return err
+	}
+
+	vers, feeScript := feeAddr.PaymentScript()
+
+	addr, err := w.NewChangeAddress(ctx, changeAcct)
+	if err != nil {
+		log.Warnf("failed to get new change address: %v", err)
+		return err
+	}
+	var changeOut *wire.TxOut
+	switch addr := addr.(type) {
+	case Address:
+		vers, script := addr.PaymentScript()
+		changeOut = &wire.TxOut{PkScript: script, Version: vers}
+	default:
+		return fmt.Errorf("failed to convert '%T' to wallet.Address", addr)
+	}
+
+	tx.TxOut = append(tx.TxOut[:0], &wire.TxOut{
+		Value:    int64(fee),
+		Version:  vers,
+		PkScript: feeScript,
+	})
+	feeRate := w.RelayFee()
+	scriptSizes := make([]int, len(tx.TxIn))
+	for i := range scriptSizes {
+		scriptSizes[i] = txsizes.RedeemP2PKHSigScriptSize
+	}
+	est := txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, txsizes.P2PKHPkScriptSize)
+	change := input
+	change -= tx.TxOut[0].Value
+	change -= int64(txrules.FeeForSerializeSize(feeRate, est))
+	if !txrules.IsDustAmount(dcrutil.Amount(change), txsizes.P2PKHPkScriptSize, feeRate) {
+		changeOut.Value = change
+		tx.TxOut = append(tx.TxOut, changeOut)
+		txauthor.RandomizeOutputPosition(tx.TxOut, len(tx.TxOut)-1)
+	}
+
+	feeHash := tx.TxHash()
+
+	sigErrs, err := w.SignTransaction(ctx, tx, txscript.SigHashAll, nil, nil, nil)
+	if err != nil || len(sigErrs) > 0 {
+		log.Errorf("failed to sign transaction: %v", err)
+		sigErrStr := ""
+		for _, sigErr := range sigErrs {
+			log.Errorf("\t%v", sigErr)
+			sigErrStr = fmt.Sprintf("\t%v", sigErr) + " "
+		}
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf(sigErrStr)
+	}
+
+	err = w.SetPublished(ctx, &feeHash, false)
+	if err != nil {
+		return err
+	}
+	err = w.AddTransaction(ctx, tx, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // SignTransaction uses secrets of the wallet, as well as additional secrets
 // passed in by the caller, to create and add input signatures to a transaction.

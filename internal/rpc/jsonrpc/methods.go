@@ -2757,7 +2757,7 @@ func (s *Server) getVoteChoices(ctx context.Context, icmd interface{}) (interfac
 	version, agendas := wallet.CurrentAgendas(w.ChainParams())
 	resp := &types.GetVoteChoicesResult{
 		Version: version,
-		Choices: make([]types.VoteChoice, len(agendas)),
+		Choices: make([]types.VoteChoice, 0, len(agendas)),
 	}
 
 	choices, _, err := w.AgendaChoices(ctx, ticketHash)
@@ -2765,19 +2765,23 @@ func (s *Server) getVoteChoices(ctx context.Context, icmd interface{}) (interfac
 		return nil, err
 	}
 
-	for i := range choices {
-		resp.Choices[i] = types.VoteChoice{
-			AgendaID:          choices[i].AgendaID,
-			AgendaDescription: agendas[i].Vote.Description,
-			ChoiceID:          choices[i].ChoiceID,
+	for _, agenda := range agendas {
+		agendaID := agenda.Vote.Id
+		voteChoice := types.VoteChoice{
+			AgendaID:          agendaID,
+			AgendaDescription: agenda.Vote.Description,
+			ChoiceID:          choices[agendaID],
 			ChoiceDescription: "", // Set below
 		}
-		for j := range agendas[i].Vote.Choices {
-			if choices[i].ChoiceID == agendas[i].Vote.Choices[j].Id {
-				resp.Choices[i].ChoiceDescription = agendas[i].Vote.Choices[j].Description
+
+		for _, choice := range agenda.Vote.Choices {
+			if choices[agendaID] == choice.Id {
+				voteChoice.ChoiceDescription = choice.Description
 				break
 			}
 		}
+
+		resp.Choices = append(resp.Choices, voteChoice)
 	}
 
 	return resp, nil
@@ -3381,11 +3385,12 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd interface{}) (interfac
 			PubKey: s.cfg.VSPPubKey,
 			Dialer: s.cfg.Dial,
 			Wallet: w,
-			Policy: vsp.Policy{
+			Policy: &vsp.Policy{
 				MaxFee:     s.cfg.VSPMaxFee,
 				FeeAcct:    account,
 				ChangeAcct: changeAccount,
 			},
+			Params: w.ChainParams(),
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
@@ -4291,10 +4296,12 @@ func (s *Server) ticketInfo(ctx context.Context, icmd interface{}) (interface{},
 			if err != nil {
 				return false, err
 			}
-			info.Choices = make([]types.VoteChoice, len(choices))
-			for i := range choices {
-				info.Choices[i].AgendaID = choices[i].AgendaID
-				info.Choices[i].ChoiceID = choices[i].ChoiceID
+			info.Choices = make([]types.VoteChoice, 0, len(choices))
+			for agendaID, choiceID := range choices {
+				info.Choices = append(info.Choices, types.VoteChoice{
+					AgendaID: agendaID,
+					ChoiceID: choiceID,
+				})
 			}
 
 			host, err := w.VSPHostForTicket(ctx, t.Ticket.Hash)
@@ -4634,13 +4641,11 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 		ticketHash = hash
 	}
 
-	choice := wallet.AgendaChoices{
-		{
-			AgendaID: cmd.AgendaID,
-			ChoiceID: cmd.ChoiceID,
-		},
+	choice := map[string]string{
+		cmd.AgendaID: cmd.ChoiceID,
 	}
-	_, err := w.SetAgendaChoices(ctx, ticketHash, choice...)
+
+	_, err := w.SetAgendaChoices(ctx, ticketHash, choice)
 	if err != nil {
 		return nil, err
 	}
@@ -4651,7 +4656,7 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd interface{}) (interface
 }
 
 func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, ticketHash *chainhash.Hash,
-	choices wallet.AgendaChoices, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
+	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
 	if ticketHash != nil {
 		vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
@@ -4666,7 +4671,7 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		if err != nil {
 			return err
 		}
-		err = vspClient.SetVoteChoice(ctx, ticketHash, choices.Map(), tspendPolicy, treasuryPolicy)
+		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
 		return err
 	}
 	var firstErr error
@@ -4687,7 +4692,7 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		}
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
-		err = vspClient.SetVoteChoice(ctx, hash, choices.Map(), tspendPolicy, treasuryPolicy)
+		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}

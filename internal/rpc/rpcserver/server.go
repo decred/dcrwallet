@@ -1821,11 +1821,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			PubKey: vspPubKey,
 			Dialer: nil,
 			Wallet: s.wallet,
-			Policy: vsp.Policy{
+			Policy: &vsp.Policy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
 				ChangeAcct: req.ChangeAccount,
 			},
+			Params: s.wallet.ChainParams(),
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
@@ -2683,11 +2684,12 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 			PubKey: vspPubKey,
 			Dialer: nil,
 			Wallet: wallet,
-			Policy: vsp.Policy{
+			Policy: &vsp.Policy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
 				ChangeAcct: req.Account,
 			},
+			Params: wallet.ChainParams(),
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
@@ -3324,24 +3326,29 @@ func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesReque
 	}
 	resp := &pb.VoteChoicesResponse{
 		Version:  version,
-		Choices:  make([]*pb.VoteChoicesResponse_Choice, len(agendas)),
+		Choices:  make([]*pb.VoteChoicesResponse_Choice, 0, len(agendas)),
 		Votebits: uint32(voteBits),
 	}
 
-	for i := range choices {
-		resp.Choices[i] = &pb.VoteChoicesResponse_Choice{
-			AgendaId:          choices[i].AgendaID,
-			AgendaDescription: agendas[i].Vote.Description,
-			ChoiceId:          choices[i].ChoiceID,
+	for _, agenda := range agendas {
+		agendaID := agenda.Vote.Id
+		voteChoice := &pb.VoteChoicesResponse_Choice{
+			AgendaId:          agendaID,
+			AgendaDescription: agenda.Vote.Description,
+			ChoiceId:          choices[agendaID],
 			ChoiceDescription: "", // Set below
 		}
-		for j := range agendas[i].Vote.Choices {
-			if choices[i].ChoiceID == agendas[i].Vote.Choices[j].Id {
-				resp.Choices[i].ChoiceDescription = agendas[i].Vote.Choices[j].Description
+
+		for _, choice := range agenda.Vote.Choices {
+			if choices[agendaID] == choice.Id {
+				voteChoice.ChoiceDescription = choice.Description
 				break
 			}
 		}
+
+		resp.Choices = append(resp.Choices, voteChoice)
 	}
+
 	return resp, nil
 }
 
@@ -3354,14 +3361,11 @@ func (s *votingServer) SetVoteChoices(ctx context.Context, req *pb.SetVoteChoice
 			return nil, status.Errorf(codes.InvalidArgument, "%v", err)
 		}
 	}
-	choices := make(wallet.AgendaChoices, len(req.Choices))
-	for i, c := range req.Choices {
-		choices[i] = wallet.AgendaChoice{
-			AgendaID: c.AgendaId,
-			ChoiceID: c.ChoiceId,
-		}
+	choices := make(map[string]string, len(req.Choices))
+	for _, c := range req.Choices {
+		choices[c.AgendaId] = c.ChoiceId
 	}
-	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices...)
+	voteBits, err := s.wallet.SetAgendaChoices(ctx, ticketHash, choices)
 	if err != nil {
 		return nil, translateError(err)
 	}
@@ -4133,7 +4137,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
+	policy := &vsp.Policy{
 		MaxFee:     0.1e8,
 		FeeAcct:    req.Account,
 		ChangeAcct: req.ChangeAccount,
@@ -4144,6 +4148,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		Dialer: nil,
 		Wallet: s.wallet,
 		Policy: policy,
+		Params: s.wallet.ChainParams(),
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -4174,7 +4179,7 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
+	policy := &vsp.Policy{
 		MaxFee:     0.1e8,
 		FeeAcct:    req.FeeAccount,
 		ChangeAcct: req.ChangeAccount,
@@ -4185,6 +4190,7 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 		Dialer: nil,
 		Wallet: s.wallet,
 		Policy: policy,
+		Params: s.wallet.ChainParams(),
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -4210,7 +4216,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
+	policy := &vsp.Policy{
 		MaxFee:     0.1e8,
 		FeeAcct:    req.FeeAccount,
 		ChangeAcct: req.ChangeAccount,
@@ -4221,6 +4227,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		Dialer: nil,
 		Wallet: s.wallet,
 		Policy: policy,
+		Params: s.wallet.ChainParams(),
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -4253,7 +4260,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	if vspHost == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
 	}
-	policy := vsp.Policy{
+	policy := &vsp.Policy{
 		MaxFee:     0.1e8,
 		FeeAcct:    req.FeeAccount,
 		ChangeAcct: req.ChangeAccount,
@@ -4264,6 +4271,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		Dialer: nil,
 		Wallet: s.wallet,
 		Policy: policy,
+		Params: s.wallet.ChainParams(),
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
@@ -4312,7 +4320,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 			return err
 		}
 		if ticketHost == vspHost {
-			_ = vspClient.SetVoteChoice(ctx, hash, choices.Map(), tSpendChoices, treasuryChoices)
+			_ = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
 		}
 		return nil
 	})
@@ -4330,7 +4338,7 @@ func marshalVSPTrackedTickets(tickets []*vsp.TicketInfo) []*pb.GetTrackedVSPTick
 			TicketHash:        ticket.TicketHash[:],
 			CommitmentAddress: ticket.CommitmentAddr.String(),
 			VotingAddress:     ticket.VotingAddr.String(),
-			State:             ticket.State,
+			State:             uint32(ticket.State),
 			Fee:               int64(ticket.Fee),
 			FeeHash:           ticket.FeeHash[:],
 		}
