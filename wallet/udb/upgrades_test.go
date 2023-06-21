@@ -535,7 +535,11 @@ func verifyV12Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 }
 
 func verifyV25Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
-	const wantVer = 25
+	// The v25 upgrade did nothing but bump the version number to deliberately
+	// break backwards compatability.
+	// Therefore this test will do nothing but ensure that the new version
+	// number is >=25.
+	const minWantVer = 25
 	_, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
 	if err != nil {
 		t.Fatalf("Open after Upgrade failed: %v", err)
@@ -547,8 +551,8 @@ func verifyV25Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 		if err != nil {
 			return err
 		}
-		if dbVer != wantVer {
-			return fmt.Errorf("wanted version %d but got %d", wantVer, dbVer)
+		if dbVer < minWantVer {
+			return fmt.Errorf("wanted version >=%d but got %d", minWantVer, dbVer)
 		}
 		return nil
 	}); err != nil {
