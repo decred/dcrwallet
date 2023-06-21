@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 The Decred developers
+// Copyright (c) 2017-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -202,10 +202,22 @@ const (
 	// error on startup.
 	importVotingAccountVersion = 25
 
+	// consolidateVSPBuckets is the 26th version of the database. Prior to this
+	// version the database stored information about VSP servers in two
+	// different buckets:
+	//
+	//   - The bucket "vsphost", keyed by an integer ID, stored the VSP host URL.
+	//   - The bucket "vsppubkey", keyed by VSP host URL, stored the VSPs pubkey.
+	//
+	// The v26 database upgrade consolidates these buckets. Pubkeys will be
+	// moved into the "vsphost" bucket, and the "vsppubkey" bucket will be
+	// deleted.
+	consolidateVSPBucketsVersion = 26
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = importVotingAccountVersion
+	DBVersion = consolidateVSPBucketsVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -236,6 +248,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	vspHostVersion - 1:                    vspHostVersionUpgrade,
 	vspTreasuryPoliciesVersion - 1:        vspTreasuryPoliciesUpgrade,
 	importVotingAccountVersion - 1:        importVotingAccountUpgrade,
+	consolidateVSPBucketsVersion - 1:      consolidateVSPBucketsUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1578,6 +1591,7 @@ func vspHostVersionUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, par
 		return errors.E(errors.IO, err)
 	}
 	// Create new vsp pubkey bucket
+	vspPubKeyBucketKey := []byte("vsppubkey")
 	_, err = tx.CreateTopLevelBucket(vspPubKeyBucketKey)
 	if err != nil {
 		return errors.E(errors.IO, err)
@@ -1667,6 +1681,77 @@ func importVotingAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	}
 	if dbVersion != oldVersion {
 		return errors.E(errors.Invalid, "importVotingAccountUpgrade inappropriately called")
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func consolidateVSPBucketsUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
+	const oldVersion = 25
+	const newVersion = 26
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 25 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "consolidateVSPBuckets inappropriately called")
+	}
+
+	// vspPubKeyBucketKey is the bucket which this upgrade is going to remove.
+	vspPubKeyBucketKey := []byte("vsppubkey")
+
+	// deserializeVSPPubKey deserializes data from the bucket which is going to
+	// be removed.
+	deserializeVSPPubKey := func(serializedPubKey []byte) ([]byte, []byte) {
+		curPos := 0
+		vspID := serializedPubKey[curPos : curPos+4]
+		curPos += 4
+		pubkeyLength := byteOrder.Uint32(serializedPubKey[curPos : curPos+4])
+		curPos += 4
+		vspPubKey := serializedPubKey[curPos : curPos+int(pubkeyLength)]
+
+		return vspID, vspPubKey
+	}
+
+	// deserializeVSPHostV25 deserializes VSP host data in the old format.
+	deserializeVSPHostV25 := func(serializedHost []byte) []byte {
+		curPos := 0
+		hostLength := byteOrder.Uint32(serializedHost[curPos : curPos+4])
+		curPos += 4
+		return serializedHost[curPos : curPos+int(hostLength)]
+	}
+
+	// DB upgrade 23 which introduced the two buckets manually inserted a zero
+	// value into vsphost. That needs to be manually updated, so do that first.
+	vspHostBucket := tx.ReadWriteBucket(vspHostBucketKey)
+	k := make([]byte, 4)
+	byteOrder.PutUint32(k, 0)
+	err = vspHostBucket.Put(k, make([]byte, 8))
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+
+	// Copy the pubkey data from the vsppubkey bucket into the vsphost bucket.
+	tx.ReadBucket(vspPubKeyBucketKey).ForEach(func(k, v []byte) error {
+		vspID, vspPubkey := deserializeVSPPubKey(v)
+
+		oldHost := deserializeVSPHostV25(vspHostBucket.Get(vspID))
+
+		return SetVSPHost(tx, byteOrder.Uint32(vspID), &VSPHost{
+			Host:   oldHost,
+			PubKey: vspPubkey,
+		})
+	})
+
+	// Delete the vsppubkey bucket.
+	err = tx.DeleteTopLevelBucket(vspPubKeyBucketKey)
+	if err != nil {
+		return err
 	}
 
 	// Write the new database version.

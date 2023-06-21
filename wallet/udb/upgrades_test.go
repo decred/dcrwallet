@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -39,6 +39,7 @@ var dbUpgradeTests = [...]struct {
 	{verifyV12Upgrade, "v11.db.gz"},
 	// TODO: V13-24 tests
 	{verifyV25Upgrade, "v24.db.gz"},
+	{verifyV26Upgrade, "v25.db.gz"},
 }
 
 var pubPass = []byte("public")
@@ -556,6 +557,45 @@ func verifyV25Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
 		}
 		return nil
 	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// verifyV26Upgrade uses the v25 test database to ensure the upgrade to the v26
+// database was successful.
+//
+// See the v25.db.go file for an explanation of the database layout and test
+// plan.
+func verifyV26Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
+	_, _, _, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPass)
+	if err != nil {
+		t.Fatalf("Open after Upgrade failed: %v", err)
+	}
+
+	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
+		// Bucket "vsppubkey" should have been removed.
+		vspPubKeyBucketKey := []byte("vsppubkey")
+		bucket := tx.ReadBucket(vspPubKeyBucketKey)
+		if bucket != nil {
+			return fmt.Errorf("vsp pubkey bucket was not deleted")
+		}
+
+		// VSP Pubkey should still be available because it should have been
+		// migrated to the VSPHost bucket.
+		vspHost, err := GetVSPHost(tx, 1)
+		if err != nil {
+			return err
+		}
+
+		expectedPubkey := []byte("Test pubkey")
+		if !bytes.Equal(vspHost.PubKey, expectedPubkey) {
+			return fmt.Errorf("incorrect vsp pubkey")
+		}
+
+		return nil
+	})
+
+	if err != nil {
 		t.Fatal(err)
 	}
 }
