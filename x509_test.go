@@ -197,7 +197,8 @@ func TestUntrustedClientCert(t *testing.T) {
 				// Retry.
 				continue
 			}
-			if !strings.HasSuffix(err.Error(), "tls: bad certificate") {
+			if !(strings.HasSuffix(err.Error(), "tls: bad certificate") ||
+				strings.HasSuffix(err.Error(), "tls: unknown certificate authority")) {
 				t.Fatalf("server did not report bad certificate error; "+
 					"instead errored with: %v (%T)", err, err)
 			}
