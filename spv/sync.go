@@ -746,20 +746,17 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 	isTSpend = err == nil
 
 	if !isTSpend {
-		log.Debugf("Tx is not a TSpend")
 		return false
 	}
 
 	_, height := s.wallet.MainChainTip(ctx)
 	if uint32(height) > tx.Expiry {
-		log.Debugf("TSpend has been expired")
 		return false
 	}
 
 	// If we have a TSpend verify the signature.
 	// Check if this is a sanctioned PI key.
 	if !s.wallet.ChainParams().PiKeyExists(pubKey) {
-		log.Errorf("Unknown Pi Key: %x", pubKey)
 		return false
 	}
 
@@ -767,7 +764,6 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 	// provided public key.
 	err = s.verifyTSpendSignature(tx, signature, pubKey)
 	if err != nil {
-		log.Errorf("Could not verify TSpend signature: %v", err)
 		return false
 	}
 
