@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The Decred developers
+// Copyright (c) 2020-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -97,7 +97,6 @@ func SetVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash *chainhash.Hash, record 
 	bucket := dbtx.ReadWriteBucket(vspBucketKey)
 	serializedRecord := serializeVSPTicket(record)
 
-	// Save the creation date of the store.
 	return bucket.Put(ticketHash[:], serializedRecord)
 }
 
