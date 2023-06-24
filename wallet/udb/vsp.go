@@ -5,8 +5,6 @@
 package udb
 
 import (
-	"bytes"
-
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -75,23 +73,10 @@ func SetVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash *chainhash.Hash, record 
 		if err != nil {
 			return err
 		}
-		record.VSPHostID = vspHostID
 	} else if err != nil {
 		return err
 	}
 
-	// If the pubkey from the record in the request differs from the pubkey
-	// in the database that is saved for the host, update the pubkey in the
-	// db but keep the vsphost id intact.
-	if !bytes.Equal(pubkey.PubKey, record.PubKey) {
-		err = SetVSPPubKey(dbtx, []byte(record.Host), &VSPPubKey{
-			ID:     pubkey.ID,
-			PubKey: record.PubKey,
-		})
-		if err != nil {
-			return err
-		}
-	}
 	record.VSPHostID = pubkey.ID
 
 	bucket := dbtx.ReadWriteBucket(vspBucketKey)
