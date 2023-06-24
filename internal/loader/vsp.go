@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/internal/vsp"
 )
 
@@ -24,7 +25,7 @@ func VSP(cfg vsp.Config) (*vsp.Client, error) {
 	if ok {
 		return client, nil
 	}
-	client, err := vsp.New(cfg)
+	client, err := vsp.New(cfg, loggers.VspcLog)
 	if err != nil {
 		return nil, err
 	}

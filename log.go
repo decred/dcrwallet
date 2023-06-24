@@ -13,7 +13,6 @@ import (
 	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/v4/internal/rpc/rpcserver"
-	"decred.org/dcrwallet/v4/internal/vsp"
 	"decred.org/dcrwallet/v4/p2p"
 	"decred.org/dcrwallet/v4/spv"
 	"decred.org/dcrwallet/v4/ticketbuyer"
@@ -37,7 +36,6 @@ func init() {
 	rpcserver.UseLogger(loggers.GrpcLog)
 	jsonrpc.UseLogger(loggers.JsonrpcLog)
 	connmgr.UseLogger(loggers.CmgrLog)
-	vsp.UseLogger(loggers.VspcLog)
 }
 
 // subsystemLoggers maps each subsystem identifier to its associated logger.

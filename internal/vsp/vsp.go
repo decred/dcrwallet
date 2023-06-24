@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
+	"github.com/decred/slog"
 	vspd "github.com/decred/vspd/client/v2"
 )
 
@@ -36,6 +37,7 @@ type Client struct {
 	mu   sync.Mutex
 	jobs map[chainhash.Hash]*feePayment
 
+	log    slog.Logger
 	params *chaincfg.Params
 }
 
@@ -59,7 +61,7 @@ type Config struct {
 	Params *chaincfg.Params
 }
 
-func New(cfg Config) (*Client, error) {
+func New(cfg Config, log slog.Logger) (*Client, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -91,6 +93,7 @@ func New(cfg Config) (*Client, error) {
 		policy: cfg.Policy,
 		Client: client,
 		jobs:   make(map[chainhash.Hash]*feePayment),
+		log:    log,
 		params: cfg.Params,
 	}
 	return v, nil
@@ -117,7 +120,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 		}
 		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
 		if err != nil && !errors.Is(err, errors.NotExist) {
-			log.Error(err)
+			c.log.Error(err)
 			return nil
 		}
 
@@ -139,7 +142,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 			defer wg.Done()
 			err := c.Process(ctx, hash, nil)
 			if err != nil {
-				log.Error(err)
+				c.log.Error(err)
 			}
 		}()
 
@@ -162,7 +165,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
 		if err != nil && !errors.Is(err, errors.NotExist) {
-			log.Error(err)
+			c.log.Error(err)
 			return nil
 		}
 		if confirmed {
@@ -306,7 +309,7 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash,
 		if errors.Is(err, errors.Locked) {
 			return err
 		}
-		log.Errorf("Could not check status of VSP ticket %s: %v", hash, err)
+		c.log.Errorf("Could not check status of VSP ticket %s: %v", hash, err)
 		return nil
 	}
 
@@ -354,11 +357,11 @@ func (c *Client) SetVoteChoice(ctx context.Context, hash *chainhash.Hash,
 	}
 
 	if !update {
-		log.Debugf("VSP already has correct vote choices for ticket %s", hash)
+		c.log.Debugf("VSP already has correct vote choices for ticket %s", hash)
 		return nil
 	}
 
-	log.Debugf("Updating vote choices on VSP for ticket %s", hash)
+	c.log.Debugf("Updating vote choices on VSP for ticket %s", hash)
 	err = c.setVoteChoices(ctx, hash, choices, tspendPolicy, treasuryPolicy)
 	if err != nil {
 		return err
