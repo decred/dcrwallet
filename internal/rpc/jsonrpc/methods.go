@@ -3491,7 +3491,7 @@ func (s *Server) processUnmanagedTicket(ctx context.Context, icmd interface{}) (
 		return nil, err
 	}
 
-	err = vspClient.ProcessTicket(ctx, ticketHash)
+	err = vspClient.Process(ctx, ticketHash, nil)
 	if err != nil {
 		return nil, err
 	}

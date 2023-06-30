@@ -1,3 +1,7 @@
+// Copyright (c) 2023 The Decred developers
+// Use of this source code is governed by an ISC
+// license that can be found in the LICENSE file.
+
 package vsp
 
 import (
@@ -107,8 +111,9 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 	return resp.FeePercentage, nil
 }
 
-// ProcessUnprocessedTickets processes all tickets that don't currently have
-// any association with a VSP.
+// ProcessUnprocessedTickets queries the wallet for all immature/live tickets
+// that don't currently have any association with a VSP. A background goroutine
+// is started to process the fee payment for each ticket.
 func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 	var wg sync.WaitGroup
 	c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
@@ -149,11 +154,6 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
 		return nil
 	})
 	wg.Wait()
-}
-
-// ProcessTicket attempts to process a given ticket based on the hash provided.
-func (c *Client) ProcessTicket(ctx context.Context, hash *chainhash.Hash) error {
-	return c.Process(ctx, hash, nil)
 }
 
 // ProcessManagedTickets discovers tickets which were previously registered with
@@ -224,10 +224,10 @@ func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 // inputs, is used to pay the VSP fee.  Otherwise, new inputs are selected and
 // locked to prevent double spending the fee.
 //
-// feeTx must not be nil, but may point to an empty transaction, and is modified
-// with the inputs and the fee and change outputs before returning without an
-// error.  The fee transaction is also recorded as unpublised in the wallet, and
-// the fee hash is associated with the ticket.
+// feeTx may be nil or may point to an empty transaction. It is modified with
+// the inputs and the fee and change outputs before returning without an error.
+// The fee transaction is also recorded as unpublised in the wallet, and the fee
+// hash is associated with the ticket.
 func (c *Client) Process(ctx context.Context, ticketHash *chainhash.Hash, feeTx *wire.MsgTx) error {
 	vspTicket, err := c.wallet.VSPTicketInfo(ctx, ticketHash)
 	if err != nil && !errors.Is(err, errors.NotExist) {
