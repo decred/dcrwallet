@@ -1268,22 +1268,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
-	if w.addressReuse && req.CSPPServer == "" {
-		xpub := w.addressBuffers[udb.DefaultAccountNum].albExternal.branchXpub
-		addr, err := deriveChildAddress(xpub, 0, w.chainParams)
-		if err != nil {
-			err = errors.E(op, err)
-		}
-		stakeAddr, ok := addr.(stdaddr.StakeAddress)
-		if !ok {
-			err = errors.E(op, errors.Invalid, "account does not return "+
-				"compatible stake addresses")
-		}
-		stakeAddrFunc = func(errors.Op, uint32, uint32) (stdaddr.StakeAddress, uint32, error) {
-			return stakeAddr, 0, err
-		}
-	}
-
 	// Calculate the current ticket price.  If the DCP0001 deployment is not
 	// active, fallback to querying the ticket price over RPC.
 	ticketPrice, err := w.NextStakeDifficulty(ctx)

@@ -149,7 +149,6 @@ type Wallet struct {
 	recentlyPublishedMu     sync.Mutex
 
 	// Internal address handling.
-	addressReuse     bool
 	ticketAddress    stdaddr.StakeAddress
 	addressBuffers   map[uint32]*bip0044AccountData
 	addressBuffersMu sync.Mutex
@@ -181,7 +180,6 @@ type Config struct {
 	PubPassphrase []byte
 
 	VotingEnabled bool
-	AddressReuse  bool
 	VotingAddress stdaddr.StakeAddress
 	PoolAddress   stdaddr.StakeAddress
 	PoolFees      float64
@@ -5489,7 +5487,6 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		// StakeOptions
 		votingEnabled:      cfg.VotingEnabled,
-		addressReuse:       cfg.AddressReuse,
 		ticketAddress:      cfg.VotingAddress,
 		poolAddress:        cfg.PoolAddress,
 		poolFees:           cfg.PoolFees,
