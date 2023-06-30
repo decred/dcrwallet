@@ -214,7 +214,7 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pai
 
 	fp = &feePayment{
 		client:     c,
-		ctx:        ctx,
+		ctx:        context.Background(),
 		ticketHash: *ticketHash,
 		policy:     c.policy,
 		params:     c.params,
