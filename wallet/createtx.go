@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1406,11 +1406,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return
 	}
 	if req.VSPFeePaymentProcess != nil {
-		if req.VSPFeeProcess == nil {
+		if req.VSPFeePercent == nil {
 			return nil, errors.E(op, errors.Bug, "VSPFeeProcess "+
 				"may not be nil if VSPServerProcess is non-nil")
 		}
-		feePrice, err := req.VSPFeeProcess(ctx)
+		feePrice, err := req.VSPFeePercent(ctx)
 		if err != nil {
 			return nil, err
 		}

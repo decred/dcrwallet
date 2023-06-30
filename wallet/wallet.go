@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1615,11 +1615,11 @@ type PurchaseTicketsRequest struct {
 	// VSPServer methods
 	// XXX this should be an interface
 
-	// VSPFeeProcessFunc Process the fee price for the vsp to register a ticket
-	// so we can reserve the amount.
-	VSPFeeProcess func(context.Context) (float64, error)
-	// VSPFeePaymentProcess processes the payment of the vsp fee and returns
-	// the paid fee tx.
+	// VSPFeePercent returns the VSPs fee as a percentage of the vote reward.
+	VSPFeePercent func(context.Context) (float64, error)
+	// VSPFeePaymentProcess checks the fee payment status for the specified
+	// ticket and, if necessary, starts a long-lived handler to process the fee
+	// payment.
 	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, *wire.MsgTx) error
 
 	// extraSplitOutput is an additional transaction output created during
@@ -1657,7 +1657,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		return nil, errors.E(op, errors.InsufficientBalance)
 	}
 
-	feePercent, err := req.VSPFeeProcess(ctx)
+	feePercent, err := req.VSPFeePercent(ctx)
 	if err != nil {
 		return nil, err
 	}
