@@ -111,48 +111,31 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 	return resp.FeePercentage, nil
 }
 
-// ProcessUnprocessedTickets queries the wallet for all immature/live tickets
-// that don't currently have any association with a VSP. A background goroutine
-// is started to process the fee payment for each ticket.
-func (c *Client) ProcessUnprocessedTickets(ctx context.Context) {
+// ProcessUnprocessedTickets adds the provided tickets to the client. Noop if
+// a given ticket is already added.
+func (c *Client) ProcessUnprocessedTickets(ctx context.Context, tickets []*chainhash.Hash) {
 	var wg sync.WaitGroup
-	c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
-		// Skip tickets which have a fee tx already associated with
-		// them; they are already processed by some vsp.
-		_, err := c.wallet.VSPFeeHashForTicket(ctx, hash)
-		if err == nil {
-			return nil
-		}
-		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
-		if err != nil && !errors.Is(err, errors.NotExist) {
-			c.log.Error(err)
-			return nil
-		}
 
-		if confirmed {
-			return nil
-		}
-
+	for _, hash := range tickets {
 		c.mu.Lock()
 		fp := c.jobs[*hash]
 		c.mu.Unlock()
 		if fp != nil {
 			// Already processing this ticket with the VSP.
-			return nil
+			continue
 		}
 
 		// Start processing in the background.
 		wg.Add(1)
-		go func() {
+		go func(ticketHash *chainhash.Hash) {
 			defer wg.Done()
-			err := c.Process(ctx, hash, nil)
+			err := c.Process(ctx, ticketHash, nil)
 			if err != nil {
 				c.log.Error(err)
 			}
-		}()
+		}(hash)
+	}
 
-		return nil
-	})
 	wg.Wait()
 }
 

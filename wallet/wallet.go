@@ -5909,3 +5909,36 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 	endBlock := NewBlockIdentifierFromHeight(blockHeight)
 	return w.GetTickets(ctx, iter, startBlock, endBlock)
 }
+
+// UnprocessedTickets returns the hash of every live/immature ticket in the
+// wallet database which is not currently being processed by a VSP.
+func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
+	unmanagedTickets := make([]*chainhash.Hash, 0)
+	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Skip tickets which have a fee tx already associated with
+		// them; they are already processed by some vsp.
+		_, err := w.VSPFeeHashForTicket(ctx, hash)
+		if err == nil {
+			return nil
+		}
+
+		// Skip tickets which already have a confirmed VSP fee.
+		confirmed, err := w.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil {
+			// NotExist error is expected for unmanaged tickets, it can be
+			// ignored. Any other errors should propagate upwards.
+			if !errors.Is(err, errors.NotExist) {
+				return err
+			}
+		}
+
+		if confirmed {
+			return nil
+		}
+
+		unmanagedTickets = append(unmanagedTickets, hash)
+		return nil
+	})
+
+	return unmanagedTickets, err
+}

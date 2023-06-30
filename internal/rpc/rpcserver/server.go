@@ -4234,17 +4234,12 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
 
-	errUnmanagedTickets := errors.New("unmanaged tickets")
-	err = s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
-		_, err := s.wallet.VSPFeeHashForTicket(ctx, hash)
-		if errors.Is(err, errors.NotExist) {
-			return errUnmanagedTickets
-		}
-		return nil
-	})
-	if errors.Is(err, errUnmanagedTickets) {
-		vspClient.ProcessUnprocessedTickets(ctx)
+	unmanagedTickets, err := s.wallet.UnprocessedTickets(ctx)
+	if err != nil {
+		status.Errorf(codes.Unknown, "failed to retrieve unmanaged tickets. Error: %v", err)
 	}
+
+	vspClient.ProcessUnprocessedTickets(ctx, unmanagedTickets)
 
 	return &pb.ProcessUnmanagedTicketsResponse{}, nil
 }
