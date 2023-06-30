@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2020 The Decred developers
+// Copyright (c) 2018-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -313,7 +313,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	// If VSP is configured, we need to set the methods for vsp fee processment.
 	if tb.cfg.VSP != nil {
 		purchaseTicketReq.VSPFeePaymentProcess = tb.cfg.VSP.Process
-		purchaseTicketReq.VSPFeeProcess = tb.cfg.VSP.FeePercentage
+		purchaseTicketReq.VSPFeePercent = tb.cfg.VSP.FeePercentage
 	}
 	tix, err := w.PurchaseTickets(ctx, n, purchaseTicketReq)
 	if tix != nil {
