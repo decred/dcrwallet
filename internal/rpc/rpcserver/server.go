@@ -4234,17 +4234,39 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
 	}
 
-	errUnmanagedTickets := errors.New("unmanaged tickets")
+	unmanagedTickets := make([]*chainhash.Hash, 0)
+
 	err = s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// Skip tickets which have a fee tx already associated with
+		// them; they are already processed by some vsp.
 		_, err := s.wallet.VSPFeeHashForTicket(ctx, hash)
-		if errors.Is(err, errors.NotExist) {
-			return errUnmanagedTickets
+		if err == nil {
+			return nil
 		}
+
+		// Skip tickets which already have a confirmed VSP fee.
+		confirmed, err := s.wallet.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil {
+			// NotExist error is expected for unmanaged tickets, it can be
+			// ignored. Any other errors should propagate upwards.
+			if !errors.Is(err, errors.NotExist) {
+				return err
+			}
+		}
+
+		if confirmed {
+			return nil
+		}
+
+		unmanagedTickets = append(unmanagedTickets, hash)
 		return nil
 	})
-	if errors.Is(err, errUnmanagedTickets) {
-		vspClient.ProcessUnprocessedTickets(ctx)
+
+	if err != nil {
+		status.Errorf(codes.Unknown, "failed to retrieve unmanaged tickets. Error: %v", err)
 	}
+
+	vspClient.ProcessUnprocessedTickets(ctx, unmanagedTickets)
 
 	return &pb.ProcessUnmanagedTicketsResponse{}, nil
 }
