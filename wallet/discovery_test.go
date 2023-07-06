@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The Decred developers
+// Copyright (c) 2020-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -21,7 +21,7 @@ func TestDiscoveryCursorPos(t *testing.T) {
 	// off-by-ones after the upgrade.  will be fixed in a later commit.
 	cfg.DisableCoinTypeUpgrades = true
 
-	w, teardown := testWallet(ctx, t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg, nil)
 	defer teardown()
 
 	/*

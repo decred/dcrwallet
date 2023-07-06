@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,6 +15,8 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 
+var testPrivPass = []byte("private")
+
 var basicWalletConfig = Config{
 	PubPassphrase: []byte(InsecurePubPassphrase),
 	GapLimit:      20,
@@ -22,7 +24,7 @@ var basicWalletConfig = Config{
 	Params:        chaincfg.SimNetParams(),
 }
 
-func testWallet(ctx context.Context, t *testing.T, cfg *Config) (w *Wallet, teardown func()) {
+func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) (w *Wallet, teardown func()) {
 	f, err := os.CreateTemp("", "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +38,7 @@ func testWallet(ctx context.Context, t *testing.T, cfg *Config) (w *Wallet, tear
 		db.Close()
 		os.Remove(f.Name())
 	}
-	err = Create(ctx, opaqueDB{db}, []byte(InsecurePubPassphrase), []byte("private"), nil, cfg.Params)
+	err = Create(ctx, opaqueDB{db}, []byte(InsecurePubPassphrase), testPrivPass, seed, cfg.Params)
 	if err != nil {
 		rm()
 		t.Fatal(err)

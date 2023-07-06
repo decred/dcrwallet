@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -157,7 +157,7 @@ func TestReorg(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(ctx, t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg, nil)
 	defer teardown()
 
 	tg := maketg(t, cfg.Params)

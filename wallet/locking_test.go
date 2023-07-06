@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2019-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,12 +12,10 @@ import (
 	"decred.org/dcrwallet/v4/errors"
 )
 
-var testPrivPass = []byte("private")
-
 func TestLocking(t *testing.T) {
 	ctx := context.Background()
 
-	w, teardown := testWallet(ctx, t, &basicWalletConfig)
+	w, teardown := testWallet(ctx, t, &basicWalletConfig, nil)
 	defer teardown()
 
 	var tests = []func(ctx context.Context, t *testing.T, w *Wallet){
