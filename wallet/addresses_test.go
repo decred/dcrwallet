@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Decred developers
+// Copyright (c) 2018-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,12 +8,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"os"
 	"testing"
 
 	"decred.org/dcrwallet/v4/wallet/walletdb"
-	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
@@ -51,16 +48,6 @@ var (
 		0x0a, 0xeb, 0xc7, 0x76, 0x40, 0x3c, 0x3d, 0xbf, 0x11,
 		0xbf, 0xb6, 0x83, 0x05, 0x96, 0x7c, 0x36, 0xda, 0xc9,
 		0xef, 0x8d, 0x64, 0x15, 0x67,
-	}
-
-	pubPassphrase  = []byte("_DJr{fL4H0O}*-0\n:V1izc)(6BomK")
-	privPassphrase = []byte("81lUHXnOMZ@?XXd7O9xyDIWIbXX-lj")
-
-	walletConfig = Config{
-		PubPassphrase: pubPassphrase,
-		GapLimit:      20,
-		RelayFee:      dcrutil.Amount(1e5),
-		Params:        chaincfg.SimNetParams(),
 	}
 
 	defaultAccount     = uint32(0)
@@ -130,55 +117,21 @@ var (
 	}
 )
 
-func setupWallet(ctx context.Context, t *testing.T, cfg *Config) (*Wallet, walletdb.DB, func()) {
-	f, err := os.CreateTemp("", "testwallet.db")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-
-	db, err := walletdb.Create("bdb", f.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = Create(ctx, opaqueDB{db}, pubPassphrase, privPassphrase, seed, cfg.Params)
-	if err != nil {
-		db.Close()
-		os.Remove(f.Name())
-		t.Fatal(err)
-	}
-	cfg.DB = opaqueDB{db}
-
-	w, err := Open(ctx, cfg)
-	if err != nil {
-		db.Close()
-		os.Remove(f.Name())
-		t.Fatal(err)
-	}
-
-	teardown := func() {
-		db.Close()
-		os.Remove(f.Name())
-	}
-
-	return w, db, teardown
-}
-
 type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (stdaddr.Address, error)
 
 func testKnownAddresses(ctx context.Context, tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
-	w, db, teardown := setupWallet(ctx, tc.t, &walletConfig)
+	w, teardown := testWallet(ctx, tc.t, &basicWalletConfig, seed)
 	defer teardown()
 
 	if unlock {
-		err := w.Unlock(ctx, privPassphrase, nil)
+		err := w.Unlock(ctx, testPrivPass, nil)
 		if err != nil {
 			tc.t.Fatal(err)
 		}
 	}
 
 	if tc.watchingOnly {
-		err := walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
+		err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 			ns := tx.ReadWriteBucket(waddrmgrBucketKey)
 			return w.manager.ConvertToWatchingOnly(ns)
 		})
@@ -268,7 +221,7 @@ func TestAccountIndexes(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(ctx, t, &cfg)
+	w, teardown := testWallet(ctx, t, &cfg, nil)
 	defer teardown()
 
 	w.SetNetworkBackend(mockNetwork{})
