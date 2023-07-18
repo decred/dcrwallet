@@ -34,8 +34,7 @@ type Error struct {
 	Kind Kind
 	Err  error
 
-	stack  []byte
-	bottom bool
+	stack []byte
 }
 
 // Op describes the operation, method, or RPC in which an error condition was
@@ -191,7 +190,6 @@ func E(args ...interface{}) error {
 	}
 
 	var e Error
-	e.bottom = true
 	var prev *Error
 	for _, arg := range args {
 		switch arg := arg.(type) {
@@ -201,17 +199,14 @@ func E(args ...interface{}) error {
 			e.Kind = arg
 		case string:
 			e.Err = New(arg)
-			e.bottom = true
 		case *Error:
 			prev = arg
 			if e.Kind == 0 {
 				e.Kind = arg.Kind
 			}
 			e.Err = arg
-			e.bottom = false
 		case error:
 			e.Err = arg
-			e.bottom = false
 		}
 	}
 
@@ -231,7 +226,6 @@ func E(args ...interface{}) error {
 		// unique fields.
 		if (prev.Op == "" || e.Op == prev.Op) && (prev.Kind == 0 || e.Kind == prev.Kind) {
 			e.Err = prev.Err
-			e.bottom = prev.bottom
 			if e.stack == nil {
 				e.stack = prev.stack
 			}
