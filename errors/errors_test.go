@@ -69,27 +69,6 @@ func TestIs(t *testing.T) {
 	}
 }
 
-func TestCause(t *testing.T) {
-	inner := New("inner")
-	outer := E(inner)
-	if Cause(outer) != inner {
-		t.Fatal("Cause is not equal to inner error")
-	}
-	if Cause(nil) != nil {
-		t.Fatal("Cause(nil) must be nil")
-	}
-	bottom := std.New("bottom")
-	for _, e := range []error{
-		E(bottom),
-		E(Passphrase, E(Invalid, bottom)),
-	} {
-		c := Cause(e)
-		if c != bottom {
-			t.Fatalf("wrong bottom error %v", c)
-		}
-	}
-}
-
 func TestDoubleWrappedErrorWithKind(t *testing.T) {
 	err := E(Invalid, "abc")
 	// Wrap the error again

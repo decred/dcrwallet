@@ -380,22 +380,6 @@ func match(err1, err2 error) bool {
 	return e1.Err.Error() == e2.Err.Error()
 }
 
-// Cause returns the most deeply-nested error from an error chain.
-// Cause never returns nil unless the argument is nil.
-func Cause(err error) error {
-	for {
-		wrapper, ok := err.(interface{ Unwrap() error })
-		if !ok {
-			return err
-		}
-		e := wrapper.Unwrap()
-		if e == nil {
-			return err
-		}
-		err = e
-	}
-}
-
 // Stacks extracts all stacktraces from err, sorted from top-most to bottom-most
 // error.
 func Stacks(err error) [][]byte {

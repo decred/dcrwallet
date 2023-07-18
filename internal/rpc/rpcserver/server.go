@@ -122,11 +122,17 @@ func errorCode(err error) codes.Code {
 	if errors.Is(err, hdkeychain.ErrInvalidSeedLen) {
 		return codes.InvalidArgument
 	}
-	if errors.Is(errors.Cause(err), context.Canceled) {
+	if errors.Is(err, context.Canceled) {
 		return codes.Canceled
 	}
-	if code := status.Code(errors.Cause(err)); code != codes.OK && code != codes.Unknown {
-		return code
+	var grpcStatusError interface {
+		error
+		GRPCStatus() *status.Status
+	}
+	if errors.As(err, &grpcStatusError) {
+		if code := status.Code(grpcStatusError); code != codes.OK && code != codes.Unknown {
+			return code
+		}
 	}
 	return codes.Unknown
 }
