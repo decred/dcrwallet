@@ -349,6 +349,11 @@ func As(err error, target interface{}) bool {
 	return errors.As(err, target)
 }
 
+// Join calls the standard library's errors.Join.
+func Join(errs ...error) error {
+	return errors.Join(errs...)
+}
+
 func match(err1, err2 error) bool {
 	e1, ok := err1.(*Error)
 	if !ok {
