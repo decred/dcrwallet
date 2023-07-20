@@ -333,7 +333,7 @@ func (fp *feePayment) next() time.Duration {
 	var jitter time.Duration
 	switch {
 	case tipHeight < ticketLive: // immature, mined ticket
-		blocksUntilLive := ticketExpires - tipHeight
+		blocksUntilLive := ticketLive - tipHeight
 		jitter = fp.params.TargetTimePerBlock * time.Duration(blocksUntilLive)
 		if jitter > immatureJitter {
 			jitter = immatureJitter
