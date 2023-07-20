@@ -63,7 +63,7 @@ type Syncer struct {
 	// transaction is fetched and processed from one peer, the hash is added to
 	// this cache to avoid fetching it again from other peers that announce the
 	// transaction.
-	seenTxs lru.Cache
+	seenTxs lru.Cache[chainhash.Hash]
 
 	// Sidechain management
 	sidechains  wallet.SidechainForest
@@ -121,7 +121,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		connectingRemotes: make(map[string]struct{}),
 		remotes:           make(map[string]*p2p.RemotePeer),
 		rescanFilter:      wallet.NewRescanFilter(nil, nil),
-		seenTxs:           lru.NewCache(2000),
+		seenTxs:           lru.NewCache[chainhash.Hash](2000),
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
 	}

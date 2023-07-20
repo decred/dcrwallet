@@ -111,9 +111,9 @@ type RemotePeer struct {
 	requestedInitState   chan<- *wire.MsgInitState // non-nil result chan when synchronous getinitstate in process
 	requestedInitStateMu sync.Mutex
 
-	invsSent     lru.Cache // Hashes from sent inventory messages
-	invsRecv     lru.Cache // Hashes of received inventory messages
-	knownHeaders lru.Cache // Hashes of received headers
+	invsSent     lru.Cache[chainhash.Hash] // Hashes from sent inventory messages
+	invsRecv     lru.Cache[chainhash.Hash] // Hashes of received inventory messages
+	knownHeaders lru.Cache[chainhash.Hash] // Hashes of received headers
 	banScore     connmgr.DynamicBanScore
 
 	err  error         // Final error of disconnected peer
@@ -322,14 +322,14 @@ func (rp *RemotePeer) InitialHeight() int32 { return rp.initHeight }
 func (rp *RemotePeer) Services() wire.ServiceFlag { return rp.services }
 
 // InvsSent returns an LRU cache of inventory hashes sent to the remote peer.
-func (rp *RemotePeer) InvsSent() *lru.Cache { return &rp.invsSent }
+func (rp *RemotePeer) InvsSent() *lru.Cache[chainhash.Hash] { return &rp.invsSent }
 
 // InvsRecv returns an LRU cache of inventory hashes received by the remote
 // peer.
-func (rp *RemotePeer) InvsRecv() *lru.Cache { return &rp.invsRecv }
+func (rp *RemotePeer) InvsRecv() *lru.Cache[chainhash.Hash] { return &rp.invsRecv }
 
 // KnownHeaders returns an LRU cache of block hashes from received headers messages.
-func (rp *RemotePeer) KnownHeaders() *lru.Cache { return &rp.knownHeaders }
+func (rp *RemotePeer) KnownHeaders() *lru.Cache[chainhash.Hash] { return &rp.knownHeaders }
 
 // SeedPeers seeds the local peer with remote addresses matching the
 // services.
@@ -511,9 +511,9 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 		pongs:           make(chan *wire.MsgPong, 1),
 		requestedBlocks: make(map[chainhash.Hash]*blockRequest),
 		requestedTxs:    make(map[chainhash.Hash]chan<- *wire.MsgTx),
-		invsSent:        lru.NewCache(invLRUSize),
-		invsRecv:        lru.NewCache(invLRUSize),
-		knownHeaders:    lru.NewCache(invLRUSize),
+		invsSent:        lru.NewCache[chainhash.Hash](invLRUSize),
+		invsRecv:        lru.NewCache[chainhash.Hash](invLRUSize),
+		knownHeaders:    lru.NewCache[chainhash.Hash](invLRUSize),
 		errc:            make(chan struct{}),
 	}
 
@@ -1003,7 +1003,7 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 	var prevHash chainhash.Hash
 	var prevHeight uint32
 	for i, h := range msg.Headers {
-		hash := h.BlockHash() // Must be type chainhash.Hash
+		hash := h.BlockHash()
 		rp.knownHeaders.Add(hash)
 
 		// Sanity check the headers connect to each other in sequence.
@@ -1664,7 +1664,7 @@ func (rp *RemotePeer) PublishTransactions(ctx context.Context, txs ...*wire.MsgT
 	const opf = "remotepeer(%v).PublishTransactions"
 	msg := wire.NewMsgInvSizeHint(uint(len(txs)))
 	for i := range txs {
-		txHash := txs[i].TxHash() // Must be type chainhash.Hash
+		txHash := txs[i].TxHash()
 		rp.invsSent.Add(txHash)
 		err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeTx, &txHash))
 		if err != nil {

@@ -14,17 +14,17 @@ import (
 // point further additions will evict the least recently added item.  The zero
 // value is not valid and Caches must be created with NewCache.  All Cache
 // methods are concurrent safe.
-type Cache struct {
+type Cache[T comparable] struct {
 	mu    sync.Mutex
-	m     map[interface{}]*list.Element
+	m     map[T]*list.Element
 	list  *list.List
 	limit int
 }
 
 // NewCache creates an initialized and empty LRU cache.
-func NewCache(limit int) Cache {
-	return Cache{
-		m:     make(map[interface{}]*list.Element, limit),
+func NewCache[T comparable](limit int) Cache[T] {
+	return Cache[T]{
+		m:     make(map[T]*list.Element, limit),
 		list:  list.New(),
 		limit: limit,
 	}
@@ -33,7 +33,7 @@ func NewCache(limit int) Cache {
 // Add adds an item to the LRU cache, removing the oldest item if the new item
 // is not already a member, or marking item as the most recently added item if
 // it is already present.
-func (c *Cache) Add(item interface{}) {
+func (c *Cache[T]) Add(item T) {
 	defer c.mu.Unlock()
 	c.mu.Lock()
 
@@ -49,7 +49,7 @@ func (c *Cache) Add(item interface{}) {
 		elem := c.list.Back()
 		if elem != nil {
 			v := c.list.Remove(elem)
-			delete(c.m, v)
+			delete(c.m, v.(T))
 		}
 	}
 
@@ -59,7 +59,7 @@ func (c *Cache) Add(item interface{}) {
 }
 
 // Contains checks whether v is a member of the LRU cache.
-func (c *Cache) Contains(v interface{}) bool {
+func (c *Cache[T]) Contains(v T) bool {
 	c.mu.Lock()
 	_, ok := c.m[v]
 	c.mu.Unlock()
