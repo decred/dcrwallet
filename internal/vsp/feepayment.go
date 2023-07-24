@@ -654,10 +654,6 @@ func (fp *feePayment) reconcilePayment() error {
 		return err
 	}
 
-	// confirmPayment will remove the fee payment processing when the fee
-	// has reached sufficient confirmations, and reschedule itself if the
-	// fee is not confirmed yet.  If the fee tx is ever removed from the
-	// wallet, this will schedule another reconcile.
 	return fp.confirmPayment()
 
 	/*
@@ -747,6 +743,10 @@ func (fp *feePayment) submitPayment() (err error) {
 	return nil
 }
 
+// confirmPayment will remove the fee payment processing when the fee has
+// reached sufficient confirmations, and reschedule itself if the fee is not
+// confirmed yet.  If the fee tx is ever removed from the wallet, this will
+// schedule another reconcile.
 func (fp *feePayment) confirmPayment() (err error) {
 	ctx := fp.ctx
 	w := fp.client.wallet
