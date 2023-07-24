@@ -799,8 +799,8 @@ func (fp *feePayment) confirmPayment() (err error) {
 		return nil
 	default:
 		// XXX put in unknown state
-		fp.client.log.Warnf("VSP responded with %v for %v", status.FeeTxStatus,
-			&fp.ticketHash)
+		fp.client.log.Warnf("VSP responded with unknown FeeTxStatus %q for %v",
+			status.FeeTxStatus, &fp.ticketHash)
 	}
 
 	return nil
