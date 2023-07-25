@@ -5882,6 +5882,9 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 
 	params := w.ChainParams()
 
+	// Quietly collect any errors returned by f to ensure f is called on every
+	// ticket. All errors are returned to the caller at the end.
+	var errs []error
 	iter := func(ticketSummaries []*TicketSummary, _ *wire.BlockHeader) (bool, error) {
 		for _, ticketSummary := range ticketSummaries {
 			switch ticketSummary.Status {
@@ -5895,6 +5898,7 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 			ticketHash := *ticketSummary.Ticket.Hash
 			err := f(&ticketHash)
 			if err != nil {
+				errs = append(errs, err)
 				continue
 			}
 		}
@@ -5908,7 +5912,13 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 		int32(params.TicketExpiry+uint32(params.TicketMaturity)-requiredConfs)
 	startBlock := NewBlockIdentifierFromHeight(startBlockNum)
 	endBlock := NewBlockIdentifierFromHeight(blockHeight)
-	return w.GetTickets(ctx, iter, startBlock, endBlock)
+
+	err := w.GetTickets(ctx, iter, startBlock, endBlock)
+	if err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
 }
 
 // UnprocessedTickets returns the hash of every live/immature ticket in the
@@ -5940,6 +5950,9 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 		unmanagedTickets = append(unmanagedTickets, hash)
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
-	return unmanagedTickets, err
+	return unmanagedTickets, nil
 }
