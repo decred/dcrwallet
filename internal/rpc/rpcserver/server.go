@@ -4311,22 +4311,25 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	}
 
 	err = s.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
-		// Skip errors here, but should we log at least?
 		choices, _, err := s.wallet.AgendaChoices(ctx, hash)
 		if err != nil {
-			return nil
+			return err
 		}
 		ticketHost, err := s.wallet.VSPHostForTicket(ctx, hash)
 		if err != nil {
 			return err
 		}
 		if ticketHost == vspHost {
-			_ = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
+			err = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "ForUnspentUnexpiredTickets failed. Error: %v", err)
+		return nil, status.Errorf(codes.Unknown, "ForUnspentUnexpiredTickets failed. Error: %v",
+			err)
 	}
 
 	return &pb.SetVspdVoteChoicesResponse{}, nil
