@@ -205,8 +205,8 @@ type TicketDetails struct {
 // TicketDetails looks up all recorded details regarding a ticket with some
 // hash.
 //
-// Not finding a ticket with this hash is not an error.  In this case,
-// a nil TicketDetiails is returned.
+// Not finding a ticket with this hash is not an error.  In this case, a nil
+// TicketDetails is returned.
 func (s *Store) TicketDetails(ns walletdb.ReadBucket, txDetails *TxDetails) (*TicketDetails, error) {
 	var ticketDetails = &TicketDetails{}
 	if !stake.IsSStx(&txDetails.MsgTx) {
