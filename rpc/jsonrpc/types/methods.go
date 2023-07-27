@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1203,7 +1203,7 @@ type AccountUnlockedCmd struct {
 
 // ProcessUnmanagedTicket defines the processunmanagedticket JSON-RPC command arguments.
 type ProcessUnmanagedTicketCmd struct {
-	TicketHash *string
+	TicketHash string
 }
 
 // GetCoinjoinsByAcctCmd defines the getcoinjoinsbyaccount JSON-RPC command arguments.

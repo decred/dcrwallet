@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2023 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -3473,16 +3473,15 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 func (s *Server) processUnmanagedTicket(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.ProcessUnmanagedTicketCmd)
 
-	var ticketHash *chainhash.Hash
-	if cmd.TicketHash != nil {
-		hash, err := chainhash.NewHashFromStr(*cmd.TicketHash)
-		if err != nil {
-			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-		}
-		ticketHash = hash
-	} else {
+	if cmd.TicketHash == "" {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "ticket hash must be provided")
 	}
+
+	hash, err := chainhash.NewHashFromStr(cmd.TicketHash)
+	if err != nil {
+		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+	}
+
 	vspHost := s.cfg.VSPHost
 	if vspHost == "" {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "vsphost must be set in options")
@@ -3492,7 +3491,7 @@ func (s *Server) processUnmanagedTicket(ctx context.Context, icmd any) (any, err
 		return nil, err
 	}
 
-	err = vspClient.Process(ctx, ticketHash, nil)
+	err = vspClient.Process(ctx, hash, nil)
 	if err != nil {
 		return nil, err
 	}
