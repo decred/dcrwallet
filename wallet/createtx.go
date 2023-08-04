@@ -1774,7 +1774,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	}
 
 	for i, ticket := range tickets {
-		// Wait for trickle time if this was a mixed buy.
+		// Check for request context cancellation while waiting for
+		// trickle time if this was a mixed buy.
 		if len(trickleTickets) > 0 {
 			t := trickleTickets[0]
 			trickleTickets = trickleTickets[1:]
@@ -1787,6 +1788,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return purchaseTicketsResponse, errors.E(op, ctx.Err())
 			case <-timer.C:
 			}
+		} else if err := ctx.Err(); err != nil {
+			return purchaseTicketsResponse, errors.E(op, err)
 		}
 
 		// Publish transaction
