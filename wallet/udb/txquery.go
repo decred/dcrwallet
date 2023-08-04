@@ -276,17 +276,19 @@ func (s *Store) Tx(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*wire.MsgTx,
 
 // ExistsTx checks to see if a transaction exists in the database.
 func (s *Store) ExistsTx(ns walletdb.ReadBucket, txHash *chainhash.Hash) bool {
-	// First, check whether there exists an unmined transaction with this
-	// hash.  Use it if found.
+	mined, unmined := s.ExistsTxMinedOrUnmined(ns, txHash)
+	return mined || unmined
+}
+
+// ExistsTxMinedOrUnmined checks if a transaction is recorded as a mined or
+// unmined transaction.
+func (s *Store) ExistsTxMinedOrUnmined(ns walletdb.ReadBucket, txHash *chainhash.Hash) (mined, unmined bool) {
 	v := existsRawUnmined(ns, txHash[:])
 	if v != nil {
-		return true
+		return false, true
 	}
-
-	// Otherwise, if there exists a mined transaction with this matching
-	// hash, skip over to the newest and begin fetching the msgTx.
 	_, v = latestTxRecord(ns, txHash[:])
-	return v != nil
+	return v != nil, false
 }
 
 // ExistsUTXO checks to see if op refers to an unspent transaction output or a

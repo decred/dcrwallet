@@ -148,11 +148,29 @@ func (f *RescanFilter) RemoveUnspentOutPoint(op *wire.OutPoint) {
 	delete(f.unspent, *op)
 }
 
+// logRescannedTx logs a newly-observed transaction that was added by the
+// rescan or a transaction that was changed from unmined to mined.  It should
+// only be called if the wallet field logRescannedTransactions is true, which
+// will be set after the very first rescan during the process lifetime.
+func (w *Wallet) logRescannedTx(txmgrNs walletdb.ReadBucket, height int32, tx *wire.MsgTx) {
+	txHash := tx.TxHash()
+	haveMined, haveUnmined := w.txStore.ExistsTxMinedOrUnmined(txmgrNs, &txHash)
+	if haveUnmined {
+		log.Infof("Rescan of block %d discovered previously unmined "+
+			"transaction %v", height, &txHash)
+	} else if !haveMined {
+		log.Infof("Rescan of block %d discovered new transaction %v",
+			height, &txHash)
+	}
+}
+
 // saveRescanned records transactions from a rescanned block.  This
 // does not update the network backend with data to watch for future
 // relevant transactions as the rescanner is assumed to handle this
 // task.
-func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash, txs []*wire.MsgTx) error {
+func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash,
+	txs []*wire.MsgTx, logTxs bool) error {
+
 	const op errors.Op = "wallet.saveRescanned"
 
 	defer w.lockedOutpointMu.Unlock()
@@ -170,6 +188,10 @@ func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 		}
 
 		for _, tx := range txs {
+			if logTxs {
+				w.logRescannedTx(txmgrNs, blockMeta.Height, tx)
+			}
+
 			rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
 			if err != nil {
 				return err
@@ -193,6 +215,11 @@ func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash, txs []
 // the heights the rescan has completed through, starting with the start height.
 func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 	startHash *chainhash.Hash, height int32, p chan<- RescanProgress) error {
+
+	w.logRescannedTransactionsMu.Lock()
+	logTxs := w.logRescannedTransactions
+	w.logRescannedTransactions = true
+	w.logRescannedTransactionsMu.Unlock()
 
 	blockHashStorage := make([]chainhash.Hash, maxBlocksPerRescan)
 	rescanFrom := *startHash
@@ -230,7 +257,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
 		saveRescanned := func(block *chainhash.Hash, txs []*wire.MsgTx) error {
-			return w.saveRescanned(ctx, block, txs)
+			return w.saveRescanned(ctx, block, txs, logTxs)
 		}
 		err = n.Rescan(ctx, rescanBlocks, saveRescanned)
 		if err != nil {

@@ -141,12 +141,14 @@ type Wallet struct {
 	lockedOutpoints  map[outpoint]struct{}
 	lockedOutpointMu sync.Mutex
 
-	relayFee                dcrutil.Amount
-	relayFeeMu              sync.Mutex
-	allowHighFees           bool
-	disableCoinTypeUpgrades bool
-	recentlyPublished       map[chainhash.Hash]struct{}
-	recentlyPublishedMu     sync.Mutex
+	relayFee                   dcrutil.Amount
+	relayFeeMu                 sync.Mutex
+	allowHighFees              bool
+	disableCoinTypeUpgrades    bool
+	recentlyPublished          map[chainhash.Hash]struct{}
+	recentlyPublishedMu        sync.Mutex
+	logRescannedTransactions   bool
+	logRescannedTransactionsMu sync.Mutex
 
 	// Internal address handling.
 	ticketAddress    stdaddr.StakeAddress
