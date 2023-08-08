@@ -248,10 +248,9 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pai
 		log.Errorf("%v is not a ticket: %v", ticketHash, err)
 		return nil
 	}
-	// Try to access the voting key, ignore error unless the wallet is
-	// locked.
+	// Try to access the voting key.
 	fp.votingKey, err = w.DumpWIFPrivateKey(ctx, fp.votingAddr)
-	if err != nil && !errors.Is(err, errors.Locked) {
+	if err != nil {
 		log.Errorf("no voting key for ticket %v: %v", ticketHash, err)
 		return nil
 	}
@@ -865,11 +864,10 @@ func (fp *feePayment) confirmPayment() (err error) {
 	}()
 
 	status, err := fp.client.status(ctx, &fp.ticketHash)
-	// Suppress log if the wallet is currently locked.
-	if err != nil && !errors.Is(err, errors.Locked) {
-		log.Warnf("Rescheduling status check for %v: %v", &fp.ticketHash, err)
-	}
 	if err != nil {
+
+		log.Warnf("Rescheduling status check for %v: %v", &fp.ticketHash, err)
+
 		// Stop processing if the status check cannot be performed, but
 		// a significant amount of confirmations are observed on the fee
 		// transaction.
