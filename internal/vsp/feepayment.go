@@ -137,6 +137,47 @@ func parseTicket(ticket *wire.MsgTx, params *chaincfg.Params) (
 	return
 }
 
+// calcHeights checks if the ticket has been mined, and if so, sets the live
+// height and expiry height fields. Should be called with mutex already held.
+func (fp *feePayment) calcHeights() {
+	_, minedHeight, err := fp.client.wallet.TxBlock(fp.ctx, &fp.ticketHash)
+	if err != nil {
+		// This is not expected to ever error, as the ticket has already been
+		// fetched from the wallet at least one before this point is reached.
+		fp.client.log.Errorf("Failed to query block which mines ticket: %v", err)
+		return
+	}
+
+	if minedHeight < 2 {
+		return
+	}
+
+	// Note the off-by-one; this is correct. Tickets become live one block after
+	// the params would indicate.
+	fp.ticketLive = minedHeight + int32(fp.params.TicketMaturity) + 1
+	fp.ticketExpires = fp.ticketLive + int32(fp.params.TicketExpiry)
+}
+
+// expiryHeight returns the height at which the ticket expires. Returns zero if
+// the block is not yet mined. Should be called with mutex already held.
+func (fp *feePayment) expiryHeight() int32 {
+	if fp.ticketExpires == 0 {
+		fp.calcHeights()
+	}
+
+	return fp.ticketExpires
+}
+
+// liveHeight returns the height at which the ticket becomes live. Returns zero
+// if the block is not yet mined. Should be called with mutex already held.
+func (fp *feePayment) liveHeight() int32 {
+	if fp.ticketLive == 0 {
+		fp.calcHeights()
+	}
+
+	return fp.ticketLive
+}
+
 func (fp *feePayment) ticketSpent() bool {
 	ctx := fp.ctx
 	ticketOut := wire.OutPoint{Hash: fp.ticketHash, Index: 0, Tree: 1}
@@ -150,7 +191,7 @@ func (fp *feePayment) ticketExpired() bool {
 	_, tipHeight := w.MainChainTip(ctx)
 
 	fp.mu.Lock()
-	expires := fp.ticketExpires
+	expires := fp.expiryHeight()
 	fp.mu.Unlock()
 
 	return expires > 0 && tipHeight >= expires
@@ -230,20 +271,6 @@ func (c *Client) feePayment(ctx context.Context, ticketHash *chainhash.Hash, pai
 	if err != nil {
 		fp.client.log.Warnf("no ticket found for %v", ticketHash)
 		return nil
-	}
-
-	_, ticketHeight, err := w.TxBlock(ctx, ticketHash)
-	if err != nil {
-		// This is not expected to ever error, as the ticket was fetched
-		// from the wallet in the above call.
-		fp.client.log.Errorf("failed to query block which mines ticket: %v", err)
-		return nil
-	}
-	if ticketHeight >= 2 {
-		// Note the off-by-one; this is correct.  Tickets become live
-		// one block after the params would indicate.
-		fp.ticketLive = ticketHeight + int32(c.params.TicketMaturity) + 1
-		fp.ticketExpires = fp.ticketLive + int32(c.params.TicketExpiry)
 	}
 
 	fp.votingAddr, fp.commitmentAddr, err = parseTicket(ticket, c.params)
@@ -326,8 +353,8 @@ func (fp *feePayment) next() time.Duration {
 	_, tipHeight := w.MainChainTip(fp.ctx)
 
 	fp.mu.Lock()
-	ticketLive := fp.ticketLive
-	ticketExpires := fp.ticketExpires
+	ticketLive := fp.liveHeight()
+	ticketExpires := fp.expiryHeight()
 	fp.mu.Unlock()
 
 	var jitter time.Duration
