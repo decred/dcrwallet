@@ -5958,3 +5958,33 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 
 	return unmanagedTickets, nil
 }
+
+// ProcessedTickets returns the hash of every live/immature ticket in the wallet
+// database which is currently being processed by a VSP but isnt confirmed yet.
+func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
+	managedTickets := make([]*chainhash.Hash, 0)
+	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
+		// We only want to process tickets that haven't been confirmed yet.
+		confirmed, err := w.IsVSPTicketConfirmed(ctx, hash)
+		if err != nil {
+			// NotExist error indicates unmanaged tickets. Skip.
+			if errors.Is(err, errors.NotExist) {
+				return nil
+			}
+
+			return err
+		}
+		if confirmed {
+			return nil
+		}
+
+		managedTickets = append(managedTickets, hash)
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return managedTickets, nil
+}

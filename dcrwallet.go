@@ -433,7 +433,11 @@ func run(ctx context.Context) error {
 
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
 			if vspClient != nil && cfg.VSPOpts.Sync {
-				err = vspClient.ProcessManagedTickets(ctx)
+				tickets, err := w.ProcessedTickets(ctx)
+				if err != nil {
+					log.Errorf("Getting VSP tickets failed: %v", err)
+				}
+				err = vspClient.ProcessManagedTickets(ctx, tickets)
 				if err != nil {
 					log.Errorf("Adding tickets to VSP client failed: %v", err)
 				}

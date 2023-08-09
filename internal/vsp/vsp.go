@@ -139,32 +139,18 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, tickets []*chain
 	wg.Wait()
 }
 
-// ProcessManagedTickets discovers tickets which were previously registered with
-// a VSP and begins syncing them in the background.  This is used to recover VSP
-// tracking after seed restores, and is only performed on unspent and unexpired
-// tickets.
-func (c *Client) ProcessManagedTickets(ctx context.Context) error {
-	err := c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
-		// We only want to process tickets that haven't been confirmed yet.
-		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
-		if err != nil {
-			// NotExist error indicates unmanaged tickets. Skip.
-			if errors.Is(err, errors.NotExist) {
-				return nil
-			}
-
-			// Any other errors should propagate upwards.
-			return err
-		}
-		if confirmed {
-			return nil
-		}
+// ProcessManagedTickets adds the provided tickets to the client and resumes
+// their fee payment process. Noop if a given ticket is already added, or if the
+// ticket is not registered with the VSP. This is used to recover VSP tracking
+// after seed restores.
+func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*chainhash.Hash) error {
+	for _, hash := range tickets {
 		c.mu.Lock()
 		_, ok := c.jobs[*hash]
 		c.mu.Unlock()
 		if ok {
 			// Already processing this ticket with the VSP.
-			return nil
+			continue
 		}
 
 		// Make ticketstatus api call and only continue if ticket is
@@ -175,7 +161,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 			if errors.Is(err, errors.Locked) {
 				return err
 			}
-			return nil
+			continue
 		}
 
 		if status.FeeTxStatus == "confirmed" {
@@ -203,9 +189,9 @@ func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 			_ = c.feePayment(ctx, hash, false)
 		}
 
-		return nil
-	})
-	return err
+	}
+
+	return nil
 }
 
 // Process begins processing a VSP fee payment for a ticket.  If feeTx contains
