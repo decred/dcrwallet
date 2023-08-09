@@ -147,9 +147,14 @@ func (c *Client) ProcessManagedTickets(ctx context.Context) error {
 	err := c.wallet.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := c.wallet.IsVSPTicketConfirmed(ctx, hash)
-		if err != nil && !errors.Is(err, errors.NotExist) {
-			c.log.Error(err)
-			return nil
+		if err != nil {
+			// NotExist error indicates unmanaged tickets. Skip.
+			if errors.Is(err, errors.NotExist) {
+				return nil
+			}
+
+			// Any other errors should propagate upwards.
+			return err
 		}
 		if confirmed {
 			return nil
