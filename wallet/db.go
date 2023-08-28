@@ -29,7 +29,7 @@ func (db opaqueDB) internal() walletdb.DB { return db.DB }
 
 // OpenDB opens a database with some specific driver implementation.  Args
 // specify the arguments to open the database and may differ based on driver.
-func OpenDB(driver string, args ...interface{}) (DB, error) {
+func OpenDB(driver string, args ...any) (DB, error) {
 	const op errors.Op = "wallet.OpenDB"
 	db, err := walletdb.Open(driver, args...)
 	if err != nil {
@@ -41,7 +41,7 @@ func OpenDB(driver string, args ...interface{}) (DB, error) {
 // CreateDB creates a new database with some specific driver implementation.
 // Args specify the arguments to open the database and may differ based on
 // driver.
-func CreateDB(driver string, args ...interface{}) (DB, error) {
+func CreateDB(driver string, args ...any) (DB, error) {
 	const op errors.Op = "wallet.CreateDB"
 	db, err := walletdb.Create(driver, args...)
 	if err != nil {

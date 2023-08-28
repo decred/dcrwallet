@@ -47,7 +47,7 @@ var opts = struct {
 	RPCCertificateFile: filepath.Join(walletDataDirectory, "rpc.cert"),
 }
 
-func fatalf(format string, args ...interface{}) {
+func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	os.Stderr.Write(newlineBytes)
 	os.Exit(1)

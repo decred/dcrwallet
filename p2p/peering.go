@@ -728,7 +728,7 @@ type inMsg struct {
 }
 
 var inMsgPool = sync.Pool{
-	New: func() interface{} { return new(inMsg) },
+	New: func() any { return new(inMsg) },
 }
 
 func newInMsg(rp *RemotePeer, msg wire.Message) *inMsg {
@@ -959,7 +959,7 @@ func (rp *RemotePeer) deleteRequestedCFilterV2(hash *chainhash.Hash) {
 
 func (rp *RemotePeer) receivedCFilterV2(ctx context.Context, msg *wire.MsgCFilterV2) {
 	const opf = "remotepeer(%v).receivedCFilterV2(%v)"
-	var k interface{} = msg.BlockHash
+	var k any = msg.BlockHash
 	v, ok := rp.requestedCFiltersV2.Load(k)
 	if !ok {
 		op := errors.Opf(opf, rp.raddr, &msg.BlockHash)

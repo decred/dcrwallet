@@ -248,12 +248,12 @@ func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
 	numTickets *int, poolAddress stdaddr.Address, poolFees *dcrutil.Amount,
 	expiry *int, ticketChange *bool, ticketFee *dcrutil.Amount) ([]*chainhash.Hash, error) {
 
-	params := make([]interface{}, 2, 10)
+	params := make([]any, 2, 10)
 	params[0] = fromAccount
 	params[1] = spendLimit.ToCoin()
 
 	var skipped int
-	addParam := func(nonNil bool, value func() interface{}) {
+	addParam := func(nonNil bool, value func() any) {
 		if nonNil {
 			for i := 0; i < skipped; i++ {
 				params = append(params, nil)
@@ -265,14 +265,14 @@ func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
 		}
 	}
 
-	addParam(minConf != nil, func() interface{} { return *minConf })
-	addParam(ticketAddress != nil, func() interface{} { return ticketAddress.String() })
-	addParam(numTickets != nil, func() interface{} { return *numTickets })
-	addParam(poolAddress != nil, func() interface{} { return poolAddress.String() })
-	addParam(poolFees != nil, func() interface{} { return poolFees.ToCoin() })
-	addParam(expiry != nil, func() interface{} { return *expiry })
-	addParam(ticketChange != nil, func() interface{} { return *ticketChange })
-	addParam(ticketFee != nil, func() interface{} { return ticketFee.ToCoin() })
+	addParam(minConf != nil, func() any { return *minConf })
+	addParam(ticketAddress != nil, func() any { return ticketAddress.String() })
+	addParam(numTickets != nil, func() any { return *numTickets })
+	addParam(poolAddress != nil, func() any { return poolAddress.String() })
+	addParam(poolFees != nil, func() any { return poolFees.ToCoin() })
+	addParam(expiry != nil, func() any { return *expiry })
+	addParam(ticketChange != nil, func() any { return *ticketChange })
+	addParam(ticketFee != nil, func() any { return ticketFee.ToCoin() })
 
 	var res []*chainhash.Hash
 	err := c.Call(ctx, "purchaseticket", unmarshalHashes(&res), params...)

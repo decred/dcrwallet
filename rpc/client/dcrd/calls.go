@@ -30,7 +30,7 @@ type Caller interface {
 	// Args provides positional parameters for the call.
 	// Res must be a pointer to a struct, slice, or map type to unmarshal
 	// a result (if any), or nil if no result is needed.
-	Call(ctx context.Context, method string, res interface{}, args ...interface{}) error
+	Call(ctx context.Context, method string, res any, args ...any) error
 }
 
 // RPC provides methods for calling dcrd JSON-RPCs without exposing the details

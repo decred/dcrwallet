@@ -18,7 +18,7 @@ type caller struct {
 	response []byte
 }
 
-func (c *caller) Call(ctx context.Context, method string, res interface{}, args ...interface{}) error {
+func (c *caller) Call(ctx context.Context, method string, res any, args ...any) error {
 	return json.Unmarshal(c.response, res)
 }
 

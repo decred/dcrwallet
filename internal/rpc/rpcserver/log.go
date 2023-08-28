@@ -42,7 +42,7 @@ func stripGrpcPrefix(logstr string) string {
 // stripGrpcPrefixArgs removes the package prefix from the first argument, if it
 // exists and is a string, returning the same arg slice after reassigning the
 // first arg.
-func stripGrpcPrefixArgs(args ...interface{}) []interface{} {
+func stripGrpcPrefixArgs(args ...any) []any {
 	if len(args) == 0 {
 		return args
 	}
@@ -53,29 +53,29 @@ func stripGrpcPrefixArgs(args ...interface{}) []interface{} {
 	return args
 }
 
-func (l logger) Fatal(args ...interface{}) {
+func (l logger) Fatal(args ...any) {
 	l.Critical(stripGrpcPrefixArgs(args)...)
 	os.Exit(1)
 }
 
-func (l logger) Fatalf(format string, args ...interface{}) {
+func (l logger) Fatalf(format string, args ...any) {
 	l.Criticalf(stripGrpcPrefix(format), args...)
 	os.Exit(1)
 }
 
-func (l logger) Fatalln(args ...interface{}) {
+func (l logger) Fatalln(args ...any) {
 	l.Critical(stripGrpcPrefixArgs(args)...)
 	os.Exit(1)
 }
 
-func (l logger) Print(args ...interface{}) {
+func (l logger) Print(args ...any) {
 	l.Info(stripGrpcPrefixArgs(args)...)
 }
 
-func (l logger) Printf(format string, args ...interface{}) {
+func (l logger) Printf(format string, args ...any) {
 	l.Infof(stripGrpcPrefix(format), args...)
 }
 
-func (l logger) Println(args ...interface{}) {
+func (l logger) Println(args ...any) {
 	l.Info(stripGrpcPrefixArgs(args)...)
 }

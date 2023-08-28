@@ -79,7 +79,7 @@ func setLogLevels(logLevel string) {
 
 // fatalf logs a message, flushes the logger, and finally exit the process with
 // a non-zero return code.
-func fatalf(format string, args ...interface{}) {
+func fatalf(format string, args ...any) {
 	log.Errorf(format, args...)
 	os.Stdout.Sync()
 	loggers.CloseLogRotator()

@@ -30,7 +30,7 @@ var outputFile = func() *os.File {
 	return fi
 }()
 
-func writefln(format string, args ...interface{}) {
+func writefln(format string, args ...any) {
 	_, err := fmt.Fprintf(outputFile, format, args...)
 	if err != nil {
 		log.Fatal(err)

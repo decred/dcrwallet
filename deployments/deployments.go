@@ -83,7 +83,7 @@ const (
 // DCP0010 is always active on simnet, and requires the RPC syncer to detect
 // activation on mainnet and testnet3.
 func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
-	syncer interface{}) (bool, error) {
+	syncer any) (bool, error) {
 
 	net := params.Net
 	rcai := int32(params.RuleChangeActivationInterval)
@@ -122,7 +122,7 @@ func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
 // DCP0012.  DCP0012 requires the RPC syncer to detect activation on mainnet,
 // testnet3 and simnet.
 func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
-	syncer interface{}) (bool, error) {
+	syncer any) (bool, error) {
 
 	net := params.Net
 	rcai := int32(params.RuleChangeActivationInterval)

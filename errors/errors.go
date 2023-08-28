@@ -42,7 +42,7 @@ type Error struct {
 type Op string
 
 // Opf returns a formatted Op.
-func Opf(format string, a ...interface{}) Op {
+func Opf(format string, a ...any) Op {
 	return Op(fmt.Sprintf(format, a...))
 }
 
@@ -133,7 +133,7 @@ func (k Kind) Error() string {
 // assigned an *Error using k as its Kind.
 // If target points to a Kind, target is assigned the kind and As returns true.
 // Else, target is not assinged and As returns false.
-func (k Kind) As(target interface{}) bool {
+func (k Kind) As(target any) bool {
 	if k == Other {
 		return false
 	}
@@ -156,7 +156,7 @@ func New(text string) error {
 
 // Errorf wraps fmt.Errorf as a convenience for creating formatted error
 // strings.
-func Errorf(format string, args ...interface{}) error {
+func Errorf(format string, args ...any) error {
 	return fmt.Errorf(format, args...)
 }
 
@@ -184,7 +184,7 @@ func Errorf(format string, args ...interface{}) error {
 // and fields of the passed *Error are promoted to the returned error.
 //
 // Panics if no arguments are passed.
-func E(args ...interface{}) error {
+func E(args ...any) error {
 	if len(args) == 0 {
 		panic("errors.E: no args")
 	}
@@ -238,7 +238,7 @@ func E(args ...interface{}) error {
 // WithStack is identical to E but includes a stacktrace with the error. Stack
 // traces do not appear in formatted error strings and are not compared when
 // matching errors.  Stack traces are extracted from errors using Stacks.
-func WithStack(args ...interface{}) error {
+func WithStack(args ...any) error {
 	err := E(args...).(*Error)
 	err.stack = debug.Stack()
 	return err
@@ -308,7 +308,7 @@ func (e *Error) Unwrap() error {
 // If target points to a Kind and e's Kind is not Other, target is assigned
 // the kind and As returns true.
 // Else, target is not assinged and As returns false.
-func (e *Error) As(target interface{}) bool {
+func (e *Error) As(target any) bool {
 	switch target := target.(type) {
 	case **Error:
 		*target = e
@@ -345,7 +345,7 @@ func Is(err, target error) bool {
 // As attempts to assign the error pointed to by target with the first error in
 // err's error chain with a compatible type.  Returns true if target is
 // assigned.
-func As(err error, target interface{}) bool {
+func As(err error, target any) bool {
 	return errors.As(err, target)
 }
 

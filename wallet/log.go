@@ -23,5 +23,5 @@ type debugLogger struct{}
 
 var debugLog debugLogger
 
-func (debugLogger) Print(args ...interface{})                 { log.Debug(args...) }
-func (debugLogger) Printf(format string, args ...interface{}) { log.Debugf(format, args...) }
+func (debugLogger) Print(args ...any)                 { log.Debug(args...) }
+func (debugLogger) Printf(format string, args ...any) { log.Debugf(format, args...) }

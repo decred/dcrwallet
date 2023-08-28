@@ -12,7 +12,7 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func unmarshalArray(j json.RawMessage, params ...interface{}) error {
+func unmarshalArray(j json.RawMessage, params ...any) error {
 	err := json.Unmarshal(j, &params)
 	if err != nil {
 		return errors.E(errors.Encoding, err)

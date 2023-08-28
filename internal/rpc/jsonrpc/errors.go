@@ -55,7 +55,7 @@ func rpcError(code dcrjson.RPCErrorCode, err error) *dcrjson.RPCError {
 	}
 }
 
-func rpcErrorf(code dcrjson.RPCErrorCode, format string, args ...interface{}) *dcrjson.RPCError {
+func rpcErrorf(code dcrjson.RPCErrorCode, format string, args ...any) *dcrjson.RPCError {
 	return &dcrjson.RPCError{
 		Code:    code,
 		Message: fmt.Sprintf(format, args...),

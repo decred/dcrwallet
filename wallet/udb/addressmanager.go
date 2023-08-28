@@ -595,7 +595,7 @@ func (m *Manager) AccountProperties(ns walletdb.ReadBucket, account uint32) (*Ac
 
 		// Could be more efficient if this was tracked by the db.
 		var importedKeyCount uint32
-		count := func(interface{}) error {
+		count := func(any) error {
 			importedKeyCount++
 			return nil
 		}
@@ -954,7 +954,7 @@ func (m *Manager) scriptAddressRowToManaged(row *dbScriptAddressRow) (ManagedAdd
 // appropriate type.
 //
 // This function MUST be called with the manager lock held for writes.
-func (m *Manager) rowInterfaceToManaged(ns walletdb.ReadBucket, rowInterface interface{}) (ManagedAddress, error) {
+func (m *Manager) rowInterfaceToManaged(ns walletdb.ReadBucket, rowInterface any) (ManagedAddress, error) {
 	switch row := rowInterface.(type) {
 	case *dbChainAddressRow:
 		return m.chainAddressRowToManaged(ns, row)
@@ -2438,7 +2438,7 @@ func (m *Manager) ForEachAccountAddress(ns walletdb.ReadBucket, account uint32, 
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	addrFn := func(rowInterface interface{}) error {
+	addrFn := func(rowInterface any) error {
 		managedAddr, err := m.rowInterfaceToManaged(ns, rowInterface)
 		if err != nil {
 			return err
@@ -2462,7 +2462,7 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr stda
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
-	addrFn := func(rowInterface interface{}) error {
+	addrFn := func(rowInterface any) error {
 		managedAddr, err := m.rowInterfaceToManaged(ns, rowInterface)
 		if err != nil {
 			return err

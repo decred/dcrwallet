@@ -14,7 +14,7 @@ type Caller interface {
 	// Args provides positional parameters for the call.
 	// Res must be a pointer to a struct, slice, or map type to unmarshal
 	// a result (if any), or nil if no result is needed.
-	Call(ctx context.Context, method string, res interface{}, args ...interface{}) error
+	Call(ctx context.Context, method string, res any, args ...any) error
 }
 
 // RawRequester synchronously performs a JSON-RPC method with positional
@@ -32,7 +32,7 @@ type rawRequester struct {
 	req RawRequester
 }
 
-func (r *rawRequester) Call(ctx context.Context, method string, res interface{}, args ...interface{}) error {
+func (r *rawRequester) Call(ctx context.Context, method string, res any, args ...any) error {
 	params := make([]json.RawMessage, 0, len(args))
 	for i := range args {
 		param, err := json.Marshal(args[i])

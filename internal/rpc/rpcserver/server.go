@@ -281,7 +281,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterNetworkServiceServer(server, &networkService)
 }
 
-var serviceMap = map[string]interface{}{
+var serviceMap = map[string]any{
 	"walletrpc.VersionService":             &versionService,
 	"walletrpc.WalletService":              &walletService,
 	"walletrpc.WalletLoaderService":        &loaderService,

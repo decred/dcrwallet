@@ -1293,7 +1293,7 @@ func serializeScriptAddress(encryptedHash, script []byte) []byte {
 // specific address type.  The caller should use type assertions to ascertain
 // the type.  The caller should prefix the error message with the address hash
 // which caused the failure.
-func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, error) {
+func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (any, error) {
 	bucket := ns.NestedReadBucket(addrBucketName)
 
 	serializedRow := bucket.Get(addrHash)
@@ -1323,7 +1323,7 @@ func fetchAddressByHash(ns walletdb.ReadBucket, addrHash []byte) (interface{}, e
 // address type.  The caller should use type assertions to ascertain the type.
 // The caller should prefix the error message with the address which caused the
 // failure.
-func fetchAddress(ns walletdb.ReadBucket, addressID []byte) (interface{}, error) {
+func fetchAddress(ns walletdb.ReadBucket, addressID []byte) (any, error) {
 	addrHash := sha256.Sum256(addressID)
 	addr, err := fetchAddressByHash(ns, addrHash[:])
 	if errors.Is(err, errors.NotExist) {
@@ -1417,7 +1417,7 @@ func fetchAddrAccount(ns walletdb.ReadBucket, addressID []byte) (uint32, error) 
 
 // forEachAccountAddress calls the given function with each address of
 // the given account stored in the manager, breaking early on error.
-func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowInterface interface{}) error) error {
+func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowInterface any) error) error {
 	bucket := ns.NestedReadBucket(addrAcctIdxBucketName).
 		NestedReadBucket(uint32ToBytes(account))
 	// if index bucket is missing the account, there hasn't been any address
@@ -1448,7 +1448,7 @@ func forEachAccountAddress(ns walletdb.ReadBucket, account uint32, fn func(rowIn
 
 // forEachActiveAddress calls the given function with each active address
 // stored in the manager, breaking early on error.
-func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface interface{}) error) error {
+func forEachActiveAddress(ns walletdb.ReadBucket, fn func(rowInterface any) error) error {
 	bucket := ns.NestedReadBucket(addrBucketName)
 	c := bucket.ReadCursor()
 	defer c.Close()

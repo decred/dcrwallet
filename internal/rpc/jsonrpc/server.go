@@ -79,7 +79,7 @@ type Server struct {
 }
 
 type handler struct {
-	fn     func(*Server, context.Context, interface{}) (interface{}, error)
+	fn     func(*Server, context.Context, any) (any, error)
 	noHelp bool
 }
 
@@ -299,7 +299,7 @@ func throttled(threshold int64, h http.Handler) http.Handler {
 // Interface pointers are usually a red flag of doing something incorrectly,
 // but this is only implemented here to work around an oddity with dcrjson,
 // which uses empty interface pointers for response IDs.
-func idPointer(id interface{}) (p *interface{}) {
+func idPointer(id any) (p *any) {
 	if id != nil {
 		p = &id
 	}
@@ -566,7 +566,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 
 	// Create the response and error from the request.  Two special cases
 	// are handled for the authenticate and stop request methods.
-	var res interface{}
+	var res any
 	var jsonErr *dcrjson.RPCError
 	var stop bool
 	switch req.Method {

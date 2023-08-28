@@ -25,17 +25,17 @@ func TestWalletSvrWsCmds(t *testing.T) {
 	testID := int(1)
 	tests := []struct {
 		name         string
-		newCmd       func() (interface{}, error)
-		staticCmd    func() interface{}
+		newCmd       func() (any, error)
+		staticCmd    func() any
 		marshalled   string
-		unmarshalled interface{}
+		unmarshalled any
 	}{
 		{
 			name: "getunconfirmedbalance",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("getunconfirmedbalance"))
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewGetUnconfirmedBalanceCmd(nil)
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"getunconfirmedbalance","params":[],"id":1}`,
@@ -45,10 +45,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "getunconfirmedbalance optional1",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("getunconfirmedbalance"), "acct")
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewGetUnconfirmedBalanceCmd(dcrjson.String("acct"))
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"getunconfirmedbalance","params":["acct"],"id":1}`,
@@ -58,10 +58,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "listaddresstransactions",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("listaddresstransactions"), `["1Address"]`)
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewListAddressTransactionsCmd([]string{"1Address"}, nil)
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"listaddresstransactions","params":[["1Address"]],"id":1}`,
@@ -72,10 +72,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "listaddresstransactions optional1",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("listaddresstransactions"), `["1Address"]`, "acct")
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewListAddressTransactionsCmd([]string{"1Address"},
 					dcrjson.String("acct"))
 			},
@@ -87,10 +87,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "listalltransactions",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("listalltransactions"))
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewListAllTransactionsCmd(nil)
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"listalltransactions","params":[],"id":1}`,
@@ -100,10 +100,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "listalltransactions optional",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("listalltransactions"), "acct")
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewListAllTransactionsCmd(dcrjson.String("acct"))
 			},
 			marshalled: `{"jsonrpc":"1.0","method":"listalltransactions","params":["acct"],"id":1}`,
@@ -113,10 +113,10 @@ func TestWalletSvrWsCmds(t *testing.T) {
 		},
 		{
 			name: "walletislocked",
-			newCmd: func() (interface{}, error) {
+			newCmd: func() (any, error) {
 				return dcrjson.NewCmd(Method("walletislocked"))
 			},
-			staticCmd: func() interface{} {
+			staticCmd: func() any {
 				return NewWalletIsLockedCmd()
 			},
 			marshalled:   `{"jsonrpc":"1.0","method":"walletislocked","params":[],"id":1}`,

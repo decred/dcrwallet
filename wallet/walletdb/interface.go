@@ -263,11 +263,11 @@ type Driver struct {
 
 	// Create is the function that will be invoked with all user-specified
 	// arguments to create the database.
-	Create func(args ...interface{}) (DB, error)
+	Create func(args ...any) (DB, error)
 
 	// Open is the function that will be invoked with all user-specified
 	// arguments to open the database.
-	Open func(args ...interface{}) (DB, error)
+	Open func(args ...any) (DB, error)
 }
 
 // driverList holds all of the registered database backends.
@@ -299,7 +299,7 @@ func SupportedDrivers() []string {
 // Create intializes and opens a database for the specified type.  The arguments
 // are specific to the database type driver.  See the documentation for the
 // database driver for further details.
-func Create(dbType string, args ...interface{}) (DB, error) {
+func Create(dbType string, args ...any) (DB, error) {
 	const op errors.Op = "walletdb.Create"
 	drv, exists := drivers[dbType]
 	if !exists {
@@ -312,7 +312,7 @@ func Create(dbType string, args ...interface{}) (DB, error) {
 // Open opens an existing database for the specified type.  The arguments are
 // specific to the database type driver.  See the documentation for the database
 // driver for further details.
-func Open(dbType string, args ...interface{}) (DB, error) {
+func Open(dbType string, args ...any) (DB, error) {
 	const op errors.Op = "walletdb.Open"
 	drv, exists := drivers[dbType]
 	if !exists {

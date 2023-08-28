@@ -22,10 +22,10 @@ import (
 	"time"
 )
 
-type keygen func(t *testing.T) (pub, priv interface{}, name string)
+type keygen func(t *testing.T) (pub, priv any, name string)
 
 func ed25519Keygen() keygen {
-	return func(t *testing.T) (pub, priv interface{}, name string) {
+	return func(t *testing.T) (pub, priv any, name string) {
 		seed := make([]byte, ed25519.SeedSize)
 		_, err := io.ReadFull(rand.Reader, seed)
 		if err != nil {
@@ -37,7 +37,7 @@ func ed25519Keygen() keygen {
 }
 
 func ecKeygen(curve elliptic.Curve) keygen {
-	return func(t *testing.T) (pub, priv interface{}, name string) {
+	return func(t *testing.T) (pub, priv any, name string) {
 		var key *ecdsa.PrivateKey
 		key, err := ecdsa.GenerateKey(curve, rand.Reader)
 		if err != nil {
@@ -65,7 +65,7 @@ func echo(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, r.Body)
 }
 
-func testClientCert(t *testing.T, pub, priv interface{}, name string) {
+func testClientCert(t *testing.T, pub, priv any, name string) {
 	ca, err := generateAuthority(pub, priv)
 	if err != nil {
 		t.Error(err)

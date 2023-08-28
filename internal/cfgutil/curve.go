@@ -89,7 +89,7 @@ func (f *CurveFlag) UnmarshalFlag(value string) error {
 	return nil
 }
 
-func (f *CurveFlag) GenerateKeyPair(rand io.Reader) (pub, priv interface{}, err error) {
+func (f *CurveFlag) GenerateKeyPair(rand io.Reader) (pub, priv any, err error) {
 	if ec, ok := f.ECDSACurve(); ok {
 		var key *ecdsa.PrivateKey
 		key, err = ecdsa.GenerateKey(ec, rand)

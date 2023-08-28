@@ -1208,7 +1208,7 @@ type ProcessUnmanagedTicketCmd struct {
 
 type registeredMethod struct {
 	method string
-	cmd    interface{}
+	cmd    any
 }
 
 type GetCoinjoinsByAcctCmd struct{}

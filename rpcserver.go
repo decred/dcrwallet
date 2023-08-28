@@ -129,10 +129,10 @@ var endOfTime = time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
 type ClientCA struct {
 	CertBlock  []byte
 	Cert       *x509.Certificate
-	PrivateKey interface{}
+	PrivateKey any
 }
 
-func generateAuthority(pub, priv interface{}) (*ClientCA, error) {
+func generateAuthority(pub, priv any) (*ClientCA, error) {
 	validUntil := time.Now().Add(time.Hour * 24 * 365 * 10)
 	now := time.Now()
 	if validUntil.After(endOfTime) {
@@ -182,7 +182,7 @@ func generateAuthority(pub, priv interface{}) (*ClientCA, error) {
 	return clientCA, nil
 }
 
-func marshalPrivateKey(key interface{}) ([]byte, error) {
+func marshalPrivateKey(key any) ([]byte, error) {
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal private key: %v", err)
@@ -195,7 +195,7 @@ func marshalPrivateKey(key interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func createSignedClientCert(pub, caPriv interface{}, ca *x509.Certificate) ([]byte, error) {
+func createSignedClientCert(pub, caPriv any, ca *x509.Certificate) ([]byte, error) {
 	serialNumber, err := randomX509SerialNumber()
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func createSignedClientCert(pub, caPriv interface{}, ca *x509.Certificate) ([]by
 	return buf.Bytes(), nil
 }
 
-func generateClientKeyPair(caPriv interface{}, ca *x509.Certificate) (cert, key []byte, err error) {
+func generateClientKeyPair(caPriv any, ca *x509.Certificate) (cert, key []byte, err error) {
 	pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
 	if err != nil {
 		return
@@ -400,7 +400,7 @@ func serviceName(method string) string {
 	return method[:strings.IndexRune(method, '/')]
 }
 
-func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func interceptStreaming(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	p, ok := peer.FromContext(ss.Context())
 	if ok {
 		loggers.GrpcLog.Debugf("Streaming method %s invoked by %s", info.FullMethod,
@@ -426,7 +426,7 @@ func interceptStreaming(srv interface{}, ss grpc.ServerStream, info *grpc.Stream
 	return err
 }
 
-func interceptUnary(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func interceptUnary(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 	p, ok := peer.FromContext(ctx)
 	if ok {
 		loggers.GrpcLog.Debugf("Unary method %s invoked by %s", info.FullMethod,

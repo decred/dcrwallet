@@ -34,7 +34,7 @@ var (
 	newlineBytes        = []byte{'\n'}
 )
 
-func fatalf(format string, args ...interface{}) {
+func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	os.Stderr.Write(newlineBytes)
 	os.Exit(1)
@@ -371,7 +371,7 @@ func sweep(ctx context.Context) error {
 
 	var totalSwept dcrutil.Amount
 	var numErrors int
-	var reportError = func(format string, args ...interface{}) {
+	var reportError = func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format, args...)
 		os.Stderr.Write(newlineBytes)
 		numErrors++
