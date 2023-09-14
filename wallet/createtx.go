@@ -1355,8 +1355,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	if poolAddress != nil {
 		// poolAddress is only used with the legacy stakepool
 		const dcp0010Active = false
+		const dcp0012Active = false
 		vspFee = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			tipHeight, poolFees, w.ChainParams(), dcp0010Active)
+			tipHeight, poolFees, w.ChainParams(), dcp0010Active, dcp0012Active)
 	}
 
 	// After tickets are created and published, watch for future
@@ -1398,11 +1399,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return nil, err
 		}
-		// In SPV mode, DCP0010 is assumed to have activated.  This
+		// In SPV mode, DCP0010 and DCP0012 are assumed to have activated.  This
 		// results in a larger fee calculation for the purposes of UTXO
-		// selection.  In RPC mode the actual activation can be
-		// determined.
+		// selection.  In RPC mode the actual activation can be determined.
 		dcp0010Active := true
+		dcp0012Active := true
 		switch n := n.(type) {
 		case *dcrd.RPC:
 			dcp0010Active, err = deployments.DCP0010Active(ctx,
@@ -1410,10 +1411,15 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if err != nil {
 				return nil, err
 			}
+			dcp0012Active, err = deployments.DCP0012Active(ctx,
+				tipHeight, w.chainParams, n)
+			if err != nil {
+				return nil, err
+			}
 		}
 		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			tipHeight, feePrice, w.chainParams,
-			dcp0010Active)
+			dcp0010Active, dcp0012Active)
 
 		// Reserve outputs for number of buys.
 		vspFeeCredits = make([][]Input, 0, req.Count)
