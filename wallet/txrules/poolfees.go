@@ -34,7 +34,7 @@ var initSubsidyCacheOnce sync.Once
 // calculation of this fee.
 func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	height int32, poolFee float64, params *chaincfg.Params,
-	dcp0010Active bool) dcrutil.Amount {
+	dcp0010Active bool, dcp0012Active bool) dcrutil.Amount {
 	// Shift the decimal two places, e.g. 1.00%
 	// to 100. This assumes that the proportion
 	// is already multiplied by 100 to give a
@@ -56,8 +56,15 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 	initSubsidyCacheOnce.Do(func() {
 		subsidyCache = blockchain.NewSubsidyCache(params)
 	})
-	subsidy := subsidyCache.CalcStakeVoteSubsidyV2(int64(height),
-		dcp0010Active)
+
+	ssv := blockchain.SSVOriginal
+	switch {
+	case dcp0012Active:
+		ssv = blockchain.SSVDCP0012
+	case dcp0010Active:
+		ssv = blockchain.SSVDCP0010
+	}
+	subsidy := subsidyCache.CalcStakeVoteSubsidyV3(int64(height), ssv)
 	for i := 0; i < adjs; i++ {
 		subsidy *= 100
 		subsidy /= 101
