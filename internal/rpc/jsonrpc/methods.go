@@ -1278,8 +1278,18 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd any) (any, error) {
 	})
 	medianTime := timestamps[len(timestamps)/2]
 
+	// Determine the PoW hash.  When the v1 PoW hash differs from the
+	// block hash, this is assumed to be v2 (DCP0011).  More advanced
+	// selection logic will be necessary if the PoW hash changes again in
+	// the future.
+	powHash := blockHeader.PowHashV1()
+	if powHash != *blockHash {
+		powHash = blockHeader.PowHashV2()
+	}
+
 	return &dcrdtypes.GetBlockHeaderVerboseResult{
 		Hash:          blockHash.String(),
+		PowHash:       powHash.String(),
 		Confirmations: confirmations,
 		Version:       blockHeader.Version,
 		MerkleRoot:    blockHeader.MerkleRoot.String(),
@@ -1394,9 +1404,19 @@ func (s *Server) getBlock(ctx context.Context, icmd any) (any, error) {
 	})
 	medianTime := timestamps[len(timestamps)/2]
 
+	// Determine the PoW hash.  When the v1 PoW hash differs from the
+	// block hash, this is assumed to be v2 (DCP0011).  More advanced
+	// selection logic will be necessary if the PoW hash changes again in
+	// the future.
+	powHash := blockHeader.PowHashV1()
+	if powHash != *blockHash {
+		powHash = blockHeader.PowHashV2()
+	}
+
 	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin
 	blockReply := dcrdtypes.GetBlockVerboseResult{
 		Hash:          cmd.Hash,
+		PoWHash:       powHash.String(),
 		Version:       blockHeader.Version,
 		MerkleRoot:    blockHeader.MerkleRoot.String(),
 		StakeRoot:     blockHeader.StakeRoot.String(),
