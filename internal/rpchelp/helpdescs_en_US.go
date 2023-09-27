@@ -196,6 +196,7 @@ var helpDescsEnUS = map[string]string{
 
 	// GetBlockHeaderVerboseResult help.
 	"getblockheaderverboseresult-hash":              "The hash of the block (same as provided)",
+	"getblockheaderverboseresult-powhash":           "The Proof-of-Work hash of the block (same as hash prior to DCP0011 activation)",
 	"getblockheaderverboseresult-confirmations":     "The number of confirmations",
 	"getblockheaderverboseresult-height":            "The height of the block in the block chain",
 	"getblockheaderverboseresult-version":           "The block version",
@@ -231,6 +232,7 @@ var helpDescsEnUS = map[string]string{
 
 	// GetBlockVerboseResult help.
 	"getblockverboseresult-hash":              "The hash of the block (same as provided)",
+	"getblockverboseresult-powhash":           "The Proof-of-Work hash of the block (same as hash prior to DCP0011 activation)",
 	"getblockverboseresult-confirmations":     "The number of confirmations",
 	"getblockverboseresult-size":              "The size of the block",
 	"getblockverboseresult-height":            "The height of the block in the block chain",
