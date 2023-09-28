@@ -98,6 +98,14 @@ func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTi
 	}, nil
 }
 
+func (v *VSPTicket) Expired(ctx context.Context) bool {
+	_, tipHeight := v.wallet.MainChainTip(ctx)
+
+	expires := v.ExpiryHeight(ctx)
+
+	return expires > 0 && tipHeight >= expires
+}
+
 // calcHeights checks if the ticket has been mined, and if so, sets the live
 // height and expiry height fields. Should be called with mutex already held.
 func (v *VSPTicket) calcHeights(ctx context.Context) {

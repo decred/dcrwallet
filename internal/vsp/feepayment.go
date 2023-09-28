@@ -105,20 +105,10 @@ const (
 	TicketSpent
 )
 
-func (fp *feePayment) ticketExpired() bool {
-	ctx := fp.ctx
-	w := fp.client.wallet
-	_, tipHeight := w.MainChainTip(ctx)
-
-	expires := fp.ticket.ExpiryHeight(ctx)
-
-	return expires > 0 && tipHeight >= expires
-}
-
 func (fp *feePayment) removedExpiredOrSpent() bool {
 	var reason string
 	switch {
-	case fp.ticketExpired():
+	case fp.ticket.Expired(fp.ctx):
 		reason = "expired"
 	case fp.ticket.Spent(fp.ctx):
 		reason = "spent"
