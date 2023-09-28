@@ -5752,68 +5752,6 @@ func (w *Wallet) IsVSPTicketConfirmed(ctx context.Context, ticketHash *chainhash
 	return confirmed, err
 }
 
-// UpdateVspTicketFeeToPaid updates a vsp ticket fee status to paid.
-// This is needed when finishing the fee payment on VSPs Process.
-func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessPaid),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToStarted(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessStarted),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     chainhash.Hash{},
-			FeeTxStatus: uint32(udb.VSPFeeProcessErrored),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToConfirmed(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessConfirmed),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
 // ForUnspentUnexpiredTickets performs a function on every unexpired and unspent
 // ticket from the wallet.
 func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,

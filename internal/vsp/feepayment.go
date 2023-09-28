@@ -256,7 +256,7 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 	// If database has been updated to paid or confirmed status, we can forgo
 	// this step.
 	if !paidConfirmed {
-		err = w.UpdateVspTicketFeeToStarted(ctx, ticketHash, &feeHash, c.Client.URL, c.Client.PubKey)
+		err = fp.ticket.UpdateFeeStarted(ctx, feeHash, c.Client.URL, c.Client.PubKey)
 		if err != nil {
 			return fp
 		}
@@ -460,7 +460,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	}
 
 	feeHash := tx.TxHash()
-	err = w.UpdateVspTicketFeeToPaid(ctx, fp.ticket.Hash(), &feeHash, fp.client.URL, fp.client.PubKey)
+	err = fp.ticket.UpdateFeePaid(ctx, feeHash, fp.client.URL, fp.client.PubKey)
 	if err != nil {
 		return err
 	}
@@ -565,13 +565,13 @@ func (fp *feePayment) reconcilePayment() error {
 			if err != nil {
 				return err
 			}
-			err = w.UpdateVspTicketFeeToPaid(ctx, fp.ticket.Hash(), &feeHash, fp.client.URL, fp.client.PubKey)
+			err = fp.ticket.UpdateFeePaid(ctx, feeHash, fp.client.URL, fp.client.PubKey)
 			if err != nil {
 				return err
 			}
 			err = nil
 		case types.ErrInvalidFeeTx, types.ErrCannotBroadcastFee:
-			err := w.UpdateVspTicketFeeToErrored(ctx, fp.ticket.Hash(), fp.client.URL, fp.client.PubKey)
+			err := fp.ticket.UpdateFeeErrored(ctx, fp.client.URL, fp.client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -589,7 +589,7 @@ func (fp *feePayment) reconcilePayment() error {
 		return err
 	}
 
-	err = w.UpdateVspTicketFeeToPaid(ctx, fp.ticket.Hash(), &feeHash, fp.client.URL, fp.client.PubKey)
+	err = fp.ticket.UpdateFeePaid(ctx, feeHash, fp.client.URL, fp.client.PubKey)
 	if err != nil {
 		return err
 	}
@@ -679,7 +679,6 @@ func (fp *feePayment) submitPayment() (err error) {
 // schedule another reconcile.
 func (fp *feePayment) confirmPayment() (err error) {
 	ctx := fp.ctx
-	w := fp.client.wallet
 
 	// stop processing if ticket is expired or spent
 	if fp.removedExpiredOrSpent() {
@@ -717,7 +716,7 @@ func (fp *feePayment) confirmPayment() (err error) {
 		fp.mu.Lock()
 		feeHash := fp.feeHash
 		fp.mu.Unlock()
-		err = w.UpdateVspTicketFeeToConfirmed(ctx, fp.ticket.Hash(), &feeHash, fp.client.URL, fp.client.PubKey)
+		err = fp.ticket.UpdateFeeConfirmed(ctx, feeHash, fp.client.URL, fp.client.PubKey)
 		if err != nil {
 			return err
 		}

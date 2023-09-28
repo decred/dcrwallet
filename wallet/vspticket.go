@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"decred.org/dcrwallet/v4/wallet/udb"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -176,4 +177,48 @@ func (v *VSPTicket) TxBlock(ctx context.Context) (int32, error) {
 		return 0, err
 	}
 	return height, nil
+}
+
+func (v *VSPTicket) UpdateFeeConfirmed(ctx context.Context, feeHash chainhash.Hash, host string, pubkey []byte) error {
+	return walletdb.Update(ctx, v.wallet.db, func(dbtx walletdb.ReadWriteTx) error {
+		return udb.SetVSPTicket(dbtx, v.hash, &udb.VSPTicket{
+			FeeHash:     feeHash,
+			FeeTxStatus: uint32(udb.VSPFeeProcessConfirmed),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+	})
+}
+
+func (v *VSPTicket) UpdateFeePaid(ctx context.Context, feeHash chainhash.Hash, host string, pubkey []byte) error {
+	return walletdb.Update(ctx, v.wallet.db, func(dbtx walletdb.ReadWriteTx) error {
+		return udb.SetVSPTicket(dbtx, v.hash, &udb.VSPTicket{
+			FeeHash:     feeHash,
+			FeeTxStatus: uint32(udb.VSPFeeProcessPaid),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+	})
+}
+
+func (v *VSPTicket) UpdateFeeStarted(ctx context.Context, feeHash chainhash.Hash, host string, pubkey []byte) error {
+	return walletdb.Update(ctx, v.wallet.db, func(dbtx walletdb.ReadWriteTx) error {
+		return udb.SetVSPTicket(dbtx, v.hash, &udb.VSPTicket{
+			FeeHash:     feeHash,
+			FeeTxStatus: uint32(udb.VSPFeeProcessStarted),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+	})
+}
+
+func (v *VSPTicket) UpdateFeeErrored(ctx context.Context, host string, pubkey []byte) error {
+	return walletdb.Update(ctx, v.wallet.db, func(dbtx walletdb.ReadWriteTx) error {
+		return udb.SetVSPTicket(dbtx, v.hash, &udb.VSPTicket{
+			FeeHash:     chainhash.Hash{},
+			FeeTxStatus: uint32(udb.VSPFeeProcessErrored),
+			Host:        host,
+			PubKey:      pubkey,
+		})
+	})
 }

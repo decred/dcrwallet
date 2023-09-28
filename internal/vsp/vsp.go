@@ -170,7 +170,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*wallet.VS
 			if err != nil {
 				return err
 			}
-			err = c.wallet.UpdateVspTicketFeeToConfirmed(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
+			err = ticket.UpdateFeeConfirmed(ctx, *feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -180,7 +180,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*wallet.VS
 			if err != nil {
 				return err
 			}
-			err = c.wallet.UpdateVspTicketFeeToPaid(ctx, hash, feeHash, c.Client.URL, c.Client.PubKey)
+			err = ticket.UpdateFeePaid(ctx, *feeHash, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -220,7 +220,7 @@ func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *w
 		// transaction, submit it then confirm.
 		fp := c.feePayment(ctx, ticket, false)
 		if fp == nil {
-			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := fp.ticket.UpdateFeeErrored(ctx, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -233,7 +233,7 @@ func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *w
 		fp.mu.Unlock()
 		err := fp.receiveFeeAddress()
 		if err != nil {
-			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := fp.ticket.UpdateFeeErrored(ctx, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
@@ -244,7 +244,7 @@ func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *w
 		}
 		err = fp.makeFeeTx(feeTx)
 		if err != nil {
-			err := c.wallet.UpdateVspTicketFeeToErrored(ctx, ticketHash, c.Client.URL, c.Client.PubKey)
+			err := fp.ticket.UpdateFeeErrored(ctx, c.Client.URL, c.Client.PubKey)
 			if err != nil {
 				return err
 			}
