@@ -2272,29 +2272,6 @@ func (w *Wallet) AccountXpriv(ctx context.Context, account uint32) (*hdkeychain.
 	return privKey, nil
 }
 
-// TxBlock returns the hash and height of a block which mines a transaction.
-func (w *Wallet) TxBlock(ctx context.Context, hash *chainhash.Hash) (chainhash.Hash, int32, error) {
-	var blockHash chainhash.Hash
-	var height int32
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
-		var err error
-		height, err = w.txStore.TxBlockHeight(dbtx, hash)
-		if err != nil {
-			return err
-		}
-		if height == -1 {
-			return nil
-		}
-		blockHash, err = w.txStore.GetMainChainBlockHashForHeight(ns, height)
-		return err
-	})
-	if err != nil {
-		return blockHash, 0, err
-	}
-	return blockHash, height, nil
-}
-
 // TxConfirms returns the current number of block confirmations a transaction.
 func (w *Wallet) TxConfirms(ctx context.Context, hash *chainhash.Hash) (int32, error) {
 	var tip, txheight int32

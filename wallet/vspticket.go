@@ -8,10 +8,12 @@ import (
 	"context"
 	"fmt"
 
+	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
+	"github.com/decred/dcrd/wire"
 )
 
 type VSPTicket struct {
@@ -149,4 +151,29 @@ func (v *VSPTicket) TreasuryKeyPolicy() map[string]string {
 		}
 	}
 	return policies
+}
+
+func (v *VSPTicket) Spent(ctx context.Context) bool {
+	ticketOut := wire.OutPoint{Hash: *v.hash, Index: 0, Tree: 1}
+	_, _, err := v.wallet.Spender(ctx, &ticketOut)
+	return err == nil
+}
+
+func (v *VSPTicket) TxBlock(ctx context.Context) (int32, error) {
+	var height int32
+	err := walletdb.View(ctx, v.wallet.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		height, err = v.wallet.txStore.TxBlockHeight(dbtx, v.hash)
+		if err != nil {
+			return err
+		}
+		if height == -1 {
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
 }

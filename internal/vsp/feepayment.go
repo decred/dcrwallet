@@ -110,7 +110,7 @@ const (
 // calcHeights checks if the ticket has been mined, and if so, sets the live
 // height and expiry height fields. Should be called with mutex already held.
 func (fp *feePayment) calcHeights() {
-	_, minedHeight, err := fp.client.wallet.TxBlock(fp.ctx, fp.ticket.Hash())
+	minedHeight, err := fp.ticket.TxBlock(fp.ctx)
 	if err != nil {
 		// This is not expected to ever error, as the ticket has already been
 		// fetched from the wallet at least one before this point is reached.
@@ -148,13 +148,6 @@ func (fp *feePayment) liveHeight() int32 {
 	return fp.ticketLive
 }
 
-func (fp *feePayment) ticketSpent() bool {
-	ctx := fp.ctx
-	ticketOut := wire.OutPoint{Hash: *fp.ticket.Hash(), Index: 0, Tree: 1}
-	_, _, err := fp.client.wallet.Spender(ctx, &ticketOut)
-	return err == nil
-}
-
 func (fp *feePayment) ticketExpired() bool {
 	ctx := fp.ctx
 	w := fp.client.wallet
@@ -172,7 +165,7 @@ func (fp *feePayment) removedExpiredOrSpent() bool {
 	switch {
 	case fp.ticketExpired():
 		reason = "expired"
-	case fp.ticketSpent():
+	case fp.ticket.Spent(fp.ctx):
 		reason = "spent"
 	}
 	if reason != "" {
@@ -233,7 +226,7 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 	}
 
 	// No VSP interaction is required for spent tickets.
-	if fp.ticketSpent() {
+	if fp.ticket.Spent(ctx) {
 		fp.state = TicketSpent
 		return fp
 	}
