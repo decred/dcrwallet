@@ -21,6 +21,8 @@ import (
 type VSPTicket struct {
 	// Fields set during creation and never change.
 	hash           *chainhash.Hash
+	rawTx          *wire.MsgTx
+	parentTx       *wire.MsgTx
 	commitmentAddr stdaddr.StakeAddress
 	votingAddr     stdaddr.StakeAddress
 	votingKey      string
@@ -34,7 +36,7 @@ type VSPTicket struct {
 func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTicket, error) {
 	txs, _, err := w.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to retrieve ticket: %w", err)
 	}
 
 	ticketTx := txs[0]
@@ -70,8 +72,18 @@ func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTi
 		return nil, err
 	}
 
+	parentHash := ticketTx.TxIn[0].PreviousOutPoint.Hash
+	txs, _, err = w.GetTransactionsByHashes(ctx, []*chainhash.Hash{&parentHash})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve parent %v of ticket: %w",
+			parentHash, err)
+	}
+	parentTx := txs[0]
+
 	return &VSPTicket{
 		hash:           hash,
+		rawTx:          ticketTx,
+		parentTx:       parentTx,
 		votingAddr:     votingAddr,
 		commitmentAddr: commitmentAddr,
 		votingKey:      votingKey,
@@ -85,6 +97,12 @@ func (v *VSPTicket) String() string {
 }
 func (v *VSPTicket) Hash() *chainhash.Hash {
 	return v.hash
+}
+func (v *VSPTicket) RawTx() *wire.MsgTx {
+	return v.rawTx
+}
+func (v *VSPTicket) ParentTx() *wire.MsgTx {
+	return v.parentTx
 }
 func (v *VSPTicket) CommitmentAddr() stdaddr.StakeAddress {
 	return v.commitmentAddr

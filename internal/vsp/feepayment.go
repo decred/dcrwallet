@@ -351,22 +351,11 @@ func (fp *feePayment) receiveFeeAddress() error {
 
 	// Fetch ticket and its parent transaction (typically, a split
 	// transaction).
-	ticket, err := fp.client.tx(ctx, fp.ticket.Hash())
-	if err != nil {
-		return fmt.Errorf("failed to retrieve ticket: %w", err)
-	}
-	parentHash := &ticket.TxIn[0].PreviousOutPoint.Hash
-	parent, err := fp.client.tx(ctx, parentHash)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve parent %v of ticket: %w",
-			parentHash, err)
-	}
-
-	ticketHex, err := marshalTx(ticket)
+	ticketHex, err := marshalTx(fp.ticket.RawTx())
 	if err != nil {
 		return err
 	}
-	parentHex, err := marshalTx(parent)
+	parentHex, err := marshalTx(fp.ticket.ParentTx())
 	if err != nil {
 		return err
 	}
