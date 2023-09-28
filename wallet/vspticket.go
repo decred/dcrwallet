@@ -7,6 +7,7 @@ package wallet
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/wallet/udb"
@@ -26,6 +27,11 @@ type VSPTicket struct {
 	commitmentAddr stdaddr.StakeAddress
 	votingAddr     stdaddr.StakeAddress
 	votingKey      string
+
+	// Fields which can change after creation. Protected with a mutex.
+	mu     sync.Mutex
+	live   int32
+	expiry int32
 
 	wallet *Wallet
 }
@@ -90,6 +96,53 @@ func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTi
 
 		wallet: w,
 	}, nil
+}
+
+// calcHeights checks if the ticket has been mined, and if so, sets the live
+// height and expiry height fields. Should be called with mutex already held.
+func (v *VSPTicket) calcHeights(ctx context.Context) {
+	minedHeight, err := v.TxBlock(ctx)
+	if err != nil {
+		// This is not expected to ever error, as the ticket has already been
+		// fetched from the wallet at least one before this point is reached.
+		log.Errorf("Failed to query block which mines ticket: %v", err)
+		return
+	}
+
+	if minedHeight < 2 {
+		return
+	}
+
+	// Note the off-by-one; this is correct. Tickets become live one block after
+	// the params would indicate.
+	v.live = minedHeight + int32(v.wallet.chainParams.TicketMaturity) + 1
+	v.expiry = v.live + int32(v.wallet.chainParams.TicketExpiry)
+}
+
+// ExpiryHeight returns the height at which the ticket expires. Returns zero if
+// the block is not yet mined.
+func (v *VSPTicket) ExpiryHeight(ctx context.Context) int32 {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.expiry == 0 {
+		v.calcHeights(ctx)
+	}
+
+	return v.expiry
+}
+
+// LiveHeight returns the height at which the ticket becomes live. Returns zero
+// if the block is not yet mined.
+func (v *VSPTicket) LiveHeight(ctx context.Context) int32 {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.live == 0 {
+		v.calcHeights(ctx)
+	}
+
+	return v.live
 }
 
 func (v *VSPTicket) String() string {

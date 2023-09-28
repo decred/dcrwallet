@@ -81,15 +81,13 @@ type feePayment struct {
 	policy *Policy
 
 	// Requires locking for all access outside of Client.feePayment
-	mu            sync.Mutex
-	ticketLive    int32
-	ticketExpires int32
-	fee           dcrutil.Amount
-	feeAddr       stdaddr.Address
-	feeHash       chainhash.Hash
-	feeTx         *wire.MsgTx
-	state         State
-	err           error
+	mu      sync.Mutex
+	fee     dcrutil.Amount
+	feeAddr stdaddr.Address
+	feeHash chainhash.Hash
+	feeTx   *wire.MsgTx
+	state   State
+	err     error
 
 	timerMu sync.Mutex
 	timer   *time.Timer
@@ -107,55 +105,12 @@ const (
 	TicketSpent
 )
 
-// calcHeights checks if the ticket has been mined, and if so, sets the live
-// height and expiry height fields. Should be called with mutex already held.
-func (fp *feePayment) calcHeights() {
-	minedHeight, err := fp.ticket.TxBlock(fp.ctx)
-	if err != nil {
-		// This is not expected to ever error, as the ticket has already been
-		// fetched from the wallet at least one before this point is reached.
-		fp.client.log.Errorf("Failed to query block which mines ticket: %v", err)
-		return
-	}
-
-	if minedHeight < 2 {
-		return
-	}
-
-	// Note the off-by-one; this is correct. Tickets become live one block after
-	// the params would indicate.
-	fp.ticketLive = minedHeight + int32(fp.params.TicketMaturity) + 1
-	fp.ticketExpires = fp.ticketLive + int32(fp.params.TicketExpiry)
-}
-
-// expiryHeight returns the height at which the ticket expires. Returns zero if
-// the block is not yet mined. Should be called with mutex already held.
-func (fp *feePayment) expiryHeight() int32 {
-	if fp.ticketExpires == 0 {
-		fp.calcHeights()
-	}
-
-	return fp.ticketExpires
-}
-
-// liveHeight returns the height at which the ticket becomes live. Returns zero
-// if the block is not yet mined. Should be called with mutex already held.
-func (fp *feePayment) liveHeight() int32 {
-	if fp.ticketLive == 0 {
-		fp.calcHeights()
-	}
-
-	return fp.ticketLive
-}
-
 func (fp *feePayment) ticketExpired() bool {
 	ctx := fp.ctx
 	w := fp.client.wallet
 	_, tipHeight := w.MainChainTip(ctx)
 
-	fp.mu.Lock()
-	expires := fp.expiryHeight()
-	fp.mu.Unlock()
+	expires := fp.ticket.ExpiryHeight(ctx)
 
 	return expires > 0 && tipHeight >= expires
 }
@@ -289,10 +244,8 @@ func (fp *feePayment) next() time.Duration {
 	w := fp.client.wallet
 	_, tipHeight := w.MainChainTip(fp.ctx)
 
-	fp.mu.Lock()
-	ticketLive := fp.liveHeight()
-	ticketExpires := fp.expiryHeight()
-	fp.mu.Unlock()
+	ticketLive := fp.ticket.LiveHeight(fp.ctx)
+	ticketExpires := fp.ticket.ExpiryHeight(fp.ctx)
 
 	var jitter time.Duration
 	switch {
