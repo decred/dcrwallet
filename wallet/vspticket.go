@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 
+	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/wallet/udb"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
@@ -221,4 +222,39 @@ func (v *VSPTicket) UpdateFeeErrored(ctx context.Context, host string, pubkey []
 			PubKey:      pubkey,
 		})
 	})
+}
+
+type TicketInfo struct {
+	FeeHash     chainhash.Hash
+	FeeTxStatus uint32
+	VSPHostID   uint32
+	Host        string
+	PubKey      []byte
+}
+
+// VSPTicketInfo returns the various information for a given vsp ticket
+func (v *VSPTicket) VSPTicketInfo(ctx context.Context) (*TicketInfo, error) {
+	var data *udb.VSPTicket
+	err := walletdb.View(ctx, v.wallet.db, func(dbtx walletdb.ReadTx) error {
+		var err error
+		data, err = udb.GetVSPTicket(dbtx, *v.hash)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err == nil && data == nil {
+		err = errors.E(errors.NotExist)
+		return nil, err
+	} else if data == nil {
+		return nil, err
+	}
+	convertedData := &TicketInfo{
+		FeeHash:     data.FeeHash,
+		FeeTxStatus: data.FeeTxStatus,
+		VSPHostID:   data.VSPHostID,
+		Host:        data.Host,
+		PubKey:      data.PubKey,
+	}
+	return convertedData, err
 }

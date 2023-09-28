@@ -5665,41 +5665,6 @@ func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, publish
 	return nil
 }
 
-type TicketInfo struct {
-	FeeHash     chainhash.Hash
-	FeeTxStatus uint32
-	VSPHostID   uint32
-	Host        string
-	PubKey      []byte
-}
-
-// VSPTicketInfo returns the various information for a given vsp ticket
-func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*TicketInfo, error) {
-	var data *udb.VSPTicket
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		var err error
-		data, err = udb.GetVSPTicket(dbtx, *ticketHash)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err == nil && data == nil {
-		err = errors.E(errors.NotExist)
-		return nil, err
-	} else if data == nil {
-		return nil, err
-	}
-	convertedData := &TicketInfo{
-		FeeHash:     data.FeeHash,
-		FeeTxStatus: data.FeeTxStatus,
-		VSPHostID:   data.VSPHostID,
-		Host:        data.Host,
-		PubKey:      data.PubKey,
-	}
-	return convertedData, err
-}
-
 // VSPFeeHashForTicket returns the hash of the fee transaction associated with a
 // VSP payment.
 func (w *Wallet) VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.Hash) (chainhash.Hash, error) {

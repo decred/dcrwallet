@@ -204,8 +204,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*wallet.VS
 // The fee transaction is also recorded as unpublised in the wallet, and the fee
 // hash is associated with the ticket.
 func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *wire.MsgTx) error {
-	ticketHash := ticket.Hash()
-	vspTicket, err := c.wallet.VSPTicketInfo(ctx, ticketHash)
+	vspTicket, err := ticket.VSPTicketInfo(ctx)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
 	}
