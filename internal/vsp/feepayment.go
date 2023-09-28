@@ -636,7 +636,7 @@ func (fp *feePayment) submitPayment() (err error) {
 	}
 
 	// Retrieve voting preferences
-	voteChoices, _, err := w.AgendaChoices(ctx, fp.ticket.Hash())
+	voteChoices, err := fp.ticket.AgendaChoices(ctx)
 	if err != nil {
 		return err
 	}
@@ -652,8 +652,8 @@ func (fp *feePayment) submitPayment() (err error) {
 		FeeTx:          feeTxHex,
 		VotingKey:      fp.ticket.VotingKey(),
 		VoteChoices:    voteChoices,
-		TSpendPolicy:   w.TSpendPolicyForTicket(fp.ticket.Hash()),
-		TreasuryPolicy: w.TreasuryKeyPolicyForTicket(fp.ticket.Hash()),
+		TSpendPolicy:   fp.ticket.TSpendPolicy(),
+		TreasuryPolicy: fp.ticket.TreasuryKeyPolicy(),
 	}
 
 	_, err = fp.client.PayFee(ctx, req, fp.ticket.CommitmentAddr())

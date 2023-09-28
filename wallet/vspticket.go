@@ -20,6 +20,8 @@ type VSPTicket struct {
 	commitmentAddr stdaddr.StakeAddress
 	votingAddr     stdaddr.StakeAddress
 	votingKey      string
+
+	wallet *Wallet
 }
 
 // NewVSPTicket ensures the provided hash refers to a ticket with exactly 3
@@ -69,6 +71,8 @@ func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTi
 		votingAddr:     votingAddr,
 		commitmentAddr: commitmentAddr,
 		votingKey:      votingKey,
+
+		wallet: w,
 	}, nil
 }
 
@@ -86,4 +90,63 @@ func (v *VSPTicket) VotingAddr() stdaddr.StakeAddress {
 }
 func (v *VSPTicket) VotingKey() string {
 	return v.votingKey
+}
+
+func (v *VSPTicket) AgendaChoices(ctx context.Context) (map[string]string, error) {
+	choices, _, err := v.wallet.AgendaChoices(ctx, v.hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return choices, nil
+}
+
+// TSpendPolicyForTicket returns all of the tspend policies set for a single
+// ticket. It does not consider the global wallet setting.
+func (v *VSPTicket) TSpendPolicy() map[string]string {
+	w := v.wallet
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	policies := make(map[string]string)
+	for key, value := range w.vspTSpendPolicy {
+		if key.Ticket.IsEqual(v.hash) {
+			var choice string
+			switch value {
+			case stake.TreasuryVoteYes:
+				choice = "yes"
+			case stake.TreasuryVoteNo:
+				choice = "no"
+			default:
+				choice = "abstain"
+			}
+			policies[key.TSpend.String()] = choice
+		}
+	}
+	return policies
+}
+
+// TreasuryKeyPolicy returns all of the treasury key policies set for a single
+// ticket. It does not consider the global wallet setting.
+func (v *VSPTicket) TreasuryKeyPolicy() map[string]string {
+	w := v.wallet
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
+
+	policies := make(map[string]string)
+	for key, value := range w.vspTSpendKeyPolicy {
+		if key.Ticket.IsEqual(v.hash) {
+			var choice string
+			switch value {
+			case stake.TreasuryVoteYes:
+				choice = "yes"
+			case stake.TreasuryVoteNo:
+				choice = "no"
+			default:
+				choice = "abstain"
+			}
+			policies[key.TreasuryKey] = choice
+		}
+	}
+	return policies
 }
