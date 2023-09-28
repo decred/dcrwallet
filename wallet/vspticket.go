@@ -242,6 +242,23 @@ func (v *VSPTicket) UpdateFeeErrored(ctx context.Context, host string, pubkey []
 	})
 }
 
+func (v *VSPTicket) FeeHash(ctx context.Context) (chainhash.Hash, error) {
+	return v.wallet.VSPFeeHashForTicket(ctx, v.hash)
+}
+
+func (v *VSPTicket) FeeTx(ctx context.Context) (*wire.MsgTx, error) {
+	feeHash, err := v.FeeHash(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	txs, _, err := v.wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{&feeHash})
+	if err != nil {
+		return nil, err
+	}
+	return txs[0], nil
+}
+
 type TicketInfo struct {
 	FeeHash     chainhash.Hash
 	FeeTxStatus uint32

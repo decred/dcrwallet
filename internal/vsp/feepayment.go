@@ -215,8 +215,6 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 		}
 	}()
 
-	w := c.wallet
-
 	fp = &feePayment{
 		client: c,
 		ctx:    context.Background(),
@@ -231,14 +229,14 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 		return fp
 	}
 
-	feeHash, err := w.VSPFeeHashForTicket(ctx, ticketHash)
+	feeHash, err := ticket.FeeHash(ctx)
 	if err != nil {
 		// caller must schedule next method, as paying the fee may
 		// require using provided transaction inputs.
 		return fp
 	}
 
-	fee, err := c.tx(ctx, &feeHash)
+	fee, err := ticket.FeeTx(ctx)
 	if err != nil {
 		// A fee hash is recorded for this ticket, but was not found in
 		// the wallet.  This should not happen and may require manual
@@ -265,14 +263,6 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 		fp.fee = -1            // XXX fee amount (not needed anymore?)
 	}
 	return fp
-}
-
-func (c *Client) tx(ctx context.Context, hash *chainhash.Hash) (*wire.MsgTx, error) {
-	txs, _, err := c.wallet.GetTransactionsByHashes(ctx, []*chainhash.Hash{hash})
-	if err != nil {
-		return nil, err
-	}
-	return txs[0], nil
 }
 
 // Schedule a method to be executed.
