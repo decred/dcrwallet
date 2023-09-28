@@ -1620,7 +1620,7 @@ type PurchaseTicketsRequest struct {
 	// VSPFeePaymentProcess checks the fee payment status for the specified
 	// ticket and, if necessary, starts a long-lived handler to process the fee
 	// payment.
-	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, *wire.MsgTx) error
+	VSPFeePaymentProcess func(context.Context, *VSPTicket, *wire.MsgTx) error
 
 	// extraSplitOutput is an additional transaction output created during
 	// UTXO contention, to be used as the input to pay a VSP fee
@@ -5736,7 +5736,7 @@ func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, publish
 	return nil
 }
 
-type VSPTicket struct {
+type TicketInfo struct {
 	FeeHash     chainhash.Hash
 	FeeTxStatus uint32
 	VSPHostID   uint32
@@ -5745,7 +5745,7 @@ type VSPTicket struct {
 }
 
 // VSPTicketInfo returns the various information for a given vsp ticket
-func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*VSPTicket, error) {
+func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*TicketInfo, error) {
 	var data *udb.VSPTicket
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
@@ -5761,7 +5761,7 @@ func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) 
 	} else if data == nil {
 		return nil, err
 	}
-	convertedData := &VSPTicket{
+	convertedData := &TicketInfo{
 		FeeHash:     data.FeeHash,
 		FeeTxStatus: data.FeeTxStatus,
 		VSPHostID:   data.VSPHostID,
@@ -5933,8 +5933,8 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 
 // UnprocessedTickets returns the hash of every live/immature ticket in the
 // wallet database which is not currently being processed by a VSP.
-func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
-	unmanagedTickets := make([]*chainhash.Hash, 0)
+func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*VSPTicket, error) {
+	hashes := make([]*chainhash.Hash, 0)
 	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip tickets which have a fee tx already associated with
 		// them; they are already processed by some vsp.
@@ -5957,11 +5957,19 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 			return nil
 		}
 
-		unmanagedTickets = append(unmanagedTickets, hash)
+		hashes = append(hashes, hash)
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	unmanagedTickets := make([]*VSPTicket, len(hashes))
+	for i, hash := range hashes {
+		unmanagedTickets[i], err = w.NewVSPTicket(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return unmanagedTickets, nil
@@ -5969,8 +5977,8 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 
 // ProcessedTickets returns the hash of every live/immature ticket in the wallet
 // database which is currently being processed by a VSP but isnt confirmed yet.
-func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
-	managedTickets := make([]*chainhash.Hash, 0)
+func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*VSPTicket, error) {
+	hashes := make([]*chainhash.Hash, 0)
 	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := w.IsVSPTicketConfirmed(ctx, hash)
@@ -5986,12 +5994,19 @@ func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*chainhash.Hash, error
 			return nil
 		}
 
-		managedTickets = append(managedTickets, hash)
+		hashes = append(hashes, hash)
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
+	}
+
+	managedTickets := make([]*VSPTicket, len(hashes))
+	for i, hash := range hashes {
+		managedTickets[i], err = w.NewVSPTicket(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return managedTickets, nil
