@@ -53,7 +53,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	pb "decred.org/dcrwallet/v4/rpc/walletrpc"
@@ -71,7 +71,7 @@ var (
 
 func main() {
 	serverCAs := x509.NewCertPool()
-	serverCert, err := ioutil.ReadFile(certificateFile)
+	serverCert, err := os.ReadFile(certificateFile)
 	if err != nil {
 		fmt.Println(err)
 		return

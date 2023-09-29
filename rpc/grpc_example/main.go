@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -40,7 +39,7 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	serverCAs := x509.NewCertPool()
-	serverCert, err := ioutil.ReadFile(certificateFile)
+	serverCert, err := os.ReadFile(certificateFile)
 	if err != nil {
 		return err
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -36,7 +35,7 @@ func main() {
 }
 
 func connectWallet(host, user, pass, certFile string) (*dcrwallet.Client, error) {
-	cert, err := ioutil.ReadFile(certFile)
+	cert, err := os.ReadFile(certFile)
 	if err != nil {
 		return nil, err
 	}
