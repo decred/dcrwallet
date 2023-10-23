@@ -32,7 +32,7 @@ func init() {
 	ticketbuyer.UseLogger(loggers.TkbyLog)
 	chain.UseLogger(loggers.SyncLog)
 	spv.UseLogger(loggers.SyncLog)
-	p2p.UseLogger(loggers.SyncLog)
+	p2p.UseLogger(loggers.PeerLog)
 	rpcserver.UseLogger(loggers.GrpcLog)
 	jsonrpc.UseLogger(loggers.JsonrpcLog)
 	connmgr.UseLogger(loggers.CmgrLog)
@@ -45,6 +45,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"WLLT": loggers.WalletLog,
 	"TKBY": loggers.TkbyLog,
 	"SYNC": loggers.SyncLog,
+	"PEER": loggers.PeerLog,
 	"GRPC": loggers.GrpcLog,
 	"RPCS": loggers.JsonrpcLog,
 	"CMGR": loggers.CmgrLog,
