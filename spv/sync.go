@@ -409,55 +409,72 @@ func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*addrmgr.NetAddress, erro
 	return nil, errors.New("no addresses")
 }
 
+// connectAndRunPeer connects to and runs the syncing process with the specified
+// peer. It blocks until the peer disconnects and logs any errors.
+func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
+	// Attempt connection to peer.
+	rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
+	if err != nil {
+		// Remove from list of connecting remotes if it was a peer
+		// candidate (as opposed to a persistent peer).
+		s.remotesMu.Lock()
+		delete(s.connectingRemotes, raddr)
+		s.remotesMu.Unlock()
+		if !errors.Is(err, context.Canceled) {
+			log.Warnf("Peering attempt failed: %v", err)
+		}
+		return
+	}
+	log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
+
+	// Track peer as running as opposed to attempting connection.
+	s.remotesMu.Lock()
+	delete(s.connectingRemotes, raddr)
+	s.remotes[raddr] = rp
+	n := len(s.remotes)
+	s.remotesMu.Unlock()
+	s.peerConnected(n, raddr)
+
+	// Alert disconnection once this peer is done.
+	defer func() {
+		s.remotesMu.Lock()
+		delete(s.remotes, raddr)
+		n = len(s.remotes)
+		s.remotesMu.Unlock()
+		s.peerDisconnected(n, raddr)
+	}()
+
+	// Perform peer startup.
+	err = s.startupSync(ctx, rp)
+	if err != nil {
+		if !errors.Is(err, context.Canceled) {
+			log.Warnf("Unable to complete startup sync with peer %v: %v", raddr, err)
+		} else {
+			log.Infof("Lost peer %v", raddr)
+		}
+		rp.Disconnect(err)
+		return
+	}
+
+	// Finally, block until the peer disconnects.
+	err = rp.Err()
+	if !errors.Is(err, context.Canceled) {
+		log.Warnf("Lost peer %v: %v", raddr, err)
+	} else {
+		log.Infof("Lost peer %v", raddr)
+	}
+}
+
 func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 	for {
-		func() {
-			ctx, cancel := context.WithCancel(ctx)
-			defer cancel()
+		s.connectAndRunPeer(ctx, raddr)
 
-			rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
-			if err != nil {
-				if ctx.Err() == nil {
-					log.Errorf("Peering attempt failed: %v", err)
-				}
-				return
-			}
-			log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
-
-			k := rp.NA().Key()
-			s.remotesMu.Lock()
-			s.remotes[k] = rp
-			n := len(s.remotes)
-			s.remotesMu.Unlock()
-			s.peerConnected(n, k)
-
-			wait := make(chan struct{})
-			go func() {
-				err := s.startupSync(ctx, rp)
-				if err != nil {
-					rp.Disconnect(err)
-				}
-				wait <- struct{}{}
-			}()
-
-			err = rp.Err()
-			s.remotesMu.Lock()
-			delete(s.remotes, k)
-			n = len(s.remotes)
-			s.remotesMu.Unlock()
-			s.peerDisconnected(n, k)
-			<-wait
-			if ctx.Err() != nil {
-				return
-			}
-			log.Warnf("Lost peer %v: %v", raddr, err)
-		}()
-
-		if err := ctx.Err(); err != nil {
-			return err
+		// Retry persistent peer after 5 seconds.
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(5 * time.Second):
 		}
-
-		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -488,54 +505,10 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 
 		wg.Add(1)
 		go func() {
-			ctx, cancel := context.WithCancel(ctx)
-			defer func() {
-				cancel()
-				wg.Done()
-				<-sem
-			}()
-
-			// Make outbound connections to remote peers.
 			raddr := na.String()
-			rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
-			if err != nil {
-				s.remotesMu.Lock()
-				delete(s.connectingRemotes, raddr)
-				s.remotesMu.Unlock()
-				if ctx.Err() == nil {
-					log.Warnf("Peering attempt failed: %v", err)
-				}
-				return
-			}
-			log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
-
-			s.remotesMu.Lock()
-			delete(s.connectingRemotes, raddr)
-			s.remotes[raddr] = rp
-			n := len(s.remotes)
-			s.remotesMu.Unlock()
-			s.peerConnected(n, raddr)
-
-			wait := make(chan struct{})
-			go func() {
-				err := s.startupSync(ctx, rp)
-				if err != nil {
-					rp.Disconnect(err)
-				}
-				wait <- struct{}{}
-			}()
-
-			err = rp.Err()
-			if ctx.Err() != context.Canceled {
-				log.Warnf("Lost peer %v: %v", raddr, err)
-			}
-
-			<-wait
-			s.remotesMu.Lock()
-			delete(s.remotes, raddr)
-			n = len(s.remotes)
-			s.remotesMu.Unlock()
-			s.peerDisconnected(n, raddr)
+			s.connectAndRunPeer(ctx, raddr)
+			wg.Done()
+			<-sem
 		}()
 	}
 }
