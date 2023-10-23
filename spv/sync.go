@@ -1495,6 +1495,9 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 
 		s.sidechainMu.Unlock()
 
+		// Any new peers should not be significantly behind the new tip.
+		s.setRequiredHeight(int32(tip.Header.Height))
+
 		// Generate new locators
 		s.locatorMu.Lock()
 		locators, err = s.wallet.BlockLocators(ctx, nil)
@@ -1509,13 +1512,6 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 }
 
 func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
-	// Disconnect from the peer if their advertised block height is
-	// significantly behind the wallet's.
-	_, tipHeight := s.wallet.MainChainTip(ctx)
-	if rp.InitialHeight() < tipHeight-6 {
-		return errors.E("peer is not synced")
-	}
-
 	// Continue with fetching headers only after missing cfilters have
 	// been fetched.
 	select {
