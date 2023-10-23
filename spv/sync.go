@@ -49,6 +49,7 @@ type Syncer struct {
 
 	connectingRemotes map[string]struct{}
 	remotes           map[string]*p2p.RemotePeer
+	remoteAvailable   chan struct{}
 	remotesMu         sync.Mutex
 
 	// Data filters
@@ -365,6 +366,25 @@ func (s *Syncer) Run(ctx context.Context) error {
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
 
+	// Perform the initial startup sync.
+	g.Go(func() error {
+		// First step: fetch missing CFilters.
+		progress := make(chan wallet.MissingCFilterProgress, 1)
+		go s.wallet.FetchMissingCFiltersWithProgress(ctx, s, progress)
+
+		log.Debugf("Fetching missing CFilters...")
+		s.fetchMissingCfiltersStart()
+		for p := range progress {
+			if p.Err != nil {
+				return p.Err
+			}
+			s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
+		}
+		s.fetchMissingCfiltersFinished()
+		log.Debugf("Fetched all missing cfilters")
+		return nil
+	})
+
 	// Wait until cancellation or a handler errors.
 	return g.Wait()
 }
@@ -432,6 +452,10 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 	delete(s.connectingRemotes, raddr)
 	s.remotes[raddr] = rp
 	n := len(s.remotes)
+	if s.remoteAvailable != nil {
+		close(s.remoteAvailable)
+		s.remoteAvailable = nil
+	}
 	s.remotesMu.Unlock()
 	s.peerConnected(n, raddr)
 
@@ -538,6 +562,35 @@ func (s *Syncer) pickRemote(pick func(*p2p.RemotePeer) bool) (*p2p.RemotePeer, e
 		}
 	}
 	return nil, errors.E(errors.NoPeers)
+}
+
+// waitForAnyRemote blocks until there is a remote peer available or the context
+// is canceled.
+func (s *Syncer) waitForAnyRemote(ctx context.Context) (*p2p.RemotePeer, error) {
+	for {
+		s.remotesMu.Lock()
+		if len(s.remotes) == 0 {
+			c := s.remoteAvailable
+			if c == nil {
+				c = make(chan struct{})
+				s.remoteAvailable = c
+			}
+			s.remotesMu.Unlock()
+
+			// Wait until a peer is available.
+			select {
+			case <-c:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		} else {
+			// Pick a random one.
+			for _, rp := range s.remotes {
+				s.remotesMu.Unlock()
+				return rp, nil
+			}
+		}
+	}
 }
 
 // receiveGetData handles all received getdata requests from peers.  An inv
@@ -1416,17 +1469,6 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 	if rp.InitialHeight() < tipHeight-6 {
 		return errors.E("peer is not synced")
 	}
-	s.fetchMissingCfiltersStart()
-	progress := make(chan wallet.MissingCFilterProgress, 1)
-	go s.wallet.FetchMissingCFiltersWithProgress(ctx, rp, progress)
-
-	for p := range progress {
-		if p.Err != nil {
-			return p.Err
-		}
-		s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
-	}
-	s.fetchMissingCfiltersFinished()
 
 	// Fetch any unseen headers from the peer.
 	s.fetchHeadersStart()
