@@ -116,6 +116,10 @@ type RemotePeer struct {
 	knownHeaders lru.Cache[chainhash.Hash] // Hashes of received headers
 	banScore     connmgr.DynamicBanScore
 
+	// Height of the last header received via getheaders or header ann.
+	lastHeight   int32
+	lastHeightMu sync.Mutex
+
 	err  error         // Final error of disconnected peer
 	errc chan struct{} // Closed after err is set
 }
@@ -317,6 +321,15 @@ func (rp *RemotePeer) ID() uint64 { return rp.id }
 // InitialHeight returns the current height the peer advertised in its version
 // message.
 func (rp *RemotePeer) InitialHeight() int32 { return rp.initHeight }
+
+// LastHeight returns the height of the last header the peer sent through a
+// headers message.
+func (rp *RemotePeer) LastHeight() int32 {
+	rp.lastHeightMu.Lock()
+	h := rp.lastHeight
+	rp.lastHeightMu.Unlock()
+	return h
+}
 
 // Services returns the remote peer's advertised service flags.
 func (rp *RemotePeer) Services() wire.ServiceFlag { return rp.services }
@@ -1017,6 +1030,14 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 
 		prevHash = hash
 		prevHeight = h.Height
+	}
+
+	if prevHeight > 0 {
+		rp.lastHeightMu.Lock()
+		if int32(prevHeight) > rp.lastHeight {
+			rp.lastHeight = int32(prevHeight)
+		}
+		rp.lastHeightMu.Unlock()
 	}
 
 	if rp.sendheaders {
