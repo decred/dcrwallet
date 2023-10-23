@@ -455,6 +455,20 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 		}
 		return
 	}
+
+	// Disconnect from the peer if their advertised block height is
+	// significantly behind the wallet's.
+	_, tipHeight := s.wallet.MainChainTip(ctx)
+	if rp.InitialHeight() < tipHeight-6 {
+		log.Debugf("Skipping peer %v due to initial height %d lower "+
+			"than mainchain tip %d", raddr, rp.InitialHeight(),
+			tipHeight)
+		s.remotesMu.Lock()
+		delete(s.connectingRemotes, raddr)
+		s.remotesMu.Unlock()
+		return
+	}
+
 	log.Infof("New peer %v %v %v", raddr, rp.UA(), rp.Services())
 
 	// Track peer as running as opposed to attempting connection.
@@ -1480,13 +1494,6 @@ nextbatch:
 }
 
 func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
-	// Disconnect from the peer if their advertised block height is
-	// significantly behind the wallet's.
-	_, tipHeight := s.wallet.MainChainTip(ctx)
-	if rp.InitialHeight() < tipHeight-6 {
-		return errors.E("peer is not synced")
-	}
-
 	var err error
 	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
 		err = func() error {
