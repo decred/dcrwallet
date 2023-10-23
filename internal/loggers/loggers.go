@@ -48,6 +48,7 @@ var (
 	WalletLog  = backendLog.Logger("WLLT")
 	TkbyLog    = backendLog.Logger("TKBY")
 	SyncLog    = backendLog.Logger("SYNC")
+	PeerLog    = backendLog.Logger("PEER")
 	GrpcLog    = backendLog.Logger("GRPC")
 	JsonrpcLog = backendLog.Logger("RPCS")
 	CmgrLog    = backendLog.Logger("CMGR")
