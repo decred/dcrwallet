@@ -708,6 +708,11 @@ func (rp *RemotePeer) Err() error {
 	return rp.err
 }
 
+// Done returns a channel that is closed once the peer disconnects.
+func (rp *RemotePeer) Done() <-chan struct{} {
+	return rp.errc
+}
+
 // RemoteAddr returns the remote address of the peer's TCP connection.
 func (rp *RemotePeer) RemoteAddr() net.Addr {
 	return rp.c.RemoteAddr()

@@ -53,9 +53,9 @@ type Syncer struct {
 	remoteAvailable   chan struct{}
 	remotesMu         sync.Mutex
 
-	// missingCfiltersFetched is closed when the wallet's missing cfilters
-	// have been fetched.
-	missingCfiltersFetched chan struct{}
+	// headersFetched is closed when the initial getheaders loop has
+	// finished fetching headers.
+	headersFetched chan struct{}
 
 	// Data filters
 	//
@@ -131,7 +131,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
 
-		missingCfiltersFetched: make(chan struct{}),
+		headersFetched: make(chan struct{}),
 	}
 }
 
@@ -389,7 +389,19 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 		s.fetchMissingCfiltersFinished()
 		log.Debugf("Fetched all missing cfilters")
-		close(s.missingCfiltersFetched)
+
+		// Next: fetch headers and cfilters up to mainchain tip.
+		s.fetchHeadersStart()
+		log.Debugf("Fetching headers and CFilters...")
+		err = s.getHeaders(ctx)
+		if err != nil {
+			return err
+		}
+		s.fetchHeadersFinished()
+
+		// Signal that startup fetching of headers has completed.
+		close(s.headersFetched)
+
 		return nil
 	})
 
@@ -1343,10 +1355,9 @@ func (s *Syncer) disconnectStragglers(height int32) {
 // locators.
 var hashStop chainhash.Hash
 
-// getHeaders iteratively fetches headers from rp using the latest locators.
-// Returns when no more headers are available.  A sendheaders message is pushed
-// to the peer when there are no more headers to fetch.
-func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
+// getHeaders fetches headers from peers until the wallet is up to date with
+// all connected peers.  This is part of the startup sync process.
+func (s *Syncer) getHeaders(ctx context.Context) error {
 	var locators []*chainhash.Hash
 	var generation uint
 	var err error
@@ -1364,33 +1375,53 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 	}
 	s.locatorMu.Unlock()
 
-	var lastHeight int32
 	cnet := s.wallet.ChainParams().Net
 
-	for {
-		headers, err := rp.Headers(ctx, locators, &hashStop)
+	startTime := time.Now()
+
+nextbatch:
+	for ctx.Err() == nil {
+		tipHash, tipHeight := s.wallet.MainChainTip(ctx)
+
+		// Determine if there are any peers from which to request newer
+		// headers.
+		rp, err := s.waitForRemote(ctx, pickForGetHeaders(tipHeight), false)
 		if err != nil {
 			return err
+		}
+		if rp == nil {
+			// All done.
+			log.Infof("Initial sync to block %s at height %d completed in %s",
+				tipHash, tipHeight, time.Since(startTime).Round(time.Second))
+			return nil
+		}
+
+		headers, err := rp.Headers(ctx, locators, &hashStop)
+		if err != nil {
+			continue nextbatch
 		}
 
 		if len(headers) == 0 {
 			// Ensure that the peer provided headers through the height
 			// advertised during handshake.
-			if lastHeight < rp.InitialHeight() {
+			if rp.LastHeight() < rp.InitialHeight() {
 				// Peer may not have provided any headers if our own locators
 				// were up to date.  Compare the best locator hash with the
 				// advertised height.
 				h, err := s.wallet.BlockHeader(ctx, locators[0])
 				if err == nil && int32(h.Height) < rp.InitialHeight() {
-					return errors.E(errors.Protocol, "peer did not provide "+
+					err := errors.E(errors.Protocol, "peer did not provide "+
 						"headers through advertised height")
+					rp.Disconnect(err)
+					continue nextbatch
 				}
 			}
 
-			return rp.SendHeaders(ctx)
+			// Try to pick a different peer with a higher advertised
+			// height or check there are no such peers (thus we're
+			// done with fetching headers for initial sync).
+			continue nextbatch
 		}
-
-		lastHeight = int32(headers[len(headers)-1].Height)
 
 		nodes := make([]*wallet.BlockNode, len(headers))
 		for i := range headers {
@@ -1423,7 +1454,11 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		if err != nil {
 			s.sidechainMu.Unlock()
 			rp.Disconnect(err)
-			return err
+			if !errors.Is(err, context.Canceled) {
+				log.Warnf("Disconnecting from %v due to header "+
+					"validation error: %v", rp, err)
+			}
+			continue nextbatch
 		}
 		s.sidechainMu.Unlock()
 
@@ -1449,7 +1484,8 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		}
 		err = g.Wait()
 		if err != nil {
-			return err
+			rp.Disconnect(err)
+			continue nextbatch
 		}
 
 		var added int
@@ -1481,7 +1517,7 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 				generation = s.locatorGeneration
 			}
 			s.locatorMu.Unlock()
-			continue
+			continue nextbatch
 		}
 		s.fetchHeadersProgress(headers[len(headers)-1])
 		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
@@ -1490,7 +1526,8 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
 		if err != nil {
 			s.sidechainMu.Unlock()
-			return err
+			rp.Disconnect(err)
+			continue nextbatch
 		}
 		if len(bestChain) == 0 {
 			s.sidechainMu.Unlock()
@@ -1500,7 +1537,8 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
 		if err != nil {
 			s.sidechainMu.Unlock()
-			return err
+			rp.Disconnect(err)
+			continue nextbatch
 		}
 
 		if len(prevChain) != 0 {
@@ -1535,26 +1573,21 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		s.locatorGeneration++
 		s.locatorMu.Unlock()
 	}
+
+	return ctx.Err()
 }
 
 func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
-	// Continue with fetching headers only after missing cfilters have
-	// been fetched.
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-s.missingCfiltersFetched:
+	case <-s.headersFetched:
+	case <-rp.Done():
+		return rp.Err()
 	}
 
-	// Fetch any unseen headers from the peer.
-	s.fetchHeadersStart()
-	log.Debugf("Fetching headers from %v", rp.RemoteAddr())
-	err := s.getHeaders(ctx, rp)
-	if err != nil {
-		return err
-	}
-	s.fetchHeadersFinished()
-
+	var err error
 	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
 		err = func() error {
 			rescanPoint, err := s.wallet.RescanPoint(ctx)
@@ -1631,15 +1664,16 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		log.Errorf("Cannot load unmined transactions for resending: %v", err)
 		return nil
 	}
-	if len(unminedTxs) == 0 {
-		return nil
+	if len(unminedTxs) > 0 {
+		err = rp.PublishTransactions(ctx, unminedTxs...)
+		if err != nil {
+			// TODO: Transactions should be removed if this is a double spend.
+			log.Errorf("Failed to resent one or more unmined transactions: %v", err)
+		}
 	}
-	err = rp.PublishTransactions(ctx, unminedTxs...)
-	if err != nil {
-		// TODO: Transactions should be removed if this is a double spend.
-		log.Errorf("Failed to resent one or more unmined transactions: %v", err)
-	}
-	return nil
+
+	// Ask peer to send any new headers.
+	return rp.SendHeaders(ctx)
 }
 
 // handleMempool handles eviction from the local mempool of non-wallet-backed

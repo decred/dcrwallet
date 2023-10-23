@@ -29,6 +29,17 @@ var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 func pickAny(*p2p.RemotePeer) bool { return true }
 
+// pickForGetHeaders returns a function to use in waitForRemotes which selects
+// peers that may have headers that are more recent than the passed tipHeight.
+func pickForGetHeaders(tipHeight int32) func(rp *p2p.RemotePeer) bool {
+	return func(rp *p2p.RemotePeer) bool {
+		// We are interested in this peer's headers if they announced a
+		// height greater than the current tip height and if we haven't
+		// yet fetched all the headers that it announced.
+		return rp.InitialHeight() > tipHeight && rp.LastHeight() < rp.InitialHeight()
+	}
+}
+
 // Blocks implements the Blocks method of the wallet.Peer interface.
 func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
 	for {
