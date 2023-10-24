@@ -6,6 +6,7 @@ package spv
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -444,7 +445,17 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 		s.rescanFinished()
 
+		log.Infof("Initial sync completed. Switching to header announcements sync.")
 		s.synced()
+
+		// Perform peer startup (publish txs, sendheaders, etc) on
+		// every connected peer.
+		err = s.forRemotes(func(rp *p2p.RemotePeer) error {
+			return s.startupPeerSync(ctx, rp)
+		})
+		if err != nil {
+			return err
+		}
 
 		// Rescan done.
 		return nil
@@ -547,16 +558,19 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 		s.peerDisconnected(n, raddr)
 	}()
 
-	// Perform peer startup.
-	err = s.startupSync(ctx, rp)
-	if err != nil {
-		if !errors.Is(err, context.Canceled) {
-			log.Warnf("Unable to complete startup sync with peer %v: %v", raddr, err)
-		} else {
-			log.Infof("Lost peer %v", raddr)
+	// Perform peer sync if the initial sync process has completed. This
+	// configures the peer to send new headers.
+	if s.Synced() {
+		err = s.startupPeerSync(ctx, rp)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				log.Warnf("Unable to complete startup sync with peer %v: %v", raddr, err)
+			} else {
+				log.Infof("Lost peer %v", raddr)
+			}
+			rp.Disconnect(err)
+			return
 		}
-		rp.Disconnect(err)
-		return
 	}
 
 	// Finally, block until the peer disconnects.
@@ -1548,7 +1562,9 @@ nextbatch:
 	}
 }
 
-func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
+// startupPeerSync performs peer startup procedures after connection. This should
+// only be called after the wallet has had its initial sync complete.
+func (s *Syncer) startupPeerSync(ctx context.Context, rp *p2p.RemotePeer) error {
 	var err error
 
 	if rp.Pver() >= wire.InitStateVersion {
@@ -1556,6 +1572,11 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 		if err != nil {
 			log.Errorf("Failed to get init state", err)
 		}
+	}
+
+	err = rp.SendHeaders(ctx)
+	if err != nil {
+		return fmt.Errorf("unable ask for sendheaders from peer: %w", err)
 	}
 
 	unminedTxs, err := s.wallet.UnminedTransactions(ctx)
