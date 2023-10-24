@@ -35,13 +35,11 @@ const reqSvcs = wire.SFNodeNetwork
 // protocol using Simplified Payment Verification (SPV) with compact filters.
 type Syncer struct {
 	// atomics
-	atomicCatchUpTryLock uint32 // CAS (entered=1) to perform discovery/rescan
-	atomicWalletSynced   uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
 
-	// Protected by atomicCatchUpTryLock
 	discoverAccounts bool
 	loadedFilters    bool
 
@@ -392,6 +390,63 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 		s.fetchHeadersFinished()
 
+		// Next: Perform account and address discovery and rescan.
+		rescanPoint, err := s.wallet.RescanPoint(ctx)
+		if err != nil {
+			return err
+		}
+		if rescanPoint == nil {
+			if !s.loadedFilters {
+				err = s.wallet.LoadActiveDataFilters(ctx, s, true)
+				if err != nil {
+					return err
+				}
+				s.loadedFilters = true
+			}
+
+			s.synced()
+
+			// All done (no rescan needed).
+			return nil
+		}
+
+		// RescanPoint is != nil so we are not synced to the peer and
+		// check to see if it was previously synced
+		s.unsynced()
+
+		s.discoverAddressesStart()
+		err = s.wallet.DiscoverActiveAddresses(ctx, s, rescanPoint, s.discoverAccounts, s.wallet.GapLimit())
+		if err != nil {
+			return err
+		}
+		s.discoverAddressesFinished()
+		s.discoverAccounts = false
+
+		err = s.wallet.LoadActiveDataFilters(ctx, s, true)
+		if err != nil {
+			return err
+		}
+		s.loadedFilters = true
+
+		s.rescanStart()
+
+		rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
+		if err != nil {
+			return err
+		}
+		progressRescan := make(chan wallet.RescanProgress, 1)
+		go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progressRescan)
+		for p := range progressRescan {
+			if p.Err != nil {
+				return p.Err
+			}
+			s.rescanProgress(p.ScannedThrough)
+		}
+		s.rescanFinished()
+
+		s.synced()
+
+		// Rescan done.
 		return nil
 	})
 
@@ -1495,69 +1550,6 @@ nextbatch:
 
 func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 	var err error
-	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
-		err = func() error {
-			rescanPoint, err := s.wallet.RescanPoint(ctx)
-			if err != nil {
-				return err
-			}
-			if rescanPoint == nil {
-				if !s.loadedFilters {
-					err = s.wallet.LoadActiveDataFilters(ctx, s, true)
-					if err != nil {
-						return err
-					}
-					s.loadedFilters = true
-				}
-
-				s.synced()
-
-				return nil
-			}
-			// RescanPoint is != nil so we are not synced to the peer and
-			// check to see if it was previously synced
-			s.unsynced()
-
-			s.discoverAddressesStart()
-			err = s.wallet.DiscoverActiveAddresses(ctx, rp, rescanPoint, s.discoverAccounts, s.wallet.GapLimit())
-			if err != nil {
-				return err
-			}
-			s.discoverAddressesFinished()
-			s.discoverAccounts = false
-
-			err = s.wallet.LoadActiveDataFilters(ctx, s, true)
-			if err != nil {
-				return err
-			}
-			s.loadedFilters = true
-
-			s.rescanStart()
-
-			rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
-			if err != nil {
-				return err
-			}
-			progress := make(chan wallet.RescanProgress, 1)
-			go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progress)
-
-			for p := range progress {
-				if p.Err != nil {
-					return p.Err
-				}
-				s.rescanProgress(p.ScannedThrough)
-			}
-			s.rescanFinished()
-
-			s.synced()
-
-			return nil
-		}()
-		atomic.StoreUint32(&s.atomicCatchUpTryLock, 0)
-		if err != nil {
-			return err
-		}
-	}
 
 	if rp.Pver() >= wire.InitStateVersion {
 		err = s.GetInitState(ctx, rp)

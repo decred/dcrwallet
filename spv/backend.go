@@ -35,7 +35,7 @@ func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		rp, err := s.pickRemote(pickAny)
+		rp, err := s.waitForAnyRemote(ctx)
 		if err != nil {
 			return nil, err
 		}
