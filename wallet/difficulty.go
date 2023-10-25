@@ -70,6 +70,9 @@ func (w *Wallet) findPrevTestNetDifficulty(dbtx walletdb.ReadTx, h *wire.BlockHe
 // calcNextBlake256Diff calculates the required difficulty for the block AFTER
 // the passed header based on the difficulty retarget rules for the blake256
 // hash algorithm used at Decred launch.
+//
+// The ancestor chain of the header being tested MUST be in the wallet's main
+// chain or in the passed chain slice.
 func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHeader,
 	chain []*BlockNode, newBlockTime time.Time) (uint32, error) {
 
@@ -119,8 +122,8 @@ func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHe
 
 	alpha := params.WorkDiffAlpha
 
-	// Number of nodes to traverse while calculating difficulty.
-	nodesToTraverse := (params.WorkDiffWindowSize * params.WorkDiffWindows)
+	// Number of windows to traverse while calculating difficulty.
+	windowsToTraverse := params.WorkDiffWindows
 
 	// Initialize bigInt slice for the percentage changes for each window period
 	// above or below the target.
@@ -128,20 +131,25 @@ func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHe
 
 	// Regress through all of the previous blocks and store the percent changes
 	// per window period; use bigInts to emulate 64.32 bit fixed point.
+	//
+	// The regression is made by skipping to the block where each window change
+	// takes place (by height), therefore we assume that the header that is
+	// tested is a child of the wallet's main chain.
 	var olderTime, windowPeriod int64
 	var weights uint64
-	oldHeader := header
+	oldHeight := header.Height
 	recentTime := header.Timestamp.Unix()
+
+	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
 	for i := int64(0); ; i++ {
 		// Store and reset after reaching the end of every window period.
-		if i%params.WorkDiffWindowSize == 0 && i != 0 {
-			olderTime = oldHeader.Timestamp.Unix()
+		if i != 0 {
 			timeDifference := recentTime - olderTime
 
 			// Just assume we're at the target (no change) if we've
 			// gone all the way back to the genesis block.
-			if oldHeader.Height == 0 {
+			if oldHeight == 0 {
 				timeDifference = int64(params.TargetTimespan /
 					time.Second)
 			}
@@ -170,7 +178,7 @@ func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHe
 			recentTime = olderTime
 		}
 
-		if i == nodesToTraverse {
+		if i == windowsToTraverse {
 			break // Exit for loop when we hit the end.
 		}
 
@@ -178,12 +186,21 @@ func (w *Wallet) calcNextBlake256Diff(dbtx walletdb.ReadTx, header *wire.BlockHe
 		// Query the header from the provided chain instead of database if
 		// present.  The parent of chain[0] is guaranteed to be in stored in the
 		// database.
-		if oldHeader.Height != 0 {
-			if len(chain) > 0 && int32(oldHeader.Height)-int32(chain[0].Header.Height) > 0 {
-				oldHeader = chain[oldHeader.Height-chain[0].Header.Height-1].Header
+		if int64(oldHeight) > params.WorkDiffWindowSize {
+			oldHeight -= uint32(params.WorkDiffWindowSize)
+		} else {
+			oldHeight = 0
+		}
+		if oldHeight != 0 {
+			if len(chain) > 0 && int32(oldHeight)-int32(chain[0].Header.Height) >= 0 {
+				idx := oldHeight - chain[0].Header.Height
+				olderTime = chain[idx].Header.Timestamp.Unix()
 			} else {
-				var err error
-				oldHeader, err = w.txStore.GetBlockHeader(dbtx, &oldHeader.PrevBlock)
+				oldHeaderHash, err := w.txStore.GetMainChainBlockHashForHeight(ns, int32(oldHeight))
+				if err != nil {
+					return 0, err
+				}
+				olderTime, err = w.txStore.GetBlockHeaderTime(dbtx, &oldHeaderHash)
 				if err != nil {
 					return 0, err
 				}

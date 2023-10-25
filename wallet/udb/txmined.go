@@ -834,6 +834,17 @@ func (s *Store) GetSerializedBlockHeader(ns walletdb.ReadBucket, blockHash *chai
 	return fetchRawBlockHeader(ns, keyBlockHeader(blockHash))
 }
 
+// GetBlockHeaderTime returns the timestamp field of the header for the block
+// identified by its hash.
+func (s *Store) GetBlockHeaderTime(dbtx walletdb.ReadTx, blockHash *chainhash.Hash) (int64, error) {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	v := ns.NestedReadBucket(bucketHeaders).Get(keyBlockHeader(blockHash))
+	if v == nil {
+		return 0, errors.E(errors.NotExist, "block header")
+	}
+	return int64(extractBlockHeaderUnixTime(v)), nil
+}
+
 // GetBlockHeader returns the block header for the block specified by its hash.
 func (s *Store) GetBlockHeader(dbtx walletdb.ReadTx, blockHash *chainhash.Hash) (*wire.BlockHeader, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
