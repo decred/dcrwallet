@@ -1377,6 +1377,8 @@ var hashStop chainhash.Hash
 // to the peer when there are no more headers to fetch.
 func (s *Syncer) getHeaders(ctx context.Context) error {
 
+	startTime := time.Now()
+
 	locators, err := s.wallet.BlockLocators(ctx, nil)
 	if err != nil {
 		return err
@@ -1411,6 +1413,9 @@ nextbatch:
 			}
 
 			// All done.
+			bestHash, bestHeight := s.wallet.MainChainTip(ctx)
+			log.Infof("Initial sync to block %s at height %d completed in %s",
+				bestHash, bestHeight, time.Since(startTime).Round(time.Second))
 			return nil
 		}
 
