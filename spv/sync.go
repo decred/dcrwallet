@@ -69,10 +69,6 @@ type Syncer struct {
 	sidechains  wallet.SidechainForest
 	sidechainMu sync.Mutex
 
-	currentLocators   []*chainhash.Hash
-	locatorGeneration uint
-	locatorMu         sync.Mutex
-
 	// Holds all potential callbacks used to notify clients
 	notifications *Notifications
 
@@ -324,12 +320,6 @@ func (s *Syncer) Run(ctx context.Context) error {
 	} else {
 		log.Infof("Transactions synced through block %v height %d", &tipHash, tipHeight)
 	}
-
-	locators, err := s.wallet.BlockLocators(ctx, nil)
-	if err != nil {
-		return err
-	}
-	s.currentLocators = locators
 
 	s.lp.AddrManager().Start()
 	defer func() {
@@ -1356,13 +1346,6 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		return err
 	}
 
-	if len(bestChain) != 0 {
-		s.locatorMu.Lock()
-		s.currentLocators = nil
-		s.locatorGeneration++
-		s.locatorMu.Unlock()
-	}
-
 	// Log connected blocks.
 	for _, n := range bestChain {
 		log.Infof("Connected block %v, height %d, %d wallet transaction(s)",
@@ -1393,22 +1376,11 @@ var hashStop chainhash.Hash
 // Returns when no more headers are available.  A sendheaders message is pushed
 // to the peer when there are no more headers to fetch.
 func (s *Syncer) getHeaders(ctx context.Context) error {
-	var locators []*chainhash.Hash
-	var generation uint
-	var err error
-	s.locatorMu.Lock()
-	locators = s.currentLocators
-	generation = s.locatorGeneration
-	if len(locators) == 0 {
-		locators, err = s.wallet.BlockLocators(ctx, nil)
-		if err != nil {
-			s.locatorMu.Unlock()
-			return err
-		}
-		s.currentLocators = locators
-		s.locatorGeneration++
+
+	locators, err := s.wallet.BlockLocators(ctx, nil)
+	if err != nil {
+		return err
 	}
-	s.locatorMu.Unlock()
 
 	cnet := s.wallet.ChainParams().Net
 
@@ -1486,22 +1458,11 @@ nextbatch:
 		if added == 0 {
 			s.sidechainMu.Unlock()
 
-			s.locatorMu.Lock()
-			if s.locatorGeneration > generation {
-				locators = s.currentLocators
+			locators, err = s.wallet.BlockLocators(ctx, nil)
+			if err != nil {
+				return err
 			}
-			if len(locators) == 0 {
-				locators, err = s.wallet.BlockLocators(ctx, nil)
-				if err != nil {
-					s.locatorMu.Unlock()
-					return err
-				}
-				s.currentLocators = locators
-				s.locatorGeneration++
-				generation = s.locatorGeneration
-			}
-			s.locatorMu.Unlock()
-			continue
+			continue nextbatch
 		}
 		s.fetchHeadersProgress(headers[len(headers)-1])
 		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
@@ -1515,7 +1476,7 @@ nextbatch:
 		}
 		if len(bestChain) == 0 {
 			s.sidechainMu.Unlock()
-			continue
+			continue nextbatch
 		}
 
 		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, bestChain, 0)
@@ -1550,15 +1511,10 @@ nextbatch:
 		s.sidechainMu.Unlock()
 
 		// Generate new locators
-		s.locatorMu.Lock()
 		locators, err = s.wallet.BlockLocators(ctx, nil)
 		if err != nil {
-			s.locatorMu.Unlock()
 			return err
 		}
-		s.currentLocators = locators
-		s.locatorGeneration++
-		s.locatorMu.Unlock()
 	}
 }
 
