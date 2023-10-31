@@ -1320,27 +1320,31 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		lastHeight = int32(headers[len(headers)-1].Height)
 
 		nodes := make([]*wallet.BlockNode, len(headers))
+		for i := range headers {
+			hash := headers[i].BlockHash()
+			nodes[i] = wallet.NewBlockNode(headers[i], &hash, nil)
+			if wallet.BadCheckpoint(cnet, &hash, int32(headers[i].Height)) {
+				nodes[i].BadCheckpoint()
+			}
+		}
+
 		g, ctx := errgroup.WithContext(ctx)
 		for i := range headers {
 			i := i
 			g.Go(func() error {
-				header := headers[i]
-				hash := header.BlockHash()
-				filter, proofIndex, proof, err := rp.CFilterV2(ctx, &hash)
+				node := nodes[i]
+				filter, proofIndex, proof, err := rp.CFilterV2(ctx, node.Hash)
 				if err != nil {
 					return err
 				}
 
-				err = validate.CFilterV2HeaderCommitment(cnet, header,
+				err = validate.CFilterV2HeaderCommitment(cnet, node.Header,
 					filter, proofIndex, proof)
 				if err != nil {
 					return err
 				}
 
-				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
-				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
-					nodes[i].BadCheckpoint()
-				}
+				node.FilterV2 = filter
 				return nil
 			})
 		}
