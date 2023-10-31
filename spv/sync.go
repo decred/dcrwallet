@@ -647,9 +647,9 @@ func (s *Syncer) pickRemote(pick func(*p2p.RemotePeer) bool) (*p2p.RemotePeer, e
 	return nil, errors.E(errors.NoPeers)
 }
 
-// waitForAnyRemote blocks until there is a remote peer available or the context
-// is canceled.
-func (s *Syncer) waitForAnyRemote(ctx context.Context) (*p2p.RemotePeer, error) {
+// waitForAnyRemote blocks until there is a remote peer available or the
+// context is canceled.
+func (s *Syncer) waitForRemote(ctx context.Context, picker func() *p2p.RemotePeer) (*p2p.RemotePeer, error) {
 	for {
 		s.remotesMu.Lock()
 		if len(s.remotes) == 0 {
@@ -667,13 +667,40 @@ func (s *Syncer) waitForAnyRemote(ctx context.Context) (*p2p.RemotePeer, error) 
 				return nil, ctx.Err()
 			}
 		} else {
-			// Pick a random one.
-			for _, rp := range s.remotes {
-				s.remotesMu.Unlock()
-				return rp, nil
-			}
+			// Call the picker and determine if we should retry.
+			rp := picker()
+			s.remotesMu.Unlock()
+			return rp, nil
 		}
 	}
+}
+
+// waitForAnyRemote blocks until there is a remote peer available or the context
+// is canceled.
+func (s *Syncer) waitForAnyRemote(ctx context.Context) (*p2p.RemotePeer, error) {
+	pickAny := func() *p2p.RemotePeer {
+		for _, rp := range s.remotes {
+			return rp
+		}
+		return nil
+	}
+	return s.waitForRemote(ctx, pickAny)
+}
+
+// waitForGetHeadersRemote blocks until there is a remote peer available from
+// which to ask for a getheaders message. If no remotes are available with
+// a height greater than the passed tipHeight, then this returns a nil peer
+// with a nil error (signalling the end of getheaders sync stage).
+func (s *Syncer) waitForGetHeadersRemote(ctx context.Context, tipHeight int32) (*p2p.RemotePeer, error) {
+	pickGetHeadersRemote := func() *p2p.RemotePeer {
+		for _, rp := range s.remotes {
+			if rp.InitialHeight() > tipHeight {
+				return rp
+			}
+		}
+		return nil
+	}
+	return s.waitForRemote(ctx, pickGetHeadersRemote)
 }
 
 // receiveGetData handles all received getdata requests from peers.  An inv
@@ -1368,6 +1395,25 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 	return nil
 }
 
+// disconnectStragglers disconnects from any peers that have fallen too much
+// behind the specified height from their advertised height.
+//
+// This should only be used for the initial sync because the advertised height
+// for peers is not updated during their connection lifetime.
+func (s *Syncer) disconnectStragglers(height int32) {
+	const stragglerLimit = 6 // How many blocks behind.
+	s.forRemotes(func(rp *p2p.RemotePeer) error {
+		initHeight := rp.InitialHeight()
+		if height-initHeight > stragglerLimit {
+			errMsg := fmt.Sprintf("disconnecting from straggler peer (peer height %d, tip height %d",
+				initHeight, height)
+			err := errors.E(errors.Policy, errMsg)
+			rp.Disconnect(err)
+		}
+		return nil
+	})
+}
+
 // hashStop is a zero value stop hash for fetching all possible data using
 // locators.
 var hashStop chainhash.Hash
@@ -1388,9 +1434,16 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 
 nextbatch:
 	for {
-		rp, err := s.waitForAnyRemote(ctx)
+		tipHash, tipHeight := s.wallet.MainChainTip(ctx)
+		rp, err := s.waitForGetHeadersRemote(ctx, tipHeight)
 		if err != nil {
 			return err
+		}
+		if rp == nil {
+			// All done.
+			log.Infof("Initial sync to block %s at height %d completed in %s",
+				tipHash, tipHeight, time.Since(startTime).Round(time.Second))
+			return nil
 		}
 
 		headers, err := rp.Headers(ctx, locators, &hashStop)
@@ -1407,16 +1460,17 @@ nextbatch:
 				// advertised height.
 				h, err := s.wallet.BlockHeader(ctx, locators[0])
 				if err == nil && int32(h.Height) < rp.InitialHeight() {
-					return errors.E(errors.Protocol, "peer did not provide "+
+					err := errors.E(errors.Protocol, "peer did not provide "+
 						"headers through advertised height")
+					rp.Disconnect(err)
+					continue nextbatch
 				}
 			}
 
-			// All done.
-			bestHash, bestHeight := s.wallet.MainChainTip(ctx)
-			log.Infof("Initial sync to block %s at height %d completed in %s",
-				bestHash, bestHeight, time.Since(startTime).Round(time.Second))
-			return nil
+			// Try to pick a different peer with a higher advertised
+			// height or check there are no such peers (thus we're
+			// done with fetching headers for initial sync).
+			continue nextbatch
 		}
 
 		nodes := make([]*wallet.BlockNode, len(headers))
@@ -1524,6 +1578,8 @@ nextbatch:
 		if err != nil {
 			return err
 		}
+
+		s.disconnectStragglers(int32(tip.Header.Height))
 	}
 }
 
