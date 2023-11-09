@@ -1321,9 +1321,19 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 
 		nodes := make([]*wallet.BlockNode, len(headers))
 		for i := range headers {
-			hash := headers[i].BlockHash()
-			nodes[i] = wallet.NewBlockNode(headers[i], &hash, nil)
-			if wallet.BadCheckpoint(cnet, &hash, int32(headers[i].Height)) {
+			// Determine the hash of the header. It is safe to use
+			// PrevBlock (instead of recalculating) because the
+			// lower p2p level already asserted the headers connect
+			// to each other.
+			var hash *chainhash.Hash
+			if i == len(headers)-1 {
+				bh := headers[i].BlockHash()
+				hash = &bh
+			} else {
+				hash = &headers[i+1].PrevBlock
+			}
+			nodes[i] = wallet.NewBlockNode(headers[i], hash, nil)
+			if wallet.BadCheckpoint(cnet, hash, int32(headers[i].Height)) {
 				nodes[i].BadCheckpoint()
 			}
 		}
