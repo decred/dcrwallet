@@ -873,7 +873,7 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		// Validate advertised and performed work
 		err := w.checkDifficultyPositional(dbtx, h, parent, chain)
 		if err != nil {
-			return nil, errors.E(op, err)
+			return chain[idx:], errors.E(op, err)
 		}
 		// Check V1 Proof of Work
 		err = blockchain.CheckProofOfWork(hash, h.Bits, w.chainParams.PowLimit)
