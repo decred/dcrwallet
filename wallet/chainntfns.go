@@ -19,7 +19,6 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
-	gcs2 "github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -27,15 +26,15 @@ import (
 )
 
 func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletdb.ReadWriteTx,
-	header *wire.BlockHeader, f *gcs2.FilterV2, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
+	n *BlockNode, transactions []*wire.MsgTx) ([]wire.OutPoint, error) {
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
 
-	blockHash := header.BlockHash()
+	blockHash := n.Hash
 
 	// Enforce checkpoints
-	height := int32(header.Height)
+	height := int32(n.Header.Height)
 	ckpt := CheckpointHash(w.chainParams.Net, height)
-	if ckpt != nil && blockHash != *ckpt {
+	if ckpt != nil && *blockHash != *ckpt {
 		err := errors.Errorf("block hash %v does not satisify "+
 			"checkpoint hash %v for height %v", blockHash,
 			ckpt, height)
@@ -44,15 +43,15 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 
 	// Propagate the error unless this block is already included in the main
 	// chain.
-	err := w.txStore.ExtendMainChain(txmgrNs, header, f)
+	err := w.txStore.ExtendMainChain(txmgrNs, n.Header, blockHash, n.FilterV2)
 	if err != nil && !errors.Is(err, errors.Exist) {
 		return nil, errors.E(op, err)
 	}
 
 	// Notify interested clients of the connected block.
-	w.NtfnServer.notifyAttachedBlock(dbtx, header, &blockHash)
+	w.NtfnServer.notifyAttachedBlock(dbtx, n.Header, blockHash)
 
-	blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, &blockHash)
+	blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, blockHash)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -73,7 +72,7 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
-		ops, err := w.processTransactionRecord(ctx, dbtx, rec, header, &blockMeta)
+		ops, err := w.processTransactionRecord(ctx, dbtx, rec, n.Header, &blockMeta)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -167,7 +166,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 					"wallet to the latest version.", voteVersion(w.chainParams))
 			}
 
-			watch, err := w.extendMainChain(ctx, op, dbtx, n.Header, n.FilterV2, relevantTxs[*n.Hash])
+			watch, err := w.extendMainChain(ctx, op, dbtx, n, relevantTxs[*n.Hash])
 			if err != nil {
 				return err
 			}

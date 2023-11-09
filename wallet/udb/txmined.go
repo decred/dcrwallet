@@ -201,7 +201,7 @@ func (s *Store) MainChainTip(dbtx walletdb.ReadTx) (chainhash.Hash, int32) {
 //
 // The main chain tip may not be extended unless compact filters have been saved
 // for all existing main chain blocks.
-func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, f *gcs2.FilterV2) error {
+func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, blockHash *chainhash.Hash, f *gcs2.FilterV2) error {
 	height := int32(header.Height)
 	if height < 1 {
 		return errors.E(errors.Invalid, "block 0 cannot be added")
@@ -212,8 +212,6 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockH
 	}
 
 	headerBucket := ns.NestedReadWriteBucket(bucketHeaders)
-
-	blockHash := header.BlockHash()
 
 	currentTipHash := ns.Get(rootTipBlock)
 	if !bytes.Equal(header.PrevBlock[:], currentTipHash) {

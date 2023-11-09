@@ -30,7 +30,8 @@ func insertMainChainHeaders(s *Store, dbtx walletdb.ReadWriteTx,
 		if err != nil {
 			return err
 		}
-		err = s.ExtendMainChain(ns, header, f)
+		blockHash := header.BlockHash()
+		err = s.ExtendMainChain(ns, header, &blockHash, f)
 		if err != nil {
 			return err
 		}
