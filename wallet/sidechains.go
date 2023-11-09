@@ -125,6 +125,64 @@ func (t *sidechainRootedTree) maybeAttachNode(n *BlockNode) bool {
 	return false
 }
 
+// pruneChain removes the chain from this sidechain.  chain[0] must be the root
+// of this chain.  This function returns a slice with new sidechains that have
+// been generated as a result of pruning all blocks in the passed argument.
+func (t *sidechainRootedTree) pruneChain(chain []*BlockNode) []*sidechainRootedTree {
+	for _, n := range chain {
+		delete(t.children, *n.Hash)
+		delete(t.tips, *n.Hash)
+	}
+	t.bestChain = nil
+
+	// If there are no more tips, then this rooted tree has been entirely
+	// pruned.
+	if len(t.tips) == 0 {
+		return nil
+	}
+
+	// Go through the remaining tips and generate new sidechains with new
+	// roots for them.
+	var res []*sidechainRootedTree
+	for _, tip := range t.tips {
+		// Find the root node that is still part of this tree.
+		root := tip
+		for root.parent != nil && t.children[*root.parent.Hash] != nil {
+			root = root.parent
+		}
+
+		// Determine if, for this tip, the root is the same as one of
+		// the prior sidechains or if this creates a new rooted
+		// sidechain.
+		var nt *sidechainRootedTree
+		for i := 0; nt == nil && i < len(res); i++ {
+			if res[i].root == root {
+				nt = res[i]
+			}
+		}
+		if nt == nil {
+			nt = newSideChainRootedTree(root)
+			res = append(res, nt)
+		}
+
+		// Add any missing sidechain nodes to the rooted tree.
+		sideChain := make([]*BlockNode, 0, tip.Header.Height-root.Header.Height)
+		n := tip
+		for n != nil && n != root {
+			if _, ok := nt.children[*n.Hash]; ok {
+				break
+			}
+
+			sideChain = append(sideChain, n)
+			n = n.parent
+		}
+		for i := len(sideChain) - 1; i >= 0; i -= 1 {
+			nt.maybeAttachNode(sideChain[i])
+		}
+	}
+	return res
+}
+
 // best returns one of the best sidechains in the tree, starting with the root
 // and sorted in increasing order of block heights, along with the summed work
 // of blocks in the sidechain including the root.  If there are multiple best
@@ -264,13 +322,19 @@ func (f *SidechainForest) Prune(mainChainHeight int32, params *chaincfg.Params) 
 	}
 }
 
-// PruneTree removes the tree beginning with root from the forest.
-func (f *SidechainForest) PruneTree(root *chainhash.Hash) {
+// PruneChain removes the passed chain from the forest.  The first block of the
+// passed chain must be one of roots of the forest for it to be removed.
+func (f *SidechainForest) PruneChain(chain []*BlockNode) {
 	for i, tree := range f.trees {
-		if *root == *tree.root.Hash {
+		if *chain[0].Hash == *tree.root.Hash {
 			f.trees[i] = f.trees[len(f.trees)-1]
 			f.trees[len(f.trees)-1] = nil
 			f.trees = f.trees[:len(f.trees)-1]
+
+			newSideChains := tree.pruneChain(chain)
+			if len(newSideChains) > 0 {
+				f.trees = append(f.trees, newSideChains...)
+			}
 			return
 		}
 	}

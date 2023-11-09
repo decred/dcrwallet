@@ -246,7 +246,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 		}
 	}
 
-	forest.PruneTree(chain[0].Hash)
+	forest.PruneChain(chain)
 	forest.Prune(int32(chain[len(chain)-1].Header.Height), w.chainParams)
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
