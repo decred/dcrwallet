@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// Testing a variety of version schemes for the serverCompatibe()
 func TestSemverCompatible(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -12,15 +13,39 @@ func TestSemverCompatible(t *testing.T) {
 		expected bool
 	}{
 		{
-			name:     "Equal Versions",
+			name:     "Equal Versions Case1",
 			required: semver{Major: 1, Minor: 2, Patch: 3},
 			actual:   semver{Major: 1, Minor: 2, Patch: 3},
 			expected: true,
 		},
 		{
-			name:     "Different versions",
+			name:     "Equal Versions Case2",
+			required: semver{Major: 450, Minor: 378, Patch: 210},
+			actual:   semver{Major: 450, Minor: 378, Patch: 210},
+			expected: true,
+		},
+		{
+			name:     "Equal Versions Case3",
+			required: semver{Major: 78, Minor: 94, Patch: 80},
+			actual:   semver{Major: 78, Minor: 94, Patch: 80},
+			expected: true,
+		},
+		{
+			name:     "Different versions Case1",
 			required: semver{Major: 1, Minor: 2, Patch: 3},
 			actual:   semver{Major: 2, Minor: 0, Patch: 0},
+			expected: false,
+		},
+		{
+			name:     "Different versions Case2",
+			required: semver{Major: 1, Minor: 2, Patch: 4},
+			actual:   semver{Major: 1, Minor: 0, Patch: 2},
+			expected: false,
+		},
+		{
+			name:     "Different versions Case3",
+			required: semver{Major: 1, Minor: 3, Patch: 6},
+			actual:   semver{Major: 1, Minor: 3, Patch: 2},
 			expected: false,
 		},
 	}
@@ -28,13 +53,13 @@ func TestSemverCompatible(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := semverCompatible(tc.required, tc.actual)
 			if result != tc.expected {
-				t.Errorf("Expected: %v, got: %v", tc.expected, result)
+				t.Fatalf("got: %v, want: %v", result, tc.expected)
 			}
 		})
 	}
-	t.Log("Test Passed")
 }
 
+// Testing a variety of version schemes to print the right version output
 func TestSemverToString(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -56,9 +81,8 @@ func TestSemverToString(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.version.String()
 			if result != tc.expectedString {
-				t.Errorf("Expected: %s, got: %s", tc.expectedString, result)
+				t.Fatalf("got: %v, want: %v", result, tc.expectedString)
 			}
 		})
 	}
-	t.Log("Test Passed")
 }
