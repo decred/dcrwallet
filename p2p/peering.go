@@ -111,10 +111,9 @@ type RemotePeer struct {
 	requestedInitState   chan<- *wire.MsgInitState // non-nil result chan when synchronous getinitstate in process
 	requestedInitStateMu sync.Mutex
 
-	invsSent     lru.Cache[chainhash.Hash] // Hashes from sent inventory messages
-	invsRecv     lru.Cache[chainhash.Hash] // Hashes of received inventory messages
-	knownHeaders lru.Cache[chainhash.Hash] // Hashes of received headers
-	banScore     connmgr.DynamicBanScore
+	invsSent lru.Cache[chainhash.Hash] // Hashes from sent inventory messages
+	invsRecv lru.Cache[chainhash.Hash] // Hashes of received inventory messages
+	banScore connmgr.DynamicBanScore
 
 	err  error         // Final error of disconnected peer
 	errc chan struct{} // Closed after err is set
@@ -328,9 +327,6 @@ func (rp *RemotePeer) InvsSent() *lru.Cache[chainhash.Hash] { return &rp.invsSen
 // peer.
 func (rp *RemotePeer) InvsRecv() *lru.Cache[chainhash.Hash] { return &rp.invsRecv }
 
-// KnownHeaders returns an LRU cache of block hashes from received headers messages.
-func (rp *RemotePeer) KnownHeaders() *lru.Cache[chainhash.Hash] { return &rp.knownHeaders }
-
 // SeedPeers seeds the local peer with remote addresses matching the
 // services.
 func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
@@ -513,7 +509,6 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 		requestedTxs:    make(map[chainhash.Hash]chan<- *wire.MsgTx),
 		invsSent:        lru.NewCache[chainhash.Hash](invLRUSize),
 		invsRecv:        lru.NewCache[chainhash.Hash](invLRUSize),
-		knownHeaders:    lru.NewCache[chainhash.Hash](invLRUSize),
 		errc:            make(chan struct{}),
 	}
 
@@ -1004,7 +999,6 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 	var prevHeight uint32
 	for i, h := range msg.Headers {
 		hash := h.BlockHash()
-		rp.knownHeaders.Add(hash)
 
 		// Sanity check the headers connect to each other in sequence.
 		if i > 0 && (!prevHash.IsEqual(&h.PrevBlock) || h.Height != prevHeight+1) {
