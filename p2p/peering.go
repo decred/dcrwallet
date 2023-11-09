@@ -1612,6 +1612,29 @@ func (rp *RemotePeer) Headers(ctx context.Context, blockLocators []*chainhash.Ha
 			out = nil
 		case m := <-c:
 			stalled.Stop()
+
+			// The parent of the first header (if there is one) MUST
+			// be one of the block locators we used to request
+			// headers from the peer.
+			if len(m.Headers) > 0 {
+				wantParent := m.Headers[0].PrevBlock
+				contains := false
+				for _, loc := range blockLocators {
+					if *loc == wantParent {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					op := errors.Opf(opf, rp.raddr)
+					err := errors.E(op, errors.Protocol,
+						"peer sent headers that do not connect "+
+							"to block locators")
+					rp.Disconnect(err)
+					return nil, err
+				}
+			}
+
 			return m.Headers, nil
 		}
 	}
