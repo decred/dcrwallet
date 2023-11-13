@@ -1338,6 +1338,22 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 			}
 		}
 
+		// Verify the sidechain that includes the received headers has
+		// the correct difficulty.
+		s.sidechainMu.Lock()
+		fullsc, err := s.sidechains.FullSideChain(nodes)
+		if err != nil {
+			s.sidechainMu.Unlock()
+			return err
+		}
+		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, fullsc, 0)
+		if err != nil {
+			s.sidechainMu.Unlock()
+			rp.Disconnect(err)
+			return err
+		}
+		s.sidechainMu.Unlock()
+
 		g, ctx := errgroup.WithContext(ctx)
 		for i := range headers {
 			i := i
@@ -1406,12 +1422,6 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 		if len(bestChain) == 0 {
 			s.sidechainMu.Unlock()
 			continue
-		}
-
-		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, bestChain, 0)
-		if err != nil {
-			s.sidechainMu.Unlock()
-			return err
 		}
 
 		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
