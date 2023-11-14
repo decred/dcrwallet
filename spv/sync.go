@@ -52,6 +52,10 @@ type Syncer struct {
 	remoteAvailable   chan struct{}
 	remotesMu         sync.Mutex
 
+	// missingCfiltersFetched is closed when the wallet's missing cfilters
+	// have been fetched.
+	missingCfiltersFetched chan struct{}
+
 	// Data filters
 	//
 	// TODO: Replace precise rescan filter with wallet db accesses to avoid
@@ -125,6 +129,8 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		seenTxs:           lru.NewCache[chainhash.Hash](2000),
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
+
+		missingCfiltersFetched: make(chan struct{}),
 	}
 }
 
@@ -365,6 +371,26 @@ func (s *Syncer) Run(ctx context.Context) error {
 
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
+
+	// Perform the initial startup sync.
+	g.Go(func() error {
+		// First step: fetch missing CFilters.
+		progress := make(chan wallet.MissingCFilterProgress, 1)
+		go s.wallet.FetchMissingCFiltersWithProgress(ctx, s, progress)
+
+		log.Debugf("Fetching missing CFilters...")
+		s.fetchMissingCfiltersStart()
+		for p := range progress {
+			if p.Err != nil {
+				return p.Err
+			}
+			s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
+		}
+		s.fetchMissingCfiltersFinished()
+		log.Debugf("Fetched all missing cfilters")
+		close(s.missingCfiltersFetched)
+		return nil
+	})
 
 	// Wait until cancellation or a handler errors.
 	return g.Wait()
@@ -1489,17 +1515,14 @@ func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
 	if rp.InitialHeight() < tipHeight-6 {
 		return errors.E("peer is not synced")
 	}
-	s.fetchMissingCfiltersStart()
-	progress := make(chan wallet.MissingCFilterProgress, 1)
-	go s.wallet.FetchMissingCFiltersWithProgress(ctx, rp, progress)
 
-	for p := range progress {
-		if p.Err != nil {
-			return p.Err
-		}
-		s.fetchMissingCfiltersProgress(p.BlockHeightStart, p.BlockHeightEnd)
+	// Continue with fetching headers only after missing cfilters have
+	// been fetched.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.missingCfiltersFetched:
 	}
-	s.fetchMissingCfiltersFinished()
 
 	// Fetch any unseen headers from the peer.
 	s.fetchHeadersStart()
