@@ -49,6 +49,7 @@ type Syncer struct {
 
 	connectingRemotes map[string]struct{}
 	remotes           map[string]*p2p.RemotePeer
+	remoteAvailable   chan struct{}
 	remotesMu         sync.Mutex
 
 	// Data filters
@@ -432,6 +433,10 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 	delete(s.connectingRemotes, raddr)
 	s.remotes[raddr] = rp
 	n := len(s.remotes)
+	if s.remoteAvailable != nil {
+		close(s.remoteAvailable)
+		s.remoteAvailable = nil
+	}
 	s.remotesMu.Unlock()
 	s.peerConnected(n, raddr)
 
@@ -538,6 +543,50 @@ func (s *Syncer) pickRemote(pick func(*p2p.RemotePeer) bool) (*p2p.RemotePeer, e
 		}
 	}
 	return nil, errors.E(errors.NoPeers)
+}
+
+// waitForAnyRemote blocks until there is one or more remote peers available or
+// the context is canceled.
+//
+// The [isEligible] callback determines which peers are eligible for selection.
+//
+// This function may return a nil peer with nil error if there are peers
+// available but none of them are eligible.
+//
+// If waitEligible is true, then this function will wait until at least one
+// remote is eligible.  Otherwise, this function returns a nil peer with nil
+// error when there are peers but none of them are eligible.
+func (s *Syncer) waitForRemote(ctx context.Context, isEligible func(rp *p2p.RemotePeer) bool, waitEligible bool) (*p2p.RemotePeer, error) {
+	for {
+		s.remotesMu.Lock()
+		if len(s.remotes) == 0 {
+			c := s.remoteAvailable
+			if c == nil {
+				c = make(chan struct{})
+				s.remoteAvailable = c
+			}
+			s.remotesMu.Unlock()
+
+			// Wait until a peer is available.
+			select {
+			case <-c:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		} else {
+			for _, rp := range s.remotes {
+				if isEligible(rp) {
+					s.remotesMu.Unlock()
+					return rp, nil
+				}
+			}
+
+			s.remotesMu.Unlock()
+			if !waitEligible {
+				return nil, nil
+			}
+		}
+	}
 }
 
 // receiveGetData handles all received getdata requests from peers.  An inv

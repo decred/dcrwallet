@@ -56,17 +56,21 @@ type filterProof = struct {
 }
 
 // CFiltersV2 implements the CFiltersV2 method of the wallet.Peer interface.
+// This function blocks until a valid peer in the syncer returns the
+// appropriate CFilters.
 func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]filterProof, error) {
 	for {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		rp, err := s.pickRemote(pickAny)
+		rp, err := s.waitForRemote(ctx, pickAny, true)
 		if err != nil {
 			return nil, err
 		}
 		fs, err := rp.CFiltersV2(ctx, blockHashes)
 		if err != nil {
+			log.Debugf("Error while fetching cfilters from %v: %v",
+				rp, err)
 			continue
 		}
 		return fs, nil
