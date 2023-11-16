@@ -6,6 +6,7 @@ package spv
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -1277,6 +1278,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 		}
 		tipHeader := bestChain[len(bestChain)-1].Header
 		s.setRequiredHeight(int32(tipHeader.Height))
+		s.disconnectStragglers(int32(tipHeader.Height))
 		s.tipChanged(tipHeader, int32(len(prevChain)), matchingTxs)
 
 		return nil
@@ -1312,6 +1314,29 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 	}
 
 	return nil
+}
+
+// disconnectStragglers disconnects from any peers that have fallen too much
+// behind the passed tip height.
+func (s *Syncer) disconnectStragglers(height int32) {
+	const stragglerLimit = 6 // How many blocks behind.
+	s.forRemotes(func(rp *p2p.RemotePeer) error {
+		// Use the higher of InitialHeight and LastHeight. During
+		// initial sync, InitialHeight will be higher, after initial
+		// sync and when sendheaders was sent, we'll keep receiving
+		// new headers, which updates LastHeight().
+		peerHeight, initHeight := rp.LastHeight(), rp.InitialHeight()
+		if initHeight > peerHeight {
+			peerHeight = initHeight
+		}
+		if height-peerHeight > stragglerLimit {
+			errMsg := fmt.Sprintf("disconnecting from straggler peer (peer height %d, tip height %d)",
+				peerHeight, height)
+			err := errors.E(errors.Policy, errMsg)
+			rp.Disconnect(err)
+		}
+		return nil
+	})
 }
 
 // hashStop is a zero value stop hash for fetching all possible data using
@@ -1495,8 +1520,9 @@ func (s *Syncer) getHeaders(ctx context.Context, rp *p2p.RemotePeer) error {
 
 		s.sidechainMu.Unlock()
 
-		// Any new peers should not be significantly behind the new tip.
+		// Peers should not be significantly behind the new tip.
 		s.setRequiredHeight(int32(tip.Header.Height))
+		s.disconnectStragglers(int32(tip.Header.Height))
 
 		// Generate new locators
 		s.locatorMu.Lock()
