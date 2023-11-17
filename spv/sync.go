@@ -36,15 +36,14 @@ const reqSvcs = wire.SFNodeNetwork
 // protocol using Simplified Payment Verification (SPV) with compact filters.
 type Syncer struct {
 	// atomics
-	atomicCatchUpTryLock uint32 // CAS (entered=1) to perform discovery/rescan
-	atomicWalletSynced   uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
 
-	// Protected by atomicCatchUpTryLock
+	// discoverAccounts is true if the initial sync should perform account
+	// discovery. Only used during initial sync.
 	discoverAccounts bool
-	loadedFilters    bool
 
 	persistentPeers []string
 
@@ -53,9 +52,8 @@ type Syncer struct {
 	remoteAvailable   chan struct{}
 	remotesMu         sync.Mutex
 
-	// headersFetched is closed when the initial getheaders loop has
-	// finished fetching headers.
-	headersFetched chan struct{}
+	// initialSyncDone is closed when the initial sync loop has finished.
+	initialSyncDone chan struct{}
 
 	// Data filters
 	//
@@ -126,8 +124,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		seenTxs:           lru.NewCache[chainhash.Hash](2000),
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
-
-		headersFetched: make(chan struct{}),
+		initialSyncDone:   make(chan struct{}),
 	}
 }
 
@@ -189,16 +186,6 @@ func (s *Syncer) GetRemotePeers() map[string]*p2p.RemotePeer {
 		remotes[k] = rp
 	}
 	return remotes
-}
-
-// unsynced checks the atomic that controls wallet syncness and if previously
-// synced, updates to unsynced and notifies the callback, if set.
-func (s *Syncer) unsynced() {
-	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 1, 0) &&
-		s.notifications != nil &&
-		s.notifications.Synced != nil {
-		s.notifications.Synced(false)
-	}
 }
 
 // peerConnected updates the notification for peer count, if set.
@@ -389,9 +376,14 @@ func (s *Syncer) Run(ctx context.Context) error {
 		}
 		s.fetchHeadersFinished()
 
-		// Signal that startup fetching of headers has completed.
-		close(s.headersFetched)
+		// Finally: Perform the initial rescan over the received blocks.
+		err = s.initialSyncRescan(ctx)
+		if err != nil {
+			return err
+		}
 
+		// Signal that the initial sync has completed.
+		close(s.initialSyncDone)
 		return nil
 	})
 
@@ -479,7 +471,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 	}()
 
 	// Perform peer startup.
-	err = s.startupSync(ctx, rp)
+	err = s.peerStartup(ctx, rp)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Warnf("Unable to complete startup sync with peer %v: %v", raddr, err)
@@ -1523,83 +1515,83 @@ nextbatch:
 	return ctx.Err()
 }
 
-func (s *Syncer) startupSync(ctx context.Context, rp *p2p.RemotePeer) error {
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-s.headersFetched:
-	case <-rp.Done():
-		return rp.Err()
+// initialSyncRescan performs account and address discovery and rescans blocks
+// during the initial syncer operation.
+func (s *Syncer) initialSyncRescan(ctx context.Context) error {
+	rescanPoint, err := s.wallet.RescanPoint(ctx)
+	if err != nil {
+		return err
 	}
-
-	var err error
-	if atomic.CompareAndSwapUint32(&s.atomicCatchUpTryLock, 0, 1) {
-		err = func() error {
-			rescanPoint, err := s.wallet.RescanPoint(ctx)
-			if err != nil {
-				return err
-			}
-			if rescanPoint == nil {
-				if !s.loadedFilters {
-					err = s.wallet.LoadActiveDataFilters(ctx, s, true)
-					if err != nil {
-						return err
-					}
-					s.loadedFilters = true
-				}
-
-				s.synced()
-
-				return nil
-			}
-			// RescanPoint is != nil so we are not synced to the peer and
-			// check to see if it was previously synced
-			s.unsynced()
-
-			s.discoverAddressesStart()
-			err = s.wallet.DiscoverActiveAddresses(ctx, rp, rescanPoint, s.discoverAccounts, s.wallet.GapLimit())
-			if err != nil {
-				return err
-			}
-			s.discoverAddressesFinished()
-			s.discoverAccounts = false
-
-			err = s.wallet.LoadActiveDataFilters(ctx, s, true)
-			if err != nil {
-				return err
-			}
-			s.loadedFilters = true
-
-			s.rescanStart()
-
-			rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
-			if err != nil {
-				return err
-			}
-			progress := make(chan wallet.RescanProgress, 1)
-			go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progress)
-
-			for p := range progress {
-				if p.Err != nil {
-					return p.Err
-				}
-				s.rescanProgress(p.ScannedThrough)
-			}
-			s.rescanFinished()
-
-			s.synced()
-
-			return nil
-		}()
-		atomic.StoreUint32(&s.atomicCatchUpTryLock, 0)
+	if rescanPoint == nil {
+		// The wallet is already up to date with transactions in all
+		// blocks. Load the data filters to check for transactions in
+		// future blocks received via sendheaders.
+		log.Debugf("Skipping rescanning due to rescanPoint == nil")
+		err = s.wallet.LoadActiveDataFilters(ctx, s, true)
 		if err != nil {
 			return err
 		}
+
+		s.synced()
+		return nil
+	}
+
+	// Perform address/account discovery.
+	gapLimit := s.wallet.GapLimit()
+	log.Debugf("Starting address discovery (discoverAccounts=%v, gapLimit=%d, rescanPoint=%v)",
+		s.discoverAccounts, gapLimit, rescanPoint)
+	s.discoverAddressesStart()
+	err = s.wallet.DiscoverActiveAddresses(ctx, s, rescanPoint, s.discoverAccounts, gapLimit)
+	if err != nil {
+		return err
+	}
+	s.discoverAddressesFinished()
+
+	// Prepare the filters with the list of addresses to watch for.
+	err = s.wallet.LoadActiveDataFilters(ctx, s, true)
+	if err != nil {
+		return err
+	}
+
+	// Start the rescan asynchronously.
+	rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
+	if err != nil {
+		return err
+	}
+	progress := make(chan wallet.RescanProgress, 1)
+	go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progress)
+
+	// Read the rescan progress.
+	s.rescanStart()
+	for p := range progress {
+		if p.Err != nil {
+			return p.Err
+		}
+		s.rescanProgress(p.ScannedThrough)
+	}
+	s.rescanFinished()
+
+	// Wallet is now synced.
+	log.Debugf("Wallet considered synced")
+	s.synced()
+	return nil
+}
+
+// peerStartup performs initial startup operations with a recently connected
+// peer.
+func (s *Syncer) peerStartup(ctx context.Context, rp *p2p.RemotePeer) error {
+	// Only continue with peer startup after the initial sync process
+	// has completed.
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-rp.Done():
+		return rp.Err()
+	case <-s.initialSyncDone:
 	}
 
 	if rp.Pver() >= wire.InitStateVersion {
-		err = s.GetInitState(ctx, rp)
+		err := s.GetInitState(ctx, rp)
 		if err != nil {
 			log.Errorf("Failed to get init state", err)
 		}
