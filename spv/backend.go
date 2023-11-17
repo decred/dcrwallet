@@ -243,23 +243,18 @@ FilterLoop:
 		wg.Wait()
 
 		if len(fmatches) != 0 {
-			var rp *p2p.RemotePeer
 		PickPeer:
 			for {
 				if err := ctx.Err(); err != nil {
 					return err
 				}
-				if rp == nil {
-					var err error
-					rp, err = s.pickRemote(pickAny)
-					if err != nil {
-						return err
-					}
+				rp, err := s.waitForRemote(ctx, pickAny, true)
+				if err != nil {
+					return err
 				}
 
 				blocks, err := rp.Blocks(ctx, fmatches)
 				if err != nil {
-					rp = nil
 					continue PickPeer
 				}
 
