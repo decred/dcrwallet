@@ -46,12 +46,13 @@ func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		rp, err := s.pickRemote(pickAny)
+		rp, err := s.waitForRemote(ctx, pickAny, true)
 		if err != nil {
 			return nil, err
 		}
 		blocks, err := rp.Blocks(ctx, blockHashes)
 		if err != nil {
+			log.Debugf("unable to fetch blocks from %v: %v", rp, err)
 			continue
 		}
 		return blocks, nil
