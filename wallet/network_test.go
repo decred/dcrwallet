@@ -24,9 +24,6 @@ func (mockNetwork) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([
 func (mockNetwork) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error) {
 	return nil, nil
 }
-func (mockNetwork) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
-	return nil, nil
-}
 func (mockNetwork) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error { return nil }
 func (mockNetwork) LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error {
 	return nil

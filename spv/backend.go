@@ -89,24 +89,6 @@ func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) 
 	}
 }
 
-// Headers implements the Headers method of the wallet.Peer interface.
-func (s *Syncer) Headers(ctx context.Context, blockLocators []*chainhash.Hash, hashStop *chainhash.Hash) ([]*wire.BlockHeader, error) {
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		rp, err := s.pickRemote(pickAny)
-		if err != nil {
-			return nil, err
-		}
-		hs, err := rp.Headers(ctx, blockLocators, hashStop)
-		if err != nil {
-			continue
-		}
-		return hs, nil
-	}
-}
-
 func (s *Syncer) String() string {
 	// This method is part of the wallet.Peer interface and will typically
 	// specify the remote address of the peer.  Since the syncer can encompass

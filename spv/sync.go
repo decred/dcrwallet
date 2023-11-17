@@ -554,18 +554,6 @@ func (s *Syncer) forRemotes(f func(rp *p2p.RemotePeer) error) error {
 	return nil
 }
 
-func (s *Syncer) pickRemote(pick func(*p2p.RemotePeer) bool) (*p2p.RemotePeer, error) {
-	defer s.remotesMu.Unlock()
-	s.remotesMu.Lock()
-
-	for _, rp := range s.remotes {
-		if pick(rp) {
-			return rp, nil
-		}
-	}
-	return nil, errors.E(errors.NoPeers)
-}
-
 // waitForAnyRemote blocks until there is one or more remote peers available or
 // the context is canceled.
 //
