@@ -6,6 +6,7 @@ package spv
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"sync"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
+	"golang.org/x/sync/errgroup"
 )
 
 var _ wallet.NetworkBackend = (*Syncer)(nil)
@@ -87,6 +89,52 @@ func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) 
 		}
 		return fs, nil
 	}
+}
+
+// cfiltersV2FromNodes fetches cfilters for all the specified nodes from a
+// remote peer.
+func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, cnet wire.CurrencyNet, rp *p2p.RemotePeer, nodes []*wallet.BlockNode) ([]*gcs.FilterV2, error) {
+	if len(nodes) == 0 {
+		return nil, nil
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	res := make([]*gcs.FilterV2, len(nodes))
+	for i := range nodes {
+		i := i
+		g.Go(func() error {
+			node := nodes[i]
+			filter, proofIndex, proof, err := rp.CFilterV2(ctx, node.Hash)
+			if err != nil {
+				log.Tracef("Unable to fetch cfilter for "+
+					"block %v (height %d) from %v: %v",
+					node.Hash, node.Header.Height,
+					rp, err)
+				return err
+			}
+
+			err = validate.CFilterV2HeaderCommitment(cnet, node.Header,
+				filter, proofIndex, proof)
+			if err != nil {
+				errMsg := fmt.Sprintf("CFilter for block %v (height %d) "+
+					"received from %v failed validation: %v",
+					node.Hash, node.Header.Height,
+					rp, err)
+				log.Warnf(errMsg)
+				err := errors.E(errors.Protocol, errMsg)
+				rp.Disconnect(err)
+				return err
+			}
+
+			res[i] = filter
+			return nil
+		})
+	}
+	err := g.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }
 
 func (s *Syncer) String() string {

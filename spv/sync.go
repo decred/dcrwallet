@@ -1342,6 +1342,7 @@ nextbatch:
 				tipHash, tipHeight, time.Since(startTime).Round(time.Second))
 			return nil
 		}
+		log.Tracef("Attempting next batch of headers from %v", rp)
 
 		// Request headers from the selected peer.
 		locators, err := s.wallet.BlockLocators(ctx, nil)
@@ -1350,6 +1351,7 @@ nextbatch:
 		}
 		headers, err := rp.Headers(ctx, locators, &hashStop)
 		if err != nil {
+			log.Debugf("Unable to fetch headers from %v: %v", rp, err)
 			continue nextbatch
 		}
 
@@ -1372,6 +1374,8 @@ nextbatch:
 			// Try to pick a different peer with a higher advertised
 			// height or check there are no such peers (thus we're
 			// done with fetching headers for initial sync).
+			log.Tracef("Skipping to next batch due to "+
+				"len(headers) == 0 from %v", rp)
 			continue nextbatch
 		}
 
@@ -1412,36 +1416,9 @@ nextbatch:
 			}
 			continue nextbatch
 		}
-		s.sidechainMu.Unlock()
 
-		g, ctx := errgroup.WithContext(ctx)
-		for i := range headers {
-			i := i
-			g.Go(func() error {
-				node := nodes[i]
-				filter, proofIndex, proof, err := rp.CFilterV2(ctx, node.Hash)
-				if err != nil {
-					return err
-				}
-
-				err = validate.CFilterV2HeaderCommitment(cnet, node.Header,
-					filter, proofIndex, proof)
-				if err != nil {
-					return err
-				}
-
-				node.FilterV2 = filter
-				return nil
-			})
-		}
-		err = g.Wait()
-		if err != nil {
-			rp.Disconnect(err)
-			continue nextbatch
-		}
-
+		// Add new headers to the sidechain forest.
 		var added int
-		s.sidechainMu.Lock()
 		for _, n := range nodes {
 			haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, n.Hash)
 			if haveBlock {
@@ -1451,15 +1428,8 @@ nextbatch:
 				added++
 			}
 		}
-		if added == 0 {
-			s.sidechainMu.Unlock()
 
-			continue nextbatch
-		}
-		s.fetchHeadersProgress(headers[len(headers)-1])
-		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
-			added, nodes[len(nodes)-1].Header.Height, rp)
-
+		// Determine if this extends the best known chain.
 		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
 		if err != nil {
 			s.sidechainMu.Unlock()
@@ -1471,6 +1441,38 @@ nextbatch:
 			continue nextbatch
 		}
 
+		s.fetchHeadersProgress(headers[len(headers)-1])
+		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
+			added, headers[len(headers)-1].Height, rp)
+
+		// Fetch cfilters for nodes which don't yet have them.
+		var missingCFNodes []*wallet.BlockNode
+		for i := range bestChain {
+			if bestChain[i].FilterV2 == nil {
+				missingCFNodes = bestChain[i:]
+				break
+			}
+		}
+		s.sidechainMu.Unlock()
+		filters, err := s.cfiltersV2FromNodes(ctx, cnet, rp, missingCFNodes)
+		if err != nil {
+			log.Debugf("Unable to fetch missing cfilters from %v: %v",
+				rp, err)
+			continue nextbatch
+		}
+		if len(missingCFNodes) > 0 {
+			log.Debugf("Fetched %d new cfilters(s) ending at height %d from %v",
+				len(missingCFNodes),
+				missingCFNodes[len(missingCFNodes)-1].Header.Height,
+				rp)
+		}
+
+		// Switch the best chain, now that all cfilters have been
+		// fetched for it.
+		s.sidechainMu.Lock()
+		for i := range missingCFNodes {
+			missingCFNodes[i].FilterV2 = filters[i]
+		}
 		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
 		if err != nil {
 			s.sidechainMu.Unlock()
