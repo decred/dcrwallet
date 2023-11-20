@@ -345,7 +345,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Fetch new headers and cfilters from the server.
-	locators, err := s.wallet.BlockLocators(ctx, nil)
+	locators, _, err := s.wallet.BlockLocators(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -461,7 +461,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 				len(bestChain), tip.Hash, tip.Header.Height, tip.Header.Timestamp)
 		}
 
-		locators, err = s.wallet.BlockLocators(ctx, nil)
+		locators, _, err = s.wallet.BlockLocators(ctx, nil)
 		if err != nil {
 			return err
 		}

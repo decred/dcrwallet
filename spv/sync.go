@@ -1144,7 +1144,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 				return err
 			}
 
-			locators, err := s.wallet.BlockLocators(ctx, nil)
+			locators, _, err := s.wallet.BlockLocators(ctx, nil)
 			if err != nil {
 				return err
 			}
@@ -1345,7 +1345,7 @@ nextbatch:
 		log.Tracef("Attempting next batch of headers from %v", rp)
 
 		// Request headers from the selected peer.
-		locators, err := s.wallet.BlockLocators(ctx, nil)
+		locators, locatorHeight, err := s.wallet.BlockLocators(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -1356,19 +1356,15 @@ nextbatch:
 		}
 
 		if len(headers) == 0 {
-			// Ensure that the peer provided headers through the height
-			// advertised during handshake.
-			if rp.LastHeight() < rp.InitialHeight() {
-				// Peer may not have provided any headers if our own locators
-				// were up to date.  Compare the best locator hash with the
-				// advertised height.
-				h, err := s.wallet.BlockHeader(ctx, locators[0])
-				if err == nil && int32(h.Height) < rp.InitialHeight() {
-					err := errors.E(errors.Protocol, "peer did not provide "+
-						"headers through advertised height")
-					rp.Disconnect(err)
-					continue nextbatch
-				}
+			// Ensure that the peer provided headers through the
+			// height advertised during handshake, unless our own
+			// locators were up to date (in which case we actually
+			// do not expect any headers).
+			if rp.LastHeight() < rp.InitialHeight() && locatorHeight < rp.InitialHeight() {
+				err := errors.E(errors.Protocol, "peer did not provide "+
+					"headers through advertised height")
+				rp.Disconnect(err)
+				continue nextbatch
 			}
 
 			// Try to pick a different peer with a higher advertised

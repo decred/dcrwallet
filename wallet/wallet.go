@@ -1523,21 +1523,25 @@ func log2(x int) int {
 // from the tip are returned.  Otherwise, locators are created starting with the
 // best (last) block of sidechain and sidechain[0] must be a child of a main
 // chain block (sidechain may not contain orphan blocks).
-func (w *Wallet) BlockLocators(ctx context.Context, sidechain []*BlockNode) ([]*chainhash.Hash, error) {
+//
+// The height of the first block locator (i.e. either the mainchain tip height
+// or height of the last sidechain block) is also returned.
+func (w *Wallet) BlockLocators(ctx context.Context, sidechain []*BlockNode) ([]*chainhash.Hash, int32, error) {
 	const op errors.Op = "wallet.BlockLocators"
 	var locators []*chainhash.Hash
+	var height int32
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		locators, err = w.blockLocators(dbtx, sidechain)
+		locators, height, err = w.blockLocators(dbtx, sidechain)
 		return err
 	})
 	if err != nil {
-		return nil, errors.E(op, err)
+		return nil, 0, errors.E(op, err)
 	}
-	return locators, nil
+	return locators, height, nil
 }
 
-func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]*chainhash.Hash, error) {
+func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]*chainhash.Hash, int32, error) {
 	ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 	var hash chainhash.Hash
 	var height int32
@@ -1549,6 +1553,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 		height = int32(n.Header.Height)
 	}
 
+	firstHeight := height
 	locators := make([]*chainhash.Hash, 1, 10+log2(int(height)))
 	locators[0] = &hash
 
@@ -1561,7 +1566,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 		} else {
 			hash, err := w.txStore.GetMainChainBlockHashForHeight(ns, height)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			locators = append(locators, &hash)
 		}
@@ -1573,7 +1578,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 		}
 	}
 
-	return locators, nil
+	return locators, firstHeight, nil
 }
 
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
