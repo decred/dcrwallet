@@ -42,6 +42,8 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
+replace github.com/decred/dcrd/wire => github.com/matheusd/dcrd/wire v1.5.1-0.20231108121448-ebac834e71ec
+
 require (
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a // indirect

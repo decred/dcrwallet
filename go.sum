@@ -65,8 +65,6 @@ github.com/decred/dcrd/rpcclient/v8 v8.0.0 h1:O4B5d+8e2OjbeFW+c1XcZNQzyp++04ArWh
 github.com/decred/dcrd/rpcclient/v8 v8.0.0/go.mod h1:gx4+DI5apuOEeLwPBJFlMoj3GFWq1I7/X8XCQmMTi8Q=
 github.com/decred/dcrd/txscript/v4 v4.1.0 h1:uEdcibIOl6BuWj3AqmXZ9xIK/qbo6lHY9aNk29FtkrU=
 github.com/decred/dcrd/txscript/v4 v4.1.0/go.mod h1:OVguPtPc4YMkgssxzP8B6XEMf/J3MB6S1JKpxgGQqi0=
-github.com/decred/dcrd/wire v1.6.0 h1:YOGwPHk4nzGr6OIwUGb8crJYWDiVLpuMxfDBCCF7s/o=
-github.com/decred/dcrd/wire v1.6.0/go.mod h1:XQ8Xv/pN/3xaDcb7sH8FBLS9cdgVctT7HpBKKGsIACk=
 github.com/decred/go-socks v1.1.0 h1:dnENcc0KIqQo3HSXdgboXAHgqsCIutkqq6ntQjYtm2U=
 github.com/decred/go-socks v1.1.0/go.mod h1:sDhHqkZH0X4JjSa02oYOGhcGHYp12FsY1jQ/meV8md0=
 github.com/decred/slog v1.2.0 h1:soHAxV52B54Di3WtKLfPum9OFfWqwtf/ygf9njdfnPM=
@@ -120,6 +118,8 @@ github.com/jrick/wsrpc/v2 v2.3.5 h1:CwdycaR/df09iGkPMXs1FxqAHMCQbdAiTGoHfOrtuds=
 github.com/jrick/wsrpc/v2 v2.3.5/go.mod h1:7oBeDM/xMF6Yqy4GDAjpppuOf1hm6lWsaG3EaMrm+aA=
 github.com/klauspost/cpuid/v2 v2.2.5 h1:0E5MSMDEoAulmXNFquVs//DdoomxaoTY1kUhbc/qbZg=
 github.com/klauspost/cpuid/v2 v2.2.5/go.mod h1:Lcz8mBdAVJIBVzewtcLocK12l3Y+JytZYpaMropDUws=
+github.com/matheusd/dcrd/wire v1.5.1-0.20231108121448-ebac834e71ec h1:VFoLDxFFXyfZlYRbQE8xl6EiopZVuKs//D2QWKfjh44=
+github.com/matheusd/dcrd/wire v1.5.1-0.20231108121448-ebac834e71ec/go.mod h1:XQ8Xv/pN/3xaDcb7sH8FBLS9cdgVctT7HpBKKGsIACk=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
