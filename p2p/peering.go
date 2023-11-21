@@ -44,7 +44,7 @@ var uaVersion = version.String()
 const minPver = wire.RemoveRejectVersion
 
 // Pver is the maximum protocol version implemented by the LocalPeer.
-const Pver = wire.MixVersion
+const Pver = wire.BatchedCFiltersV2Version
 
 // stallTimeout is the amount of time allowed before a request to receive data
 // that is known to exist at the RemotePeer times out with no matching reply.
@@ -94,7 +94,8 @@ type RemotePeer struct {
 	requestedBlocksMu sync.Mutex
 	requestedBlocks   map[chainhash.Hash]*blockRequest
 
-	requestedCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
+	requestedCFiltersV2     sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
+	requestedManyCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFiltersV2
 
 	requestedTxs   map[chainhash.Hash]chan<- *wire.MsgTx
 	requestedTxsMu sync.Mutex
@@ -747,6 +748,8 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				rp.receivedBlock(ctx, m)
 			case *wire.MsgCFilterV2:
 				rp.receivedCFilterV2(ctx, m)
+			case *wire.MsgCFiltersV2:
+				rp.receivedManyCFilterV2(ctx, m)
 			case *wire.MsgNotFound:
 				rp.receivedNotFound(ctx, m)
 			case *wire.MsgTx:
@@ -960,6 +963,42 @@ func (rp *RemotePeer) receivedBlock(ctx context.Context, msg *wire.MsgBlock) {
 		close(req.ready)
 	}
 	rp.requestedBlocksMu.Unlock()
+}
+
+func (rp *RemotePeer) addRequestedManyCFilterV2(hash *chainhash.Hash, c chan<- *wire.MsgCFiltersV2) (newRequest bool) {
+	_, loaded := rp.requestedManyCFiltersV2.LoadOrStore(*hash, c)
+	return !loaded
+}
+
+func (rp *RemotePeer) deleteRequestedManyCFilterV2(hash *chainhash.Hash) {
+	rp.requestedManyCFiltersV2.Delete(*hash)
+}
+
+func (rp *RemotePeer) receivedManyCFilterV2(ctx context.Context, msg *wire.MsgCFiltersV2) {
+	const opf = "remotepeer(%v).receivedCFilterV2(%v)"
+	if len(msg.CFilters) == 0 {
+		op := errors.Opf(opf, rp.raddr, chainhash.Hash{})
+		err := errors.E(op, errors.Protocol, "received empty cfiltersv2 message")
+		rp.Disconnect(err)
+		return
+
+	}
+
+	var k any = msg.CFilters[0].BlockHash
+	v, ok := rp.requestedManyCFiltersV2.Load(k)
+	if !ok {
+		op := errors.Opf(opf, rp.raddr, k)
+		err := errors.E(op, errors.Protocol, "received unrequested many cfilter")
+		rp.Disconnect(err)
+		return
+	}
+
+	rp.requestedManyCFiltersV2.Delete(k)
+	c := v.(chan<- *wire.MsgCFiltersV2)
+	select {
+	case <-ctx.Done():
+	case c <- msg:
+	}
 }
 
 func (rp *RemotePeer) addRequestedCFilterV2(hash *chainhash.Hash, c chan<- *wire.MsgCFilterV2) (newRequest bool) {
@@ -1741,6 +1780,64 @@ func (rp *RemotePeer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.H
 		}
 	}
 	return filters, nil
+}
+
+// BatchedCFiltersV2 fetches all cfilters between the passed start and end
+// blocks.  The first block MUST be an ancestor of the final block.
+func (rp *RemotePeer) BatchedCFiltersV2(ctx context.Context, startHash, endHash *chainhash.Hash) ([]filterProof, error) {
+	const opf = "remotepeer(%v).CFilterV2(%v)"
+
+	if rp.pver < wire.CFilterV2Version {
+		op := errors.Opf(opf, rp.raddr, startHash)
+		err := errors.Errorf("protocol version %v is too low to fetch cfiltersv2 from this peer", rp.pver)
+		return nil, errors.E(op, errors.Protocol, err)
+	}
+
+	m := wire.NewMsgGetCFsV2(startHash, endHash)
+	c := make(chan *wire.MsgCFiltersV2, 1)
+	if !rp.addRequestedManyCFilterV2(startHash, c) {
+		op := errors.Opf(opf, rp.raddr, startHash)
+		return nil, errors.E(op, errors.Invalid, "cfilterv2 is already being requested from this peer for this block")
+	}
+	stalled := time.NewTimer(stallTimeout)
+	out := rp.out
+	for {
+		select {
+		case <-ctx.Done():
+			rp.deleteRequestedManyCFilterV2(startHash)
+			go func() {
+				<-stalled.C
+			}()
+			return nil, ctx.Err()
+		case <-stalled.C:
+			rp.deleteRequestedManyCFilterV2(startHash)
+			op := errors.Opf(opf, rp.raddr, startHash)
+			err := errors.E(op, errors.IO, "peer appears stalled")
+			rp.Disconnect(err)
+			return nil, err
+		case <-rp.errc:
+			stalled.Stop()
+			return nil, rp.err
+		case out <- &msgAck{m, nil}:
+			out = nil
+		case m := <-c:
+			stalled.Stop()
+			res := make([]filterProof, len(m.CFilters))
+			for i := 0; i < len(m.CFilters); i++ {
+				var f *gcs.FilterV2
+				var err error
+				f, err = gcs.FromBytesV2(blockcf.B, blockcf.M, m.CFilters[i].Data)
+				if err != nil {
+					op := errors.Opf(opf, rp.raddr, startHash)
+					return nil, errors.E(op, err)
+				}
+				res[i].Filter = f
+				res[i].Proof = m.CFilters[i].ProofHashes
+				res[i].ProofIndex = m.CFilters[i].ProofIndex
+			}
+			return res, nil
+		}
+	}
 }
 
 // SendHeaders sends the remote peer a sendheaders message.  This informs the

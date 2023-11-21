@@ -120,7 +120,7 @@ func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, nodes []*wallet.BlockN
 	cnet := s.wallet.ChainParams().Net
 
 	// Split fetching into batches of a max size.
-	const cfilterBatchSize = 100
+	const cfilterBatchSize = wire.MaxCFiltersV2PerBatch
 	if len(nodes) > cfilterBatchSize {
 		g, ctx := errgroup.WithContext(ctx)
 		for len(nodes) > cfilterBatchSize {
@@ -175,9 +175,22 @@ nextTry:
 
 		startTime := time.Now()
 
-		// TODO: Fetch using getcfsv2 if peer supports batched cfilter fetching.
-
-		filters, err := rp.CFiltersV2(ctx, nodeHashes)
+		// If the node supports batched fetch, use it.  Otherwise,
+		// fetch one by one.
+		var filters []wallet.FilterProof
+		if rp.Pver() >= wire.BatchedCFiltersV2Version {
+			filters, err = rp.BatchedCFiltersV2(ctx, nodes[0].Hash, nodes[len(nodes)-1].Hash)
+			if err == nil && len(filters) != len(nodes) {
+				errMsg := fmt.Errorf("peer returned unexpected "+
+					"number of filters (got %d, want %d)",
+					len(filters), len(nodes))
+				err = errors.E(errors.Protocol, errMsg)
+				rp.Disconnect(err)
+				continue nextTry
+			}
+		} else {
+			filters, err = rp.CFiltersV2(ctx, nodeHashes)
+		}
 		if err != nil {
 			log.Tracef("Unable to fetch cfilter batch for "+
 				"from %v: %v", rp, err)
