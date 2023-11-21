@@ -1358,6 +1358,10 @@ nextbatch:
 				batch.rp, err)
 			continue nextbatch
 		}
+		if len(missingCfilter) > 0 {
+			log.Debugf("Fetched %d new cfilters(s) ending at height %d",
+				len(missingCfilter), missingCfilter[len(missingCfilter)-1].Header.Height)
+		}
 
 		// Switch the best chain, now that all cfilters have been
 		// fetched for it.
