@@ -148,7 +148,7 @@ func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, nodes []*wallet.BlockN
 	// watchdog interval means we'll try at least 4 different peers before
 	// resetting.
 	const watchdogTimeoutInterval = 2 * time.Minute
-	watchdogCtx, cancelWatchdog := context.WithTimeout(ctx, time.Minute)
+	watchdogCtx, cancelWatchdog := context.WithTimeout(ctx, watchdogTimeoutInterval)
 	defer cancelWatchdog()
 
 nextTry:
@@ -226,7 +226,7 @@ type headersBatch struct {
 //
 // This function returns a batch with the done flag set to true when no peers
 // have more recent blocks for syncing.
-func (s *Syncer) getHeaders(ctx context.Context) (*headersBatch, error) {
+func (s *Syncer) getHeaders(ctx context.Context, likelyBestChain []*wallet.BlockNode) (*headersBatch, error) {
 	cnet := s.wallet.ChainParams().Net
 
 nextbatch:
@@ -245,7 +245,7 @@ nextbatch:
 		log.Tracef("Attempting next batch of headers from %v", rp)
 
 		// Request headers from the selected peer.
-		locators, locatorHeight, err := s.wallet.BlockLocators(ctx, nil)
+		locators, locatorHeight, err := s.wallet.BlockLocators(ctx, likelyBestChain)
 		if err != nil {
 			return nil, err
 		}
