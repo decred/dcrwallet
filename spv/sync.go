@@ -370,7 +370,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 		// Next: fetch headers and cfilters up to mainchain tip.
 		s.fetchHeadersStart()
 		log.Debugf("Fetching headers and CFilters...")
-		err = s.getHeaders(ctx)
+		err = s.initialSyncHeaders(ctx)
 		if err != nil {
 			return err
 		}
@@ -1318,161 +1318,54 @@ func (s *Syncer) disconnectStragglers(height int32) {
 // locators.
 var hashStop chainhash.Hash
 
-// getHeaders fetches headers from peers until the wallet is up to date with
-// all connected peers.  This is part of the startup sync process.
-func (s *Syncer) getHeaders(ctx context.Context) error {
-
-	cnet := s.wallet.ChainParams().Net
-
+// initialSyncHeaders fetches headers and cfilters from peers until the wallet
+// is up to date with all connected peers.  This is part of the startup sync
+// process.
+func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 	startTime := time.Now()
 
 nextbatch:
 	for ctx.Err() == nil {
-		tipHash, tipHeight := s.wallet.MainChainTip(ctx)
-
-		// Determine if there are any peers from which to request newer
-		// headers.
-		rp, err := s.waitForRemote(ctx, pickForGetHeaders(tipHeight), false)
+		// Fetch a batch of headers.
+		batch, err := s.getHeaders(ctx)
 		if err != nil {
 			return err
 		}
-		if rp == nil {
+		if batch.done {
 			// All done.
-			log.Infof("Initial sync to block %s at height %d completed in %s",
-				tipHash, tipHeight, time.Since(startTime).Round(time.Second))
+			log.Debugf("Initial sync completed in %s",
+				time.Since(startTime).Round(time.Second))
 			return nil
 		}
-		log.Tracef("Attempting next batch of headers from %v", rp)
 
-		// Request headers from the selected peer.
-		locators, locatorHeight, err := s.wallet.BlockLocators(ctx, nil)
-		if err != nil {
-			return err
-		}
-		headers, err := rp.Headers(ctx, locators, &hashStop)
-		if err != nil {
-			log.Debugf("Unable to fetch headers from %v: %v", rp, err)
-			continue nextbatch
-		}
+		bestChain := batch.bestChain
 
-		if len(headers) == 0 {
-			// Ensure that the peer provided headers through the
-			// height advertised during handshake, unless our own
-			// locators were up to date (in which case we actually
-			// do not expect any headers).
-			if rp.LastHeight() < rp.InitialHeight() && locatorHeight < rp.InitialHeight() {
-				err := errors.E(errors.Protocol, "peer did not provide "+
-					"headers through advertised height")
-				rp.Disconnect(err)
-				continue nextbatch
-			}
-
-			// Try to pick a different peer with a higher advertised
-			// height or check there are no such peers (thus we're
-			// done with fetching headers for initial sync).
-			log.Tracef("Skipping to next batch due to "+
-				"len(headers) == 0 from %v", rp)
-			continue nextbatch
-		}
-
-		nodes := make([]*wallet.BlockNode, len(headers))
-		for i := range headers {
-			// Determine the hash of the header. It is safe to use
-			// PrevBlock (instead of recalculating) because the
-			// lower p2p level already asserted the headers connect
-			// to each other.
-			var hash *chainhash.Hash
-			if i == len(headers)-1 {
-				bh := headers[i].BlockHash()
-				hash = &bh
-			} else {
-				hash = &headers[i+1].PrevBlock
-			}
-			nodes[i] = wallet.NewBlockNode(headers[i], hash, nil)
-			if wallet.BadCheckpoint(cnet, hash, int32(headers[i].Height)) {
-				nodes[i].BadCheckpoint()
-			}
-		}
-
-		// Verify the sidechain that includes the received headers has
-		// the correct difficulty.
+		// Determine which nodes don't have cfilters yet.
 		s.sidechainMu.Lock()
-		fullsc, err := s.sidechains.FullSideChain(nodes)
-		if err != nil {
-			s.sidechainMu.Unlock()
-			return err
-		}
-		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, fullsc, 0)
-		if err != nil {
-			s.sidechainMu.Unlock()
-			rp.Disconnect(err)
-			if !errors.Is(err, context.Canceled) {
-				log.Warnf("Disconnecting from %v due to header "+
-					"validation error: %v", rp, err)
-			}
-			continue nextbatch
-		}
-
-		// Add new headers to the sidechain forest.
-		var added int
-		for _, n := range nodes {
-			haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, n.Hash)
-			if haveBlock {
-				continue
-			}
-			if s.sidechains.AddBlockNode(n) {
-				added++
-			}
-		}
-
-		// Determine if this extends the best known chain.
-		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
-		if err != nil {
-			s.sidechainMu.Unlock()
-			rp.Disconnect(err)
-			continue nextbatch
-		}
-		if len(bestChain) == 0 {
-			s.sidechainMu.Unlock()
-			continue nextbatch
-		}
-
-		s.fetchHeadersProgress(headers[len(headers)-1])
-		log.Debugf("Fetched %d new header(s) ending at height %d from %v",
-			added, headers[len(headers)-1].Height, rp)
-
-		// Fetch cfilters for nodes which don't yet have them.
-		var missingCFNodes []*wallet.BlockNode
+		var missingCfilter []*wallet.BlockNode
 		for i := range bestChain {
 			if bestChain[i].FilterV2 == nil {
-				missingCFNodes = bestChain[i:]
+				missingCfilter = bestChain[i:]
 				break
 			}
 		}
 		s.sidechainMu.Unlock()
-		filters, err := s.cfiltersV2FromNodes(ctx, cnet, rp, missingCFNodes)
+
+		// Fetch Missing CFilters.
+		err = s.cfiltersV2FromNodes(ctx, batch.rp, missingCfilter)
 		if err != nil {
 			log.Debugf("Unable to fetch missing cfilters from %v: %v",
-				rp, err)
+				batch.rp, err)
 			continue nextbatch
-		}
-		if len(missingCFNodes) > 0 {
-			log.Debugf("Fetched %d new cfilters(s) ending at height %d from %v",
-				len(missingCFNodes),
-				missingCFNodes[len(missingCFNodes)-1].Header.Height,
-				rp)
 		}
 
 		// Switch the best chain, now that all cfilters have been
 		// fetched for it.
 		s.sidechainMu.Lock()
-		for i := range missingCFNodes {
-			missingCFNodes[i].FilterV2 = filters[i]
-		}
 		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
 		if err != nil {
 			s.sidechainMu.Unlock()
-			rp.Disconnect(err)
+			batch.rp.Disconnect(err)
 			continue nextbatch
 		}
 
@@ -1490,6 +1383,7 @@ nextbatch:
 			log.Infof("Connected %d blocks, new tip %v, height %d, date %v",
 				len(bestChain), tip.Hash, tip.Header.Height, tip.Header.Timestamp)
 		}
+		s.fetchHeadersProgress(tip.Header)
 
 		s.sidechainMu.Unlock()
 
