@@ -1804,9 +1804,10 @@ func (s *Server) getInfo(ctx context.Context, icmd any) (any, error) {
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	switch n := n.(type) {
+	case *dcrd.RPC:
 		var consensusInfo dcrdtypes.InfoChainResult
-		err := rpc.Call(ctx, "getinfo", &consensusInfo)
+		err := n.Call(ctx, "getinfo", &consensusInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -1817,6 +1818,11 @@ func (s *Server) getInfo(ctx context.Context, icmd any) (any, error) {
 		info.Proxy = consensusInfo.Proxy
 		info.RelayFee = consensusInfo.RelayFee
 		info.Errors = consensusInfo.Errors
+		info.SyncType = "rpc"
+	case *spv.Syncer:
+		info.SyncType = "spv"
+	case nil:
+		info.SyncType = "none"
 	}
 
 	return info, nil

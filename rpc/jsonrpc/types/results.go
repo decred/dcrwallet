@@ -188,6 +188,7 @@ type InfoResult struct {
 	UnlockedUntil   int64   `json:"unlocked_until"`
 	PaytxFee        float64 `json:"paytxfee"`
 	RelayFee        float64 `json:"relayfee"`
+	SyncType        string  `json:"sync_type"`
 	Errors          string  `json:"errors"`
 }
 

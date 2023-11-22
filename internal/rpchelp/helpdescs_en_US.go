@@ -537,6 +537,7 @@ var helpDescsEnUS = map[string]string{
 	"inforesult-paytxfee":        "The fee per kB of the serialized tx size used each time more fee is required for an authored transaction",
 	"inforesult-balance":         "The balance of all accounts calculated with one block confirmation",
 	"inforesult-walletversion":   "The version of the address manager database",
+	"inforesult-sync_type":       "The current wallet syncing method (rpc, spv, or none)",
 	"inforesult-unlocked_until":  "Unset",
 	"inforesult-keypoolsize":     "Unset",
 	"inforesult-keypoololdest":   "Unset",
