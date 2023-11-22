@@ -1014,6 +1014,7 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-votebitsextended": "Extended vote bits setting",
 	"walletinforesult-voteversion":      "Version of votes that will be generated",
 	"walletinforesult-voting":           "Whether or not the wallet is currently voting tickets",
+	"walletinforesult-vsp":              "VSP URL used when purchasing tickets",
 	"walletinforesult-manualtickets":    "Whether or not the wallet is only accepting tickets manually",
 
 	// WalletIsLockedCmd help.
