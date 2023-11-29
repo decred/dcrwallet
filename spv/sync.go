@@ -1352,7 +1352,7 @@ nextbatch:
 		s.sidechainMu.Unlock()
 
 		// Fetch Missing CFilters.
-		err = s.cfiltersV2FromNodes(ctx, batch.rp, missingCfilter)
+		err = s.cfiltersV2FromNodes(ctx, missingCfilter)
 		if err != nil {
 			log.Debugf("Unable to fetch missing cfilters from %v: %v",
 				batch.rp, err)

@@ -42,6 +42,19 @@ func pickForGetHeaders(tipHeight int32) func(rp *p2p.RemotePeer) bool {
 	}
 }
 
+// pickForGetCfilters returns a function to use in waitForRemotes which selects
+// peers that should have cfilters up to the passed lastHeaderHeight.
+func pickForGetCfilters(lastHeaderHeight int32) func(rp *p2p.RemotePeer) bool {
+	return func(rp *p2p.RemotePeer) bool {
+		// When performing initial sync, it could be the case that
+		// blocks are generated while performing the sync, therefore
+		// the initial advertised peer height would be lower than the
+		// last header height.  Therefore, accept peers that are
+		// close, but not quite at the tip.
+		return rp.InitialHeight() >= lastHeaderHeight-6
+	}
+}
+
 // Blocks implements the Blocks method of the wallet.Peer interface.
 func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
 	for {
@@ -93,7 +106,7 @@ func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) 
 
 // cfiltersV2FromNodes fetches cfilters for all the specified nodes from a
 // remote peer.
-func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, rp *p2p.RemotePeer, nodes []*wallet.BlockNode) error {
+func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, nodes []*wallet.BlockNode) error {
 	if len(nodes) == 0 {
 		return nil
 	}
@@ -106,10 +119,10 @@ func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, rp *p2p.RemotePeer, no
 		g, ctx := errgroup.WithContext(ctx)
 		for len(nodes) > cfilterBatchSize {
 			batch := nodes[:cfilterBatchSize]
-			g.Go(func() error { return s.cfiltersV2FromNodes(ctx, rp, batch) })
+			g.Go(func() error { return s.cfiltersV2FromNodes(ctx, batch) })
 			nodes = nodes[cfilterBatchSize:]
 		}
-		g.Go(func() error { return s.cfiltersV2FromNodes(ctx, rp, nodes) })
+		g.Go(func() error { return s.cfiltersV2FromNodes(ctx, nodes) })
 		return g.Wait()
 	}
 
@@ -117,39 +130,51 @@ func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, rp *p2p.RemotePeer, no
 	for i := range nodes {
 		nodeHashes[i] = nodes[i].Hash
 	}
+	lastHeight := nodes[len(nodes)-1].Header.Height
 
-	// TODO: Fetch using getcfsv2 if peer supports batched cfilter fetching.
-
-	filters, err := rp.CFiltersV2(ctx, nodeHashes)
-	if err != nil {
-		log.Tracef("Unable to fetch cfilter batch for "+
-			"from %v: %v", rp, err)
-		return err
-	}
-
-	for i := range nodes {
-		err = validate.CFilterV2HeaderCommitment(cnet, nodes[i].Header,
-			filters[i].Filter, filters[i].ProofIndex, filters[i].Proof)
+nextTry:
+	for ctx.Err() == nil {
+		// Select a peer that should have these cfilters.
+		rp, err := s.waitForRemote(ctx, pickForGetCfilters(int32(lastHeight)), true)
 		if err != nil {
-			errMsg := fmt.Sprintf("CFilter for block %v (height %d) "+
-				"received from %v failed validation: %v",
-				nodes[i].Hash, nodes[i].Header.Height,
-				rp, err)
-			log.Warnf(errMsg)
-			err := errors.E(errors.Protocol, errMsg)
-			rp.Disconnect(err)
 			return err
 		}
+
+		// TODO: Fetch using getcfsv2 if peer supports batched cfilter fetching.
+
+		filters, err := rp.CFiltersV2(ctx, nodeHashes)
+		if err != nil {
+			log.Tracef("Unable to fetch cfilter batch for "+
+				"from %v: %v", rp, err)
+			continue nextTry
+		}
+
+		for i := range nodes {
+			err = validate.CFilterV2HeaderCommitment(cnet, nodes[i].Header,
+				filters[i].Filter, filters[i].ProofIndex, filters[i].Proof)
+			if err != nil {
+				errMsg := fmt.Sprintf("CFilter for block %v (height %d) "+
+					"received from %v failed validation: %v",
+					nodes[i].Hash, nodes[i].Header.Height,
+					rp, err)
+				log.Warnf(errMsg)
+				err := errors.E(errors.Protocol, errMsg)
+				rp.Disconnect(err)
+				continue nextTry
+			}
+		}
+
+		s.sidechainMu.Lock()
+		for i := range nodes {
+			nodes[i].FilterV2 = filters[i].Filter
+		}
+		s.sidechainMu.Unlock()
+		log.Tracef("Fetched %d new cfilters(s) ending at height %d from %v",
+			len(nodes), nodes[len(nodes)-1].Header.Height, rp)
+		return nil
 	}
 
-	s.sidechainMu.Lock()
-	for i := range nodes {
-		nodes[i].FilterV2 = filters[i].Filter
-	}
-	s.sidechainMu.Unlock()
-	log.Tracef("Fetched %d new cfilters(s) ending at height %d from %v",
-		len(nodes), nodes[len(nodes)-1].Header.Height, rp)
-	return nil
+	return ctx.Err()
 }
 
 // headersBatch is a batch of headers fetched during initial sync.
