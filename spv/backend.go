@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"time"
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/p2p"
@@ -104,6 +105,10 @@ func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) 
 	}
 }
 
+// errCfilterWatchdogTriggered is an internal error generated when a batch
+// of cfilters takes too long to be fetched.
+var errCfilterWatchdogTriggered = errors.New("getCFilters watchdog triggered")
+
 // cfiltersV2FromNodes fetches cfilters for all the specified nodes from a
 // remote peer.
 func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, nodes []*wallet.BlockNode) error {
@@ -132,13 +137,42 @@ func (s *Syncer) cfiltersV2FromNodes(ctx context.Context, nodes []*wallet.BlockN
 	}
 	lastHeight := nodes[len(nodes)-1].Header.Height
 
+	// Specially once we get close to the tip, we may have a header in the
+	// best sidechain that has been reorged out and thus no peer will have
+	// its corresponding CFilters.  To recover from this case in a timely
+	// manner, we setup a special watchdog context that, if triggered, will
+	// make us clean up the sidechain forest, forcing a request of fresh
+	// headers from all remote peers.
+	//
+	// Peers have a 30s stall timeout protection, therefore a 2 minute
+	// watchdog interval means we'll try at least 4 different peers before
+	// resetting.
+	const watchdogTimeoutInterval = 2 * time.Minute
+	watchdogCtx, cancelWatchdog := context.WithTimeout(ctx, time.Minute)
+	defer cancelWatchdog()
+
 nextTry:
 	for ctx.Err() == nil {
 		// Select a peer that should have these cfilters.
-		rp, err := s.waitForRemote(ctx, pickForGetCfilters(int32(lastHeight)), true)
+		rp, err := s.waitForRemote(watchdogCtx, pickForGetCfilters(int32(lastHeight)), true)
+		if watchdogCtx.Err() != nil && ctx.Err() == nil {
+			// Watchdog timer triggered.  Reset sidechain forest.
+			lastNode := nodes[len(nodes)-1]
+			log.Warnf("Batch of CFilters ending on block %s at "+
+				"height %d not received within %s. Clearing "+
+				"sidechain forest to retry with different "+
+				"headers", lastNode.Hash, lastNode.Header.Height,
+				watchdogTimeoutInterval)
+			s.sidechainMu.Lock()
+			s.sidechains.PruneAll()
+			s.sidechainMu.Unlock()
+			return errCfilterWatchdogTriggered
+		}
 		if err != nil {
 			return err
 		}
+
+		startTime := time.Now()
 
 		// TODO: Fetch using getcfsv2 if peer supports batched cfilter fetching.
 
@@ -169,8 +203,10 @@ nextTry:
 			nodes[i].FilterV2 = filters[i].Filter
 		}
 		s.sidechainMu.Unlock()
-		log.Tracef("Fetched %d new cfilters(s) ending at height %d from %v",
-			len(nodes), nodes[len(nodes)-1].Header.Height, rp)
+		log.Tracef("Fetched %d new cfilters(s) ending at height %d "+
+			"from %v (request took %s)",
+			len(nodes), nodes[len(nodes)-1].Header.Height, rp,
+			time.Since(startTime).Truncate(time.Millisecond))
 		return nil
 	}
 

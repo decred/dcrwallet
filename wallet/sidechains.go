@@ -244,6 +244,11 @@ func (f *SidechainForest) AddBlockNode(n *BlockNode) bool {
 	return true
 }
 
+// PruneAll removes all sidechains.
+func (f *SidechainForest) PruneAll() {
+	f.trees = nil
+}
+
 // Prune removes any sidechain trees which contain a root that is significantly
 // behind the current main chain tip block.
 func (f *SidechainForest) Prune(mainChainHeight int32, params *chaincfg.Params) {
