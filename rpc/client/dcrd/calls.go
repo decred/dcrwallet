@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"decred.org/dcrwallet/v4/errors"
@@ -391,4 +392,12 @@ func (r *RPC) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
 		return 0, errors.E(op, err)
 	}
 	return sdiff, nil
+}
+
+// String returns a string representation of the caller (if it exists).
+func (r *RPC) String() string {
+	if s, ok := r.Caller.(fmt.Stringer); ok {
+		return s.String()
+	}
+	return "rpc"
 }

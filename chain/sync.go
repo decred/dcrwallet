@@ -176,6 +176,182 @@ func (s *Syncer) rescanFinished() {
 	}
 }
 
+// getHeaders fetches missing headers and corresponding cfilters from the
+// underlying rpc node.
+func (s *Syncer) getHeaders(ctx context.Context) error {
+	// Fetch new headers and cfilters from the server.
+	locators, _, err := s.wallet.BlockLocators(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	cnet := s.wallet.ChainParams().Net
+	s.fetchHeadersStart()
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		headers, err := s.rpc.Headers(ctx, locators, &hashStop)
+		if err != nil {
+			return err
+		}
+		if len(headers) == 0 {
+			break
+		}
+
+		nodes := make([]*wallet.BlockNode, len(headers))
+		var g errgroup.Group
+		for i := range headers {
+			i := i
+			g.Go(func() error {
+				header := headers[i]
+				hash := header.BlockHash()
+				filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &hash)
+				if err != nil {
+					return err
+				}
+
+				err = validate.CFilterV2HeaderCommitment(cnet, header,
+					filter, proofIndex, proof)
+				if err != nil {
+					return err
+				}
+
+				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
+				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
+					nodes[i].BadCheckpoint()
+				}
+				return nil
+			})
+		}
+		err = g.Wait()
+		if err != nil {
+			return err
+		}
+
+		var added int
+		for _, n := range nodes {
+			haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, n.Hash)
+			if haveBlock {
+				continue
+			}
+			s.sidechainsMu.Lock()
+			if s.sidechains.AddBlockNode(n) {
+				added++
+			}
+			s.sidechainsMu.Unlock()
+		}
+
+		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
+
+		log.Infof("Fetched %d new header(s) ending at height %d from %s",
+			added, nodes[len(nodes)-1].Header.Height, s.rpc)
+
+		// Stop fetching headers when no new blocks are returned.
+		// Because getheaders did return located blocks, this indicates
+		// that the server is not as far synced as the wallet.  Blocks
+		// the server has not processed are not reorged out of the
+		// wallet at this time, but a reorg will switch to a better
+		// chain later if one is discovered.
+		if added == 0 {
+			break
+		}
+
+		s.sidechainsMu.Lock()
+		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
+		s.sidechainsMu.Unlock()
+		if err != nil {
+			return err
+		}
+		if len(bestChain) == 0 {
+			continue
+		}
+
+		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, bestChain, 0)
+		if err != nil {
+			return err
+		}
+
+		s.sidechainsMu.Lock()
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
+		s.sidechainsMu.Unlock()
+		if err != nil {
+			return err
+		}
+
+		if len(prevChain) != 0 {
+			log.Infof("Reorganize from %v to %v (total %d block(s) reorged)",
+				prevChain[len(prevChain)-1].Hash, bestChain[len(bestChain)-1].Hash, len(prevChain))
+			s.sidechainsMu.Lock()
+			for _, n := range prevChain {
+				s.sidechains.AddBlockNode(n)
+			}
+			s.sidechainsMu.Unlock()
+		}
+		tip := bestChain[len(bestChain)-1]
+		if len(bestChain) == 1 {
+			log.Infof("Connected block %v, height %d", tip.Hash, tip.Header.Height)
+		} else {
+			log.Infof("Connected %d blocks, new tip block %v, height %d, date %v",
+				len(bestChain), tip.Hash, tip.Header.Height, tip.Header.Timestamp)
+		}
+
+		locators, _, err = s.wallet.BlockLocators(ctx, nil)
+		if err != nil {
+			return err
+		}
+	}
+	s.fetchHeadersFinished()
+
+	rescanPoint, err := s.wallet.RescanPoint(ctx)
+	if err != nil {
+		return err
+	}
+	if rescanPoint != nil {
+		s.mu.Lock()
+		discoverAccts := s.discoverAccts
+		s.mu.Unlock()
+		s.discoverAddressesStart()
+		err = s.wallet.DiscoverActiveAddresses(ctx, s.rpc, rescanPoint, discoverAccts, s.wallet.GapLimit())
+		if err != nil {
+			return err
+		}
+		s.discoverAddressesFinished()
+		s.mu.Lock()
+		s.discoverAccts = false
+		s.mu.Unlock()
+		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
+		if err != nil {
+			return err
+		}
+
+		s.rescanStart()
+		rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
+		if err != nil {
+			return err
+		}
+		progress := make(chan wallet.RescanProgress, 1)
+		go s.wallet.RescanProgressFromHeight(ctx, s.rpc, int32(rescanBlock.Height), progress)
+
+		for p := range progress {
+			if p.Err != nil {
+				return p.Err
+			}
+			s.rescanProgress(p.ScannedThrough)
+		}
+		s.rescanFinished()
+
+	} else {
+		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
+		if err != nil {
+			return err
+		}
+	}
+	s.synced()
+
+	return nil
+}
+
 func normalizeAddress(addr string, defaultPort string) (hostport string, err error) {
 	host, port, origErr := net.SplitHostPort(addr)
 	if origErr == nil {
@@ -322,10 +498,31 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 	s.fetchMissingCfiltersFinished()
 
+	// Fetch all headers the wallet has not processed yet.
+	err = s.getHeaders(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Request notifications for connected and disconnected blocks.
 	err = s.rpc.Call(ctx, "notifyblocks", nil)
 	if err != nil {
 		return err
+	}
+
+	// Request notifications for tickets that need voting.
+	err = s.rpc.Call(ctx, "rebroadcastwinners", nil)
+	if err != nil {
+		return err
+	}
+
+	// Rebroadcast unmined transactions
+	err = s.wallet.PublishUnminedTransactions(ctx, s.rpc)
+	if err != nil {
+		// Returning this error would end and (likely) restart sync in
+		// an endless loop.  It's possible a transaction should be
+		// removed, but this is difficult to reliably detect over RPC.
+		log.Warnf("Could not publish one or more unmined transactions: %v", err)
 	}
 
 	// Populate tspends.
@@ -338,192 +535,8 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 	log.Tracef("TSpends in mempool: %v", len(tspends))
 
-	// Request notifications for mempool tspennd arrivals.
+	// Request notifications for mempool tspend arrivals.
 	err = s.rpc.Call(ctx, "notifytspend", nil)
-	if err != nil {
-		return err
-	}
-
-	// Fetch new headers and cfilters from the server.
-	locators, _, err := s.wallet.BlockLocators(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	cnet := s.wallet.ChainParams().Net
-	s.fetchHeadersStart()
-	for {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		headers, err := s.rpc.Headers(ctx, locators, &hashStop)
-		if err != nil {
-			return err
-		}
-		if len(headers) == 0 {
-			break
-		}
-
-		nodes := make([]*wallet.BlockNode, len(headers))
-		var g errgroup.Group
-		for i := range headers {
-			i := i
-			g.Go(func() error {
-				header := headers[i]
-				hash := header.BlockHash()
-				filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &hash)
-				if err != nil {
-					return err
-				}
-
-				err = validate.CFilterV2HeaderCommitment(cnet, header,
-					filter, proofIndex, proof)
-				if err != nil {
-					return err
-				}
-
-				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
-				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
-					nodes[i].BadCheckpoint()
-				}
-				return nil
-			})
-		}
-		err = g.Wait()
-		if err != nil {
-			return err
-		}
-
-		var added int
-		for _, n := range nodes {
-			haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, n.Hash)
-			if haveBlock {
-				continue
-			}
-			s.sidechainsMu.Lock()
-			if s.sidechains.AddBlockNode(n) {
-				added++
-			}
-			s.sidechainsMu.Unlock()
-		}
-
-		s.fetchHeadersProgress(int32(added), headers[len(headers)-1].Timestamp.Unix())
-
-		log.Infof("Fetched %d new header(s) ending at height %d from %s",
-			added, nodes[len(nodes)-1].Header.Height, client)
-
-		// Stop fetching headers when no new blocks are returned.
-		// Because getheaders did return located blocks, this indicates
-		// that the server is not as far synced as the wallet.  Blocks
-		// the server has not processed are not reorged out of the
-		// wallet at this time, but a reorg will switch to a better
-		// chain later if one is discovered.
-		if added == 0 {
-			break
-		}
-
-		s.sidechainsMu.Lock()
-		bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
-		s.sidechainsMu.Unlock()
-		if err != nil {
-			return err
-		}
-		if len(bestChain) == 0 {
-			continue
-		}
-
-		_, err = s.wallet.ValidateHeaderChainDifficulties(ctx, bestChain, 0)
-		if err != nil {
-			return err
-		}
-
-		s.sidechainsMu.Lock()
-		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
-		s.sidechainsMu.Unlock()
-		if err != nil {
-			return err
-		}
-
-		if len(prevChain) != 0 {
-			log.Infof("Reorganize from %v to %v (total %d block(s) reorged)",
-				prevChain[len(prevChain)-1].Hash, bestChain[len(bestChain)-1].Hash, len(prevChain))
-			s.sidechainsMu.Lock()
-			for _, n := range prevChain {
-				s.sidechains.AddBlockNode(n)
-			}
-			s.sidechainsMu.Unlock()
-		}
-		tip := bestChain[len(bestChain)-1]
-		if len(bestChain) == 1 {
-			log.Infof("Connected block %v, height %d", tip.Hash, tip.Header.Height)
-		} else {
-			log.Infof("Connected %d blocks, new tip block %v, height %d, date %v",
-				len(bestChain), tip.Hash, tip.Header.Height, tip.Header.Timestamp)
-		}
-
-		locators, _, err = s.wallet.BlockLocators(ctx, nil)
-		if err != nil {
-			return err
-		}
-	}
-	s.fetchHeadersFinished()
-
-	rescanPoint, err = s.wallet.RescanPoint(ctx)
-	if err != nil {
-		return err
-	}
-	if rescanPoint != nil {
-		s.mu.Lock()
-		discoverAccts := s.discoverAccts
-		s.mu.Unlock()
-		s.discoverAddressesStart()
-		err = s.wallet.DiscoverActiveAddresses(ctx, s.rpc, rescanPoint, discoverAccts, s.wallet.GapLimit())
-		if err != nil {
-			return err
-		}
-		s.discoverAddressesFinished()
-		s.mu.Lock()
-		s.discoverAccts = false
-		s.mu.Unlock()
-		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
-		if err != nil {
-			return err
-		}
-
-		s.rescanStart()
-		rescanBlock, err := s.wallet.BlockHeader(ctx, rescanPoint)
-		if err != nil {
-			return err
-		}
-		progress := make(chan wallet.RescanProgress, 1)
-		go s.wallet.RescanProgressFromHeight(ctx, s.rpc, int32(rescanBlock.Height), progress)
-
-		for p := range progress {
-			if p.Err != nil {
-				return p.Err
-			}
-			s.rescanProgress(p.ScannedThrough)
-		}
-		s.rescanFinished()
-
-	} else {
-		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
-		if err != nil {
-			return err
-		}
-	}
-	s.synced()
-
-	// Rebroadcast unmined transactions
-	err = s.wallet.PublishUnminedTransactions(ctx, s.rpc)
-	if err != nil {
-		// Returning this error would end and (likely) restart sync in
-		// an endless loop.  It's possible a transaction should be
-		// removed, but this is difficult to reliably detect over RPC.
-		log.Warnf("Could not publish one or more unmined transactions: %v", err)
-	}
-
-	err = s.rpc.Call(ctx, "rebroadcastwinners", nil)
 	if err != nil {
 		return err
 	}
@@ -608,6 +621,19 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 	header, relevant, err := dcrd.BlockConnected(params)
 	if err != nil {
 		return err
+	}
+
+	// Ensure the ancestor is in the main chain.  If it is not, this means
+	// we missed some blocks and should perform a new round of initial
+	// header sync.
+	if inMainChain, _, _ := s.wallet.BlockInMainChain(ctx, &header.PrevBlock); !inMainChain {
+		if !inMainChain {
+			log.Infof("Received header for block %s (height %d) when "+
+				"parent %s not in main chain. Re-requesting "+
+				"missing headers.", header.BlockHash(),
+				header.Height, header.PrevBlock)
+			return s.getHeaders(ctx)
+		}
 	}
 
 	blockHash := header.BlockHash()
