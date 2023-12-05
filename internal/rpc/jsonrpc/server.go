@@ -279,11 +279,11 @@ func throttledFn(threshold int64, f http.HandlerFunc) http.Handler {
 // throttled wraps an http.Handler with throttling of concurrent active
 // clients by responding with an HTTP 429 when the threshold is crossed.
 func throttled(threshold int64, h http.Handler) http.Handler {
-	var active int64
+	var active atomic.Int64
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		current := atomic.AddInt64(&active, 1)
-		defer atomic.AddInt64(&active, -1)
+		current := active.Add(1)
+		defer active.Add(-1)
 
 		if current-1 >= threshold {
 			log.Warnf("Reached threshold of %d concurrent active clients", threshold)

@@ -36,7 +36,7 @@ const reqSvcs = wire.SFNodeNetwork
 // protocol using Simplified Payment Verification (SPV) with compact filters.
 type Syncer struct {
 	// atomics
-	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced atomic.Uint32 // CAS (synced=1) when wallet syncing complete
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
@@ -149,7 +149,7 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	if atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 0, 1) &&
+	if s.atomicWalletSynced.CompareAndSwap(0, 1) &&
 		s.notifications != nil &&
 		s.notifications.Synced != nil {
 		s.notifications.Synced(true)
@@ -158,7 +158,7 @@ func (s *Syncer) synced() {
 
 // Synced returns whether this wallet is completely synced to the network.
 func (s *Syncer) Synced() bool {
-	return atomic.LoadUint32(&s.atomicWalletSynced) == 1
+	return s.atomicWalletSynced.Load() == 1
 }
 
 // EstimateMainChainTip returns an estimated height for the current tip of the

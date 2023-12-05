@@ -30,7 +30,7 @@ var requiredAPIVersion = semver{Major: 8, Minor: 0, Patch: 0}
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type Syncer struct {
-	atomicWalletSynced uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced atomic.Uint32 // CAS (synced=1) when wallet syncing complete
 
 	wallet   *wallet.Wallet
 	opts     *RPCOptions
@@ -105,7 +105,7 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	swapped := atomic.CompareAndSwapUint32(&s.atomicWalletSynced, 0, 1)
+	swapped := s.atomicWalletSynced.CompareAndSwap(0, 1)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(true)
 	}
@@ -558,7 +558,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 }
 
 type notifier struct {
-	atomicClosed     uint32
+	atomicClosed     atomic.Uint32
 	syncer           *Syncer
 	ctx              context.Context
 	closed           chan struct{}
@@ -603,7 +603,7 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 }
 
 func (n *notifier) Close() error {
-	if atomic.CompareAndSwapUint32(&n.atomicClosed, 0, 1) {
+	if n.atomicClosed.CompareAndSwap(0, 1) {
 		close(n.closed)
 	}
 	return nil

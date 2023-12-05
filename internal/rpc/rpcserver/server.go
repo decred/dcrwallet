@@ -179,7 +179,7 @@ type versionServer struct {
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
-	ready          uint32 // atomic
+	ready          atomic.Uint32
 	wallet         *wallet.Wallet
 	dialCSPPServer func(ctx context.Context, network, addr string) (net.Conn, error)
 	pb.UnimplementedWalletServiceServer
@@ -188,7 +188,7 @@ type walletServer struct {
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
-	ready     uint32 // atomic
+	ready     atomic.Uint32
 	loader    *loader.Loader
 	activeNet *netparams.Params
 	pb.UnimplementedWalletLoaderServiceServer
@@ -204,7 +204,7 @@ type seedServer struct {
 // accountMixerServer provides RPC clients with the ability to start/stop the
 // account mixing privacy service.
 type accountMixerServer struct {
-	ready  uint32 // atomic
+	ready  atomic.Uint32
 	loader *loader.Loader
 	pb.UnimplementedAccountMixerServiceServer
 }
@@ -212,19 +212,19 @@ type accountMixerServer struct {
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
 type ticketbuyerV2Server struct {
-	ready  uint32 // atomic
+	ready  atomic.Uint32
 	loader *loader.Loader
 	pb.UnimplementedTicketBuyerV2ServiceServer
 }
 
 type agendaServer struct {
-	ready     uint32 // atomic
+	ready     atomic.Uint32
 	activeNet *chaincfg.Params
 	pb.UnimplementedAgendaServiceServer
 }
 
 type votingServer struct {
-	ready  uint32 // atomic
+	ready  atomic.Uint32
 	wallet *wallet.Wallet
 	pb.UnimplementedVotingServiceServer
 }
@@ -244,7 +244,7 @@ type decodeMessageServer struct {
 // networkServer provices RPC clients with the ability to perform network
 // related calls that are not necessarily used or backed by the wallet itself.
 type networkServer struct {
-	ready  uint32 // atomic
+	ready  atomic.Uint32
 	wallet *wallet.Wallet
 	pb.UnimplementedNetworkServiceServer
 }
@@ -328,7 +328,7 @@ type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // StartWalletService starts the WalletService.
 func StartWalletService(server *grpc.Server, wallet *wallet.Wallet, dialCSPP dialFunc) {
-	if atomic.SwapUint32(&walletService.ready, 1) != 0 {
+	if walletService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 	walletService.wallet = wallet
@@ -336,7 +336,7 @@ func StartWalletService(server *grpc.Server, wallet *wallet.Wallet, dialCSPP dia
 }
 
 func (s *walletServer) checkReady() bool {
-	return atomic.LoadUint32(&s.ready) != 0
+	return s.ready.Load() != 0
 }
 
 // requireNetworkBackend checks whether the wallet has been associated with the
@@ -2565,19 +2565,19 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
 	loaderService.loader = loader
 	loaderService.activeNet = activeNet
-	if atomic.SwapUint32(&loaderService.ready, 1) != 0 {
+	if loaderService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
 
 func (s *loaderServer) checkReady() bool {
-	return atomic.LoadUint32(&s.ready) != 0
+	return s.ready.Load() != 0
 }
 
 // StartAccountMixerService starts the AccountMixerService.
 func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
 	accountMixerService.loader = loader
-	if atomic.SwapUint32(&accountMixerService.ready, 1) != 0 {
+	if accountMixerService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
@@ -2629,13 +2629,13 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 }
 
 func (t *accountMixerServer) checkReady() bool {
-	return atomic.LoadUint32(&t.ready) != 0
+	return t.ready.Load() != 0
 }
 
 // StartTicketBuyerV2Service starts the TicketBuyerV2Service.
 func StartTicketBuyerV2Service(server *grpc.Server, loader *loader.Loader) {
 	ticketBuyerV2Service.loader = loader
-	if atomic.SwapUint32(&ticketBuyerV2Service.ready, 1) != 0 {
+	if ticketBuyerV2Service.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
@@ -2792,7 +2792,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 }
 
 func (t *ticketbuyerV2Server) checkReady() bool {
-	return atomic.LoadUint32(&t.ready) != 0
+	return t.ready.Load() != 0
 }
 
 func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletRequest) (
@@ -3265,13 +3265,13 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 
 func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
 	agendaService.activeNet = activeNet
-	if atomic.SwapUint32(&agendaService.ready, 1) != 0 {
+	if agendaService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
 
 func (s *agendaServer) checkReady() bool {
-	return atomic.LoadUint32(&s.ready) != 0
+	return s.ready.Load() != 0
 }
 
 func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb.AgendasResponse, error) {
@@ -3307,13 +3307,13 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 // StartVotingService starts the VotingService.
 func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
 	votingService.wallet = wallet
-	if atomic.SwapUint32(&votingService.ready, 1) != 0 {
+	if votingService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
 
 func (s *votingServer) checkReady() bool {
-	return atomic.LoadUint32(&s.ready) != 0
+	return s.ready.Load() != 0
 }
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
@@ -3847,13 +3847,13 @@ func (s *walletServer) AbandonTransaction(ctx context.Context, req *pb.AbandonTr
 // StartNetworkService starts the NetworkService.
 func StartNetworkService(server *grpc.Server, wallet *wallet.Wallet) {
 	networkService.wallet = wallet
-	if atomic.SwapUint32(&networkService.ready, 1) != 0 {
+	if networkService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
 
 func (s *networkServer) checkReady() bool {
-	return atomic.LoadUint32(&s.ready) != 0
+	return s.ready.Load() != 0
 }
 
 func (s *networkServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequest) (*pb.GetRawBlockResponse, error) {

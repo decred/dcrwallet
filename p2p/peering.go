@@ -72,8 +72,7 @@ type blockRequest struct {
 // messages with the local peer.  RemotePeers must be created by dialing the
 // peer's address with a LocalPeer.
 type RemotePeer struct {
-	// atomics
-	atomicClosed uint64
+	atomicClosed atomic.Uint64
 
 	id         uint64
 	lp         *LocalPeer
@@ -126,10 +125,9 @@ type RemotePeer struct {
 // LocalPeer represents the local peer that can send and receive wire protocol
 // messages with remote peers on the network.
 type LocalPeer struct {
-	// atomics
-	atomicMask          uint64
-	atomicPeerIDCounter uint64
-	atomicRequireHeight int32
+	atomicMask          atomic.Uint64
+	atomicPeerIDCounter atomic.Uint64
+	atomicRequireHeight atomic.Int32
 
 	dial DialFunc
 
@@ -223,7 +221,7 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, c net.Conn) (*wire.MsgVersion, e
 // handshake.  Peers advertising below this height will error during the
 // handshake, and will not be marked as good peers in the address manager.
 func (lp *LocalPeer) RequirePeerHeight(requiredHeight int32) {
-	atomic.StoreInt32(&lp.atomicRequireHeight, requiredHeight)
+	lp.atomicRequireHeight.Store(requiredHeight)
 }
 
 // ConnectOutbound establishes a connection to a remote peer by their remote TCP
@@ -239,7 +237,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	defer cancel()
 
 	// Generate a unique ID for this peer and add the initial connection state.
-	id := atomic.AddUint64(&lp.atomicPeerIDCounter, 1)
+	id := lp.atomicPeerIDCounter.Add(1)
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
@@ -286,7 +284,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 
 	// Disconnect from the peer if its advertised last height is below our
 	// required minimum.
-	reqHeight := atomic.LoadInt32(&lp.atomicRequireHeight)
+	reqHeight := lp.atomicRequireHeight.Load()
 	if rp.initHeight < reqHeight {
 		op := errors.Opf(opf, rp.raddr)
 		err := errors.E(op, "peer is not synced")
@@ -688,7 +686,7 @@ var ErrDisconnected = errors.New("peer has been disconnected")
 // Disconnect closes the underlying TCP connection to a RemotePeer.  A nil
 // reason is replaced with ErrDisconnected.
 func (rp *RemotePeer) Disconnect(reason error) {
-	if !atomic.CompareAndSwapUint64(&rp.atomicClosed, 0, 1) {
+	if !rp.atomicClosed.CompareAndSwap(0, 1) {
 		// Already disconnected
 		return
 	}
@@ -829,9 +827,9 @@ const (
 // is concurrent-safe.
 func (lp *LocalPeer) AddHandledMessages(mask MessageMask) {
 	for {
-		p := atomic.LoadUint64(&lp.atomicMask)
+		p := lp.atomicMask.Load()
 		n := p | uint64(mask)
-		if atomic.CompareAndSwapUint64(&lp.atomicMask, p, n) {
+		if lp.atomicMask.CompareAndSwap(p, n) {
 			return
 		}
 	}
@@ -841,16 +839,16 @@ func (lp *LocalPeer) AddHandledMessages(mask MessageMask) {
 // operation is concurrent safe.
 func (lp *LocalPeer) RemoveHandledMessages(mask MessageMask) {
 	for {
-		p := atomic.LoadUint64(&lp.atomicMask)
+		p := lp.atomicMask.Load()
 		n := p &^ uint64(mask)
-		if atomic.CompareAndSwapUint64(&lp.atomicMask, p, n) {
+		if lp.atomicMask.CompareAndSwap(p, n) {
 			return
 		}
 	}
 }
 
 func (lp *LocalPeer) messageIsMasked(m MessageMask) bool {
-	return atomic.LoadUint64(&lp.atomicMask)&uint64(m) != 0
+	return lp.atomicMask.Load()&uint64(m) != 0
 }
 
 // ReceiveGetData waits for a getdata message from a remote peer, returning the

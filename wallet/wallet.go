@@ -101,7 +101,7 @@ type outpoint struct {
 type Wallet struct {
 	// disapprovePercent is an atomic. It sets the percentage of blocks to
 	// disapprove on simnet or testnet.
-	disapprovePercent uint32
+	disapprovePercent atomic.Uint32
 
 	// Data stores
 	db       walletdb.DB
@@ -201,13 +201,13 @@ type Config struct {
 
 // DisapprovePercent returns the wallet's block disapproval percentage.
 func (w *Wallet) DisapprovePercent() uint32 {
-	return atomic.LoadUint32(&w.disapprovePercent)
+	return w.disapprovePercent.Load()
 }
 
 // SetDisapprovePercent sets the wallet's block disapproval percentage. Do not
 // set on mainnet.
 func (w *Wallet) SetDisapprovePercent(percent uint32) {
-	atomic.StoreUint32(&w.disapprovePercent, percent)
+	w.disapprovePercent.Store(percent)
 }
 
 // FetchOutput fetches the associated transaction output given an outpoint.
