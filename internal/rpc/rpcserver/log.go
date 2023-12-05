@@ -42,7 +42,7 @@ func stripGrpcPrefix(logstr string) string {
 // stripGrpcPrefixArgs removes the package prefix from the first argument, if it
 // exists and is a string, returning the same arg slice after reassigning the
 // first arg.
-func stripGrpcPrefixArgs(args ...any) []any {
+func stripGrpcPrefixArgs(args []any) []any {
 	if len(args) == 0 {
 		return args
 	}
