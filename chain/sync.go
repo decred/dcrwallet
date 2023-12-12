@@ -623,17 +623,19 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 		return err
 	}
 
-	// Ensure the ancestor is in the main chain.  If it is not, this means
-	// we missed some blocks and should perform a new round of initial
-	// header sync.
-	if inMainChain, _, _ := s.wallet.BlockInMainChain(ctx, &header.PrevBlock); !inMainChain {
-		if !inMainChain {
-			log.Infof("Received header for block %s (height %d) when "+
-				"parent %s not in main chain. Re-requesting "+
-				"missing headers.", header.BlockHash(),
-				header.Height, header.PrevBlock)
-			return s.getHeaders(ctx)
-		}
+	// Ensure the ancestor is known to be in the main or in a side chain.
+	// If it is not, this means we missed some blocks and should perform a
+	// new round of initial header sync.
+	s.sidechainsMu.Lock()
+	prevInMainChain, _, _ := s.wallet.BlockInMainChain(ctx, &header.PrevBlock)
+	prevInSideChain := s.sidechains.HasSideChainBlock(&header.PrevBlock)
+	s.sidechainsMu.Unlock()
+	if !(prevInMainChain || prevInSideChain) {
+		log.Infof("Received header for block %s (height %d) when "+
+			"parent %s not in main or side chain. Re-requesting "+
+			"missing headers.", header.BlockHash(),
+			header.Height, header.PrevBlock)
+		return s.getHeaders(ctx)
 	}
 
 	blockHash := header.BlockHash()
