@@ -184,7 +184,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 			return err
 		}
 		_, tipHeight := a.w.txStore.MainChainTip(dbtx)
-		storage := make([]*udb.BlockCFilter, tipHeight-int32(h.Height))
+		storage := make([]*udb.BlockCFilter, tipHeight-int32(h.Height)+1)
 		fs, err = a.w.txStore.GetMainChainCFilters(dbtx, start, true, storage)
 		return err
 	})
