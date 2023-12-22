@@ -156,24 +156,33 @@ func (s *Syncer) synced() {
 	}
 }
 
-// Synced returns whether this wallet is completely synced to the network.
-func (s *Syncer) Synced() bool {
-	return s.atomicWalletSynced.Load() == 1
+// unsynced checks the atomic that controls wallet syncness and if previously
+// synced, updates to unsynced and notifies the callback, if set.
+func (s *Syncer) unsynced() {
+	if s.atomicWalletSynced.CompareAndSwap(1, 0) &&
+		s.notifications != nil &&
+		s.notifications.Synced != nil {
+		s.notifications.Synced(false)
+	}
 }
 
-// EstimateMainChainTip returns an estimated height for the current tip of the
-// blockchain. The estimate is made by comparing the initial height reported by
-// all connected peers and the wallet's current tip. The highest of these values
-// is estimated to be the mainchain's tip height.
-func (s *Syncer) EstimateMainChainTip(ctx context.Context) int32 {
-	_, chainTip := s.wallet.MainChainTip(ctx)
-	s.forRemotes(func(rp *p2p.RemotePeer) error {
-		if rp.InitialHeight() > chainTip {
-			chainTip = rp.InitialHeight()
-		}
-		return nil
-	})
-	return chainTip
+// Synced returns whether this wallet is completely synced to the network and
+// the target height it is attempting to sync to.
+func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
+	synced := s.atomicWalletSynced.Load() == 1
+	var targetHeight int32
+	if !synced {
+		s.forRemotes(func(rp *p2p.RemotePeer) error {
+			if rp.InitialHeight() > targetHeight {
+				targetHeight = rp.InitialHeight()
+			}
+			return nil
+		})
+	} else {
+		_, targetHeight = s.wallet.MainChainTip(ctx)
+	}
+
+	return synced, targetHeight
 }
 
 // GetRemotePeers returns a map of connected remote peers.
@@ -468,6 +477,9 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string) {
 		n = len(s.remotes)
 		s.remotesMu.Unlock()
 		s.peerDisconnected(n, raddr)
+		if n == 0 {
+			s.unsynced()
+		}
 	}()
 
 	// Perform peer startup.
@@ -1611,7 +1623,7 @@ func (s *Syncer) peerStartup(ctx context.Context, rp *p2p.RemotePeer) error {
 	// If the initial sync process has already completed, then immediately
 	// request any new headers from the peer at the end of the peer setup
 	// process.
-	requestHeaders := s.Synced()
+	requestHeaders := s.atomicWalletSynced.Load() == 1
 
 	// Only continue with peer startup after the initial sync process
 	// has completed.

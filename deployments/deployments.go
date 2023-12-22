@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"github.com/decred/dcrd/chaincfg/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/wire"
@@ -78,12 +77,20 @@ const (
 	activeStatus   = dcrdtypes.AgendaInfoStatusActive
 )
 
+// Querier defines the interface for a chain backend that can (trustfully)
+// query for agenda deployment information.
+type Querier interface {
+	// Deployments should return information about existing agendas,
+	// including their deployment status.
+	Deployments(context.Context) (map[string]dcrdtypes.AgendaInfo, error)
+}
+
 // DCP0010Active returns whether the consensus rules for the next block with the
 // current chain tip height requires the subsidy split as specified in DCP0010.
 // DCP0010 is always active on simnet, and requires the RPC syncer to detect
 // activation on mainnet and testnet3.
 func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
-	syncer any) (bool, error) {
+	querier Querier) (bool, error) {
 
 	net := params.Net
 	rcai := int32(params.RuleChangeActivationInterval)
@@ -94,16 +101,14 @@ func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
 	if net != wire.MainNet && net != wire.TestNet3 {
 		return false, nil
 	}
-	rpc, ok := syncer.(*dcrd.RPC)
-	if !ok {
+	if querier == nil {
 		return false, errors.E(errors.Bug, "DCP0010 activation check requires RPC syncer")
 	}
-	var resp dcrdtypes.GetBlockChainInfoResult
-	err := rpc.Call(ctx, "getblockchaininfo", &resp)
+	deployments, err := querier.Deployments(ctx)
 	if err != nil {
 		return false, err
 	}
-	d, ok := resp.Deployments[chaincfg.VoteIDChangeSubsidySplit]
+	d, ok := deployments[chaincfg.VoteIDChangeSubsidySplit]
 	if !ok {
 		return false, nil
 	}
@@ -122,7 +127,7 @@ func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
 // DCP0012.  DCP0012 requires the RPC syncer to detect activation on mainnet,
 // testnet3 and simnet.
 func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
-	syncer any) (bool, error) {
+	querier Querier) (bool, error) {
 
 	net := params.Net
 	rcai := int32(params.RuleChangeActivationInterval)
@@ -130,16 +135,14 @@ func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
 	if net != wire.MainNet && net != wire.TestNet3 && net != wire.SimNet {
 		return false, nil
 	}
-	rpc, ok := syncer.(*dcrd.RPC)
-	if !ok {
+	if querier == nil {
 		return false, errors.E(errors.Bug, "DCP0012 activation check requires RPC syncer")
 	}
-	var resp dcrdtypes.GetBlockChainInfoResult
-	err := rpc.Call(ctx, "getblockchaininfo", &resp)
+	deployments, err := querier.Deployments(ctx)
 	if err != nil {
 		return false, err
 	}
-	d, ok := resp.Deployments[chaincfg.VoteIDChangeSubsidySplitR2]
+	d, ok := deployments[chaincfg.VoteIDChangeSubsidySplitR2]
 	if !ok {
 		return false, nil
 	}

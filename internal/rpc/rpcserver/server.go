@@ -38,7 +38,6 @@ import (
 	"decred.org/dcrwallet/v4/internal/netparams"
 	"decred.org/dcrwallet/v4/internal/vsp"
 	"decred.org/dcrwallet/v4/p2p"
-	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	pb "decred.org/dcrwallet/v4/rpc/walletrpc"
 	"decred.org/dcrwallet/v4/spv"
 	"decred.org/dcrwallet/v4/ticketbuyer"
@@ -874,15 +873,11 @@ func (s *walletServer) TicketPrice(ctx context.Context, req *pb.TicketPriceReque
 }
 
 func (s *walletServer) StakeInfo(ctx context.Context, req *pb.StakeInfoRequest) (*pb.StakeInfoResponse, error) {
-	var rpc *dcrd.RPC
 	n, _ := s.wallet.NetworkBackend()
-	if client, ok := n.(*dcrd.RPC); ok {
-		rpc = client
-	}
 	var si *wallet.StakeInfoData
 	var err error
-	if rpc != nil {
-		si, err = s.wallet.StakeInfoPrecise(ctx, rpc)
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
+		si, err = s.wallet.StakeInfoPrecise(ctx, chainSyncer.RPC())
 	} else {
 		si, err = s.wallet.StakeInfo(ctx)
 	}
@@ -1440,13 +1435,13 @@ func (s *walletServer) GetTicket(ctx context.Context, req *pb.GetTicketRequest) 
 	// the consensus rpc client.  This is fine since the chain client is
 	// optional.
 	n, _ := s.wallet.NetworkBackend()
-	rpc, _ := n.(*dcrd.RPC)
 
 	var ticketSummary *wallet.TicketSummary
 	var blockHeader *wire.BlockHeader
-	if rpc == nil {
+	if chainSyncer, ok := n.(*chain.Syncer); !ok {
 		ticketSummary, blockHeader, err = s.wallet.GetTicketInfo(ctx, ticketHash)
 	} else {
+		rpc := chainSyncer.RPC()
 		ticketSummary, blockHeader, err =
 			s.wallet.GetTicketInfoPrecise(ctx, rpc, ticketHash)
 	}
@@ -1516,8 +1511,8 @@ func (s *walletServer) GetTickets(req *pb.GetTicketsRequest,
 		}
 	}
 	n, _ := s.wallet.NetworkBackend()
-	if rpc, ok := n.(*dcrd.RPC); ok {
-		err = s.wallet.GetTicketsPrecise(ctx, rpc, rangeFn, startBlock, endBlock)
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
+		err = s.wallet.GetTicketsPrecise(ctx, chainSyncer.RPC(), rangeFn, startBlock, endBlock)
 	} else {
 		err = s.wallet.GetTickets(ctx, rangeFn, startBlock, endBlock)
 	}
@@ -4048,8 +4043,8 @@ func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoReque
 			StartingHeight int64  `json:"startingheight"`
 			BanScore       int32  `json:"banscore"`
 		}
-		if rpc, ok := n.(*dcrd.RPC); ok {
-			err := rpc.Call(ctx, "getpeerinfo", &resp)
+		if chainSyncer, ok := n.(*chain.Syncer); ok {
+			err := chainSyncer.RPC().Call(ctx, "getpeerinfo", &resp)
 			if err != nil {
 				return nil, err
 			}

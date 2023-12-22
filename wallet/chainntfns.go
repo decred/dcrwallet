@@ -829,13 +829,17 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	if err != nil {
 		return errors.E(op, err)
 	}
+	dq, ok := n.(deployments.Querier)
+	if !ok {
+		return errors.E(op, "network backend does not provide deployment information")
+	}
 	dcp0010Active, err := deployments.DCP0010Active(ctx, blockHeight,
-		w.chainParams, n)
+		w.chainParams, dq)
 	if err != nil {
 		return errors.E(op, err)
 	}
 	dcp0012Active, err := deployments.DCP0012Active(ctx, blockHeight,
-		w.chainParams, n)
+		w.chainParams, dq)
 	if err != nil {
 		return errors.E(op, err)
 	}

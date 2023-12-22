@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
+	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/bitset"
@@ -392,6 +393,51 @@ func (r *RPC) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
 		return 0, errors.E(op, err)
 	}
 	return sdiff, nil
+}
+
+// GetBlockchainInfo returns information about the underlying dcrd node.
+func (r *RPC) GetBlockchainInfo(ctx context.Context) (*dcrdtypes.GetBlockChainInfoResult, error) {
+	const op errors.Op = "dcrd.GetBlockchainInfo"
+
+	var chainInfo *dcrdtypes.GetBlockChainInfoResult
+	err := r.Call(ctx, "getblockchaininfo", &chainInfo)
+	if err != nil {
+		return nil, err
+	}
+	return chainInfo, nil
+}
+
+// GetTxOut returns information about a transaction output as of the current
+// mainchain tip of the underlying node.
+//
+// NOTE: this returns a nil value with nil error if the output is not known or
+// has already been spent.
+func (r *RPC) GetTxOut(ctx context.Context, txHash *chainhash.Hash, index uint32, tree int8, includeMempool bool) (*dcrdtypes.GetTxOutResult, error) {
+	const op errors.Op = "dcrd.GetTxOut"
+
+	var txOut *dcrdtypes.GetTxOutResult
+	err := r.Call(ctx, "gettxout", &txOut, txHash.String(), index, tree, includeMempool)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return txOut, nil
+}
+
+// GetConfirmationHeight returns the block height of a transaction that has
+// been mined in the mainchain of the underlying node.
+//
+// NOTE: this requires the node to be running with the transaction index
+// enabled, otherwise it will error.
+func (r *RPC) GetConfirmationHeight(ctx context.Context, txHash *chainhash.Hash) (int32, error) {
+	const op errors.Op = "dcrd.GetRawTransaction"
+	var grt struct {
+		BlockHeight int32 `json:"blockheight"`
+	}
+	err := r.Call(ctx, "getrawtransaction", &grt, txHash.String(), 1)
+	if err != nil {
+		return -1, errors.E(op, err)
+	}
+	return grt.BlockHeight, nil
 }
 
 // String returns a string representation of the caller (if it exists).

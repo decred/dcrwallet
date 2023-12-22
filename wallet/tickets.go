@@ -8,18 +8,35 @@ import (
 	"context"
 
 	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
 
+// LiveTicketQuerier defines the functions required of a (trusted) network
+// backend that provides information about the live ticket pool.
+type LiveTicketQuerier interface {
+	//  May be removed if/when there is a header commitment to the utxo
+	//  set.
+	GetTxOut(ctx context.Context, txHash *chainhash.Hash, index uint32, tree int8, includeMempool bool) (*dcrdtypes.GetTxOutResult, error)
+
+	// GetConfirmationHeight relies on the transaction index being enabled
+	// on the backing dcrd node.
+	GetConfirmationHeight(ctx context.Context, txHash *chainhash.Hash) (int32, error)
+
+	// ExistsLiveTickets relies on the node having the entire live ticket
+	// pool available. May be removed if/when there is a header commitment
+	// to the live ticket pool.
+	ExistsLiveTickets(ctx context.Context, tickets []*chainhash.Hash) (bitset.Bytes, error)
+}
+
 // LiveTicketHashes returns the hashes of live tickets that the wallet has
-// purchased or has voting authority for. rpcCaller can be nil if this is an
+// purchased or has voting authority for. rpc can be nil if this is an
 // SPV wallet.
-func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, includeImmature bool) ([]chainhash.Hash, error) {
+func (w *Wallet) LiveTicketHashes(ctx context.Context, rpc LiveTicketQuerier, includeImmature bool) ([]chainhash.Hash, error) {
 	const op errors.Op = "wallet.LiveTicketHashes"
 
 	var ticketHashes []chainhash.Hash
@@ -77,7 +94,7 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 	}
 
 	// SPV wallet can't evaluate extraTickets.
-	if rpcCaller == nil {
+	if rpc == nil {
 		return ticketHashes, nil
 	}
 
@@ -96,21 +113,17 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 		g.Go(func() error {
 			// gettxout is used first as an optimization to check that output 0
 			// of the ticket is unspent.
-			var txOut *dcrdtypes.GetTxOutResult
 			const index = 0
 			const tree = 1
-			err := rpcCaller.Call(ctx, "gettxout", &txOut, extraTickets[i].String(), index, tree)
+			txOut, err := rpc.GetTxOut(ctx, &extraTickets[i], index, tree, true)
 			if err != nil || txOut == nil {
 				return nil
 			}
-			var grt struct {
-				BlockHeight int32 `json:"blockheight"`
-			}
-			err = rpcCaller.Call(ctx, "getrawtransaction", &grt, extraTickets[i].String(), 1)
+			blockHeight, err := rpc.GetConfirmationHeight(ctx, &extraTickets[i])
 			if err != nil {
 				return nil
 			}
-			extraTicketResults[i] = extraTicketResult{true, grt.BlockHeight}
+			extraTicketResults[i] = extraTicketResult{true, blockHeight}
 			return nil
 		})
 	}
@@ -143,7 +156,6 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 	}
 
 	// Use RPC to query which of the possibly-live tickets are really live.
-	rpc := dcrd.New(rpcCaller)
 	live, err := rpc.ExistsLiveTickets(ctx, maybeLive)
 	if err != nil {
 		return nil, errors.E(op, err)

@@ -28,22 +28,13 @@ type FilterProof = struct {
 	Proof      []chainhash.Hash
 }
 
-// Peer provides wallets with a subset of Decred network functionality available
-// to a single peer.
-type Peer interface {
-	Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
-	CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error)
-	PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
-}
-
 // NetworkBackend provides wallets with Decred network functionality.  Some
 // wallet operations require the wallet to be associated with a network backend
 // to complete.
-//
-// NetworkBackend expands on the Peer interface to provide additional
-// functionality for rescanning and filtering.
 type NetworkBackend interface {
-	Peer
+	Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
+	CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error)
+	PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
 	LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error
 	Rescan(ctx context.Context, blocks []chainhash.Hash, save func(block *chainhash.Hash, txs []*wire.MsgTx) error) error
 
@@ -51,6 +42,11 @@ type NetworkBackend interface {
 	// error.  Use Wallet.NextStakeDifficulty to calculate the next ticket price
 	// when the DCP0001 deployment is known to be active.
 	StakeDifficulty(ctx context.Context) (dcrutil.Amount, error)
+
+	// Synced returns whether the backend considers that it has synced
+	// the wallet to the underlying network, and if not, it returns the
+	// target height that it is attempting to sync to.
+	Synced(ctx context.Context) (bool, int32)
 }
 
 // NetworkBackend returns the currently associated network backend of the

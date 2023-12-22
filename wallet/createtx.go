@@ -19,7 +19,6 @@ import (
 	"decred.org/dcrwallet/v4/deployments"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/uniformprng"
-	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/wallet/txauthor"
 	"decred.org/dcrwallet/v4/wallet/txrules"
 	"decred.org/dcrwallet/v4/wallet/txsizes"
@@ -1405,7 +1404,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		dcp0010Active := true
 		dcp0012Active := true
 		switch n := n.(type) {
-		case *dcrd.RPC:
+		case deployments.Querier:
 			dcp0010Active, err = deployments.DCP0010Active(ctx,
 				tipHeight, w.chainParams, n)
 			if err != nil {

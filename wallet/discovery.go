@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/validate"
 	"decred.org/dcrwallet/v4/wallet/udb"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
@@ -19,9 +18,18 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	hd "github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
+	"github.com/jrick/bitset"
 	"golang.org/x/sync/errgroup"
 )
+
+// usedAddressesQuerier defines the functions needed of a (trusted) network
+// backend that provides a query into which addresses have been used in the
+// chain.
+type usedAddressesQuerier interface {
+	UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error)
+}
 
 // blockCommitmentCache records exact output scripts committed by block filters,
 // keyed by block hash, to check for GCS false positives.
@@ -59,7 +67,7 @@ func blockCommitments(block *wire.MsgBlock) map[string]struct{} {
 	return c
 }
 
-func cacheMissingCommitments(ctx context.Context, p Peer, cache blockCommitmentCache, include []*chainhash.Hash) error {
+func cacheMissingCommitments(ctx context.Context, n NetworkBackend, cache blockCommitmentCache, include []*chainhash.Hash) error {
 	for i := 0; i < len(include); i += wire.MaxBlocksPerMsg {
 		include := include[i:]
 		if len(include) > wire.MaxBlocksPerMsg {
@@ -75,7 +83,7 @@ func cacheMissingCommitments(ctx context.Context, p Peer, cache blockCommitmentC
 		if len(fetchBlocks) == 0 {
 			return nil
 		}
-		blocks, err := p.Blocks(ctx, fetchBlocks)
+		blocks, err := n.Blocks(ctx, fetchBlocks)
 		if err != nil {
 			return err
 		}
@@ -175,7 +183,7 @@ func newAddrFinder(ctx context.Context, w *Wallet, gapLimit uint32) (*addrFinder
 	return a, err
 }
 
-func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) error {
+func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, n NetworkBackend) error {
 	// Load main chain cfilters beginning with start.
 	var fs []*udb.BlockCFilter
 	err := walletdb.View(ctx, a.w.db, func(dbtx walletdb.ReadTx) error {
@@ -240,7 +248,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 		}
 
 		// Record committed scripts of matching filters.
-		err := a.filter(ctx, fs, data, p)
+		err := a.filter(ctx, fs, data, n)
 		if err != nil {
 			return err
 		}
@@ -307,7 +315,7 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, p Peer) er
 	}
 }
 
-func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data blockcf2.Entries, p Peer) error {
+func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data blockcf2.Entries, n NetworkBackend) error {
 	g, ctx := errgroup.WithContext(ctx)
 	for i := 0; i < len(fs); i += wire.MaxBlocksPerMsg {
 		fs := fs[i:]
@@ -333,7 +341,7 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 			if len(fetch) == 0 {
 				return nil
 			}
-			blocks, err := p.Blocks(ctx, fetch)
+			blocks, err := n.Blocks(ctx, fetch)
 			if err != nil {
 				return err
 			}
@@ -419,7 +427,7 @@ func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, d
 	return matches, ctx.Err()
 }
 
-func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blockCommitmentCache, coinTypeXpriv *hd.ExtendedKey, gapLimit uint32) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(ctx context.Context, n NetworkBackend, blockCache blockCommitmentCache, coinTypeXpriv *hd.ExtendedKey, gapLimit uint32) (uint32, error) {
 	var (
 		acctGapLimit = uint32(w.accountGapLimit)
 		addrScripts  = make([][]byte, 0, acctGapLimit*gapLimit*2*2)
@@ -470,7 +478,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 
 		// Fetch blocks that have not been fetched yet, and reduce them to a set
 		// of output script commitments.
-		err = cacheMissingCommitments(ctx, p, blockCache, searchBlocks)
+		err = cacheMissingCommitments(ctx, n, blockCache, searchBlocks)
 		if err != nil {
 			return 0, err
 		}
@@ -537,7 +545,7 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, p Peer, blockCache blo
 // exists address index of a trusted dcrd RPC server.
 type existsAddrIndexFinder struct {
 	wallet   *Wallet
-	rpc      *dcrd.RPC
+	rpc      usedAddressesQuerier
 	gapLimit uint32
 }
 
@@ -703,15 +711,6 @@ func (f *existsAddrIndexFinder) find(ctx context.Context, finder *addrFinder) er
 	return g.Wait()
 }
 
-func rpcFromPeer(p Peer) (*dcrd.RPC, bool) {
-	switch p := p.(type) {
-	case Caller:
-		return dcrd.New(p), true
-	default:
-		return nil, false
-	}
-}
-
 // DiscoverActiveAddresses searches for future wallet address usage in all
 // blocks starting from startBlock.  If discoverAccts is true, used accounts
 // will be discovered as well.  This feature requires the wallet to be unlocked
@@ -721,7 +720,7 @@ func rpcFromPeer(p Peer) (*dcrd.RPC, bool) {
 // usage is observed and coin type upgrades are not disabled, the wallet will be
 // upgraded to the SLIP0044 coin type and the address discovery will occur
 // again.
-func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock *chainhash.Hash, discoverAccts bool, gapLimit uint32) error {
+func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, startBlock *chainhash.Hash, discoverAccts bool, gapLimit uint32) error {
 	const op errors.Op = "wallet.DiscoverActiveAddresses"
 	_, slip0044CoinType := udb.CoinTypes(w.chainParams)
 	var activeCoinType uint32
@@ -770,12 +769,12 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 			return errors.E(op, err)
 		}
 		var lastUsed uint32
-		rpc, ok := rpcFromPeer(p)
+		rpc, ok := n.(usedAddressesQuerier)
 		if ok {
 			f := existsAddrIndexFinder{w, rpc, gapLimit}
 			lastUsed, err = f.findLastUsedAccount(ctx, coinTypePrivKey)
 		} else {
-			lastUsed, err = w.findLastUsedAccount(ctx, p, blockAddresses, coinTypePrivKey, gapLimit)
+			lastUsed, err = w.findLastUsedAccount(ctx, n, blockAddresses, coinTypePrivKey, gapLimit)
 		}
 		if err != nil {
 			return errors.E(op, err)
@@ -836,12 +835,12 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	}
 	log.Infof("Discovering used addresses for %d account(s)", len(finder.usage))
 	lastUsed := append([]accountUsage(nil), finder.usage...)
-	rpc, ok := rpcFromPeer(p)
+	rpc, ok := n.(usedAddressesQuerier)
 	if ok {
 		f := existsAddrIndexFinder{w, rpc, gapLimit}
 		err = f.find(ctx, finder)
 	} else {
-		err = finder.find(ctx, startBlock, p)
+		err = finder.find(ctx, startBlock, n)
 	}
 	if err != nil {
 		return errors.E(op, err)
@@ -990,5 +989,5 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, p Peer, startBlock
 	log.Infof("Upgraded coin type.")
 
 	// Perform address discovery a second time using the upgraded coin type.
-	return w.DiscoverActiveAddresses(ctx, p, startBlock, discoverAccts, gapLimit)
+	return w.DiscoverActiveAddresses(ctx, n, startBlock, discoverAccts, gapLimit)
 }

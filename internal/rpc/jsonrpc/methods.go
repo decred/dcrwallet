@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"decred.org/dcrwallet/v4/chain"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/loader"
 	"decred.org/dcrwallet/v4/internal/vsp"
@@ -236,7 +237,7 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 			if !ok {
 				return nil, errRPCClientNotConnected
 			}
-			rpc, ok := n.(*dcrd.RPC)
+			chainSyncer, ok := n.(*chain.Syncer)
 			if !ok {
 				return nil, rpcErrorf(dcrjson.ErrRPCClientNotConnected, "RPC passthrough requires dcrd RPC synchronization")
 			}
@@ -245,7 +246,7 @@ func lazyApplyHandler(s *Server, ctx context.Context, request *dcrjson.Request) 
 			for i := range request.Params {
 				params[i] = request.Params[i]
 			}
-			err := rpc.Call(ctx, request.Method, &resp, params...)
+			err := chainSyncer.RPC().Call(ctx, request.Method, &resp, params...)
 			if ctx.Err() != nil {
 				log.Warnf("Canceled RPC method %v invoked by %v: %v", request.Method, remoteAddr(ctx), err)
 				return nil, &dcrjson.RPCError{
@@ -1209,9 +1210,9 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
 		var resp json.RawMessage
-		err := rpc.Call(ctx, "getblockheader", &resp, cmd.Hash, cmd.Verbose)
+		err := chainSyncer.RPC().Call(ctx, "getblockheader", &resp, cmd.Hash, cmd.Verbose)
 		return resp, err
 	}
 
@@ -1329,9 +1330,9 @@ func (s *Server) getBlock(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// Attempt RPC passthrough if connected to DCRD.
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
 		var resp json.RawMessage
-		err := rpc.Call(ctx, "getblock", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
+		err := chainSyncer.RPC().Call(ctx, "getblock", &resp, cmd.Hash, cmd.Verbose, cmd.VerboseTx)
 		return resp, err
 	}
 
@@ -1724,21 +1725,7 @@ func (s *Server) syncStatus(ctx context.Context, icmd any) (any, error) {
 	_24HoursAgo := time.Now().UTC().Add(-24 * time.Hour).Unix()
 	walletBestBlockTooOld := bestBlock.Timestamp < _24HoursAgo
 
-	var synced bool
-	var targetHeight int32
-
-	if syncer, ok := n.(*spv.Syncer); ok {
-		synced = syncer.Synced()
-		targetHeight = syncer.EstimateMainChainTip(ctx)
-	} else if rpc, ok := n.(*dcrd.RPC); ok {
-		var chainInfo *dcrdtypes.GetBlockChainInfoResult
-		err := rpc.Call(ctx, "getblockchaininfo", &chainInfo)
-		if err != nil {
-			return nil, err
-		}
-		synced = chainInfo.Headers == int64(walletBestHeight)
-		targetHeight = int32(chainInfo.Headers)
-	}
+	synced, targetHeight := n.Synced(ctx)
 
 	var headersFetchProgress float32
 	blocksToFetch := targetHeight - walletBestHeight
@@ -1804,9 +1791,9 @@ func (s *Server) getInfo(ctx context.Context, icmd any) (any, error) {
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
 		var consensusInfo dcrdtypes.InfoChainResult
-		err := rpc.Call(ctx, "getinfo", &consensusInfo)
+		err := chainSyncer.RPC().Call(ctx, "getinfo", &consensusInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -2467,8 +2454,8 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd any) (any, error) {
 	syncer, ok := n.(*spv.Syncer)
 	if !ok {
 		var resp []*types.GetPeerInfoResult
-		if rpc, ok := n.(*dcrd.RPC); ok {
-			err := rpc.Call(ctx, "getpeerinfo", &resp)
+		if chainSyncer, ok := n.(*chain.Syncer); ok {
+			err := chainSyncer.RPC().Call(ctx, "getpeerinfo", &resp)
 			if err != nil {
 				return nil, err
 			}
@@ -2506,15 +2493,11 @@ func (s *Server) getStakeInfo(ctx context.Context, icmd any) (any, error) {
 		return nil, errUnloadedWallet
 	}
 
-	var rpc *dcrd.RPC
 	n, _ := s.walletLoader.NetworkBackend()
-	if client, ok := n.(*dcrd.RPC); ok {
-		rpc = client
-	}
 	var sinfo *wallet.StakeInfoData
 	var err error
-	if rpc != nil {
-		sinfo, err = w.StakeInfoPrecise(ctx, rpc)
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
+		sinfo, err = w.StakeInfoPrecise(ctx, chainSyncer.RPC())
 	} else {
 		sinfo, err = w.StakeInfo(ctx)
 	}
@@ -2564,7 +2547,7 @@ func (s *Server) getTickets(ctx context.Context, icmd any) (any, error) {
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	rpc, _ := n.(*dcrd.RPC) // nil rpc indicates SPV to LiveTicketHashes
+	rpc, _ := n.(wallet.LiveTicketQuerier) // nil rpc indicates SPV to LiveTicketHashes
 
 	ticketHashes, err := w.LiveTicketHashes(ctx, rpc, cmd.IncludeImmature)
 	if err != nil {
@@ -2692,9 +2675,9 @@ func (s *Server) getTxOut(ctx context.Context, icmd any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
 		var resp json.RawMessage
-		err := rpc.Call(ctx, "gettxout", &resp, cmd.Txid, cmd.Vout, cmd.Tree, cmd.IncludeMempool)
+		err := chainSyncer.RPC().Call(ctx, "gettxout", &resp, cmd.Txid, cmd.Vout, cmd.Tree, cmd.IncludeMempool)
 		return resp, err
 	}
 
@@ -2846,8 +2829,8 @@ func (s *Server) help(ctx context.Context, icmd any) (any, error) {
 	// requests in the help, which are not callable by wallet JSON-RPC clients.
 	var rpc *dcrd.RPC
 	n, _ := s.walletLoader.NetworkBackend()
-	if client, ok := n.(*dcrd.RPC); ok {
-		rpc = client
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
+		rpc = chainSyncer.RPC()
 	}
 	if cmd.Command == nil || *cmd.Command == "" {
 		// Prepend chain server usage if it is available.
@@ -4843,7 +4826,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd any) (any, error) 
 	var requestedMu sync.Mutex
 	requestedGroup, gctx := errgroup.WithContext(ctx)
 	n, _ := s.walletLoader.NetworkBackend()
-	if rpc, ok := n.(*dcrd.RPC); ok {
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
 		for i, txIn := range tx.TxIn {
 			// We don't need the first input of a stakebase tx, as it's garbage
 			// anyway.
@@ -4859,15 +4842,12 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd any) (any, error) 
 			// Asynchronously request the output script.
 			txIn := txIn
 			requestedGroup.Go(func() error {
-				hash := txIn.PreviousOutPoint.Hash.String()
+				hash := &txIn.PreviousOutPoint.Hash
 				index := txIn.PreviousOutPoint.Index
 				tree := txIn.PreviousOutPoint.Tree
-				// gettxout returns null without error if the output exists
-				// but is spent.  A double pointer is used to handle this case.
-				var res *dcrdtypes.GetTxOutResult
-				err := rpc.Call(gctx, "gettxout", &res, hash, index, tree, true)
+				res, err := chainSyncer.GetTxOut(gctx, hash, index, tree, true)
 				if err != nil {
-					return errors.E(errors.Op("dcrd.jsonrpc.gettxout"), err)
+					return err
 				}
 				requestedMu.Lock()
 				requested[txIn.PreviousOutPoint] = res
@@ -5286,8 +5266,8 @@ func (s *Server) verifyMessage(ctx context.Context, icmd any) (any, error) {
 func (s *Server) version(ctx context.Context, icmd any) (any, error) {
 	resp := make(map[string]dcrdtypes.VersionResult)
 	n, _ := s.walletLoader.NetworkBackend()
-	if rpc, ok := n.(*dcrd.RPC); ok {
-		err := rpc.Call(ctx, "version", &resp)
+	if chainSyncer, ok := n.(*chain.Syncer); ok {
+		err := chainSyncer.RPC().Call(ctx, "version", &resp)
 		if err != nil {
 			return nil, err
 		}
@@ -5312,12 +5292,12 @@ func (s *Server) walletInfo(ctx context.Context, icmd any) (any, error) {
 	}
 
 	var connected, spvMode bool
-	switch n, _ := w.NetworkBackend(); rpc := n.(type) {
+	switch n, _ := w.NetworkBackend(); syncer := n.(type) {
 	case *spv.Syncer:
 		spvMode = true
-		connected = len(rpc.GetRemotePeers()) > 0
-	case *dcrd.RPC:
-		err := rpc.Call(ctx, "ping", nil)
+		connected = len(syncer.GetRemotePeers()) > 0
+	case *chain.Syncer:
+		err := syncer.RPC().Call(ctx, "ping", nil)
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}

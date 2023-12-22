@@ -32,3 +32,4 @@ func (mockNetwork) Rescan(ctx context.Context, blocks []chainhash.Hash, save fun
 	return nil
 }
 func (mockNetwork) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) { return 0, nil }
+func (mockNetwork) Synced(ctx context.Context) (bool, int32)                    { return false, 0 }

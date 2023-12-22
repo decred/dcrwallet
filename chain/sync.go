@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020 The Decred developers
+// Copyright (c) 2017-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -30,7 +30,8 @@ var requiredAPIVersion = semver{Major: 8, Minor: 0, Patch: 0}
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type Syncer struct {
-	atomicWalletSynced atomic.Uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced     atomic.Uint32 // CAS (synced=1) when wallet syncing complete
+	atomicTargetSyncHeight atomic.Int32
 
 	wallet   *wallet.Wallet
 	opts     *RPCOptions
@@ -94,6 +95,11 @@ func (s *Syncer) SetCallbacks(cb *Callbacks) {
 	s.cb = cb
 }
 
+// RPC returns the JSON-RPC client to the underlying dcrd node.
+func (s *Syncer) RPC() *dcrd.RPC {
+	return s.rpc
+}
+
 // DisableDiscoverAccounts disables account discovery. This has an effect only
 // if called before the main Run() executes the account discovery process.
 func (s *Syncer) DisableDiscoverAccounts() {
@@ -102,12 +108,34 @@ func (s *Syncer) DisableDiscoverAccounts() {
 	s.mu.Unlock()
 }
 
+// Synced returns whether the syncer has completed syncing to the backend and
+// the target height it is attempting to sync to.
+func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
+	synced := s.atomicWalletSynced.Load() == 1
+	var targetHeight int32
+	if !synced {
+		targetHeight = s.atomicTargetSyncHeight.Load()
+	} else {
+		_, targetHeight = s.wallet.MainChainTip(ctx)
+	}
+	return synced, targetHeight
+}
+
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
 	swapped := s.atomicWalletSynced.CompareAndSwap(0, 1)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(true)
+	}
+}
+
+// unsynced checks the atomic that controls wallet syncness and if previously
+// synced, updates to unsynced and notifies the callback, if set.
+func (s *Syncer) unsynced() {
+	swapped := s.atomicWalletSynced.CompareAndSwap(1, 0)
+	if swapped && s.cb != nil && s.cb.Synced != nil {
+		s.cb.Synced(false)
 	}
 }
 
@@ -185,12 +213,24 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 
+	startedSynced := s.atomicWalletSynced.Load() == 1
+
 	cnet := s.wallet.ChainParams().Net
 	s.fetchHeadersStart()
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
+		// If unsynced, update the target sync height.
+		if !startedSynced {
+			info, err := s.rpc.GetBlockchainInfo(ctx)
+			if err != nil {
+				return err
+			}
+			s.atomicTargetSyncHeight.Store(int32(info.Headers))
+		}
+
 		headers, err := s.rpc.Headers(ctx, locators, &hashStop)
 		if err != nil {
 			return err
@@ -312,7 +352,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		discoverAccts := s.discoverAccts
 		s.mu.Unlock()
 		s.discoverAddressesStart()
-		err = s.wallet.DiscoverActiveAddresses(ctx, s.rpc, rescanPoint, discoverAccts, s.wallet.GapLimit())
+		err = s.wallet.DiscoverActiveAddresses(ctx, s, rescanPoint, discoverAccts, s.wallet.GapLimit())
 		if err != nil {
 			return err
 		}
@@ -320,7 +360,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		s.mu.Lock()
 		s.discoverAccts = false
 		s.mu.Unlock()
-		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
+		err = s.wallet.LoadActiveDataFilters(ctx, s, true)
 		if err != nil {
 			return err
 		}
@@ -331,7 +371,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 			return err
 		}
 		progress := make(chan wallet.RescanProgress, 1)
-		go s.wallet.RescanProgressFromHeight(ctx, s.rpc, int32(rescanBlock.Height), progress)
+		go s.wallet.RescanProgressFromHeight(ctx, s, int32(rescanBlock.Height), progress)
 
 		for p := range progress {
 			if p.Err != nil {
@@ -342,7 +382,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		s.rescanFinished()
 
 	} else {
-		err = s.wallet.LoadActiveDataFilters(ctx, s.rpc, true)
+		err = s.wallet.LoadActiveDataFilters(ctx, s, true)
 		if err != nil {
 			return err
 		}
@@ -454,7 +494,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Associate the RPC client with the wallet and remove the association on return.
-	s.wallet.SetNetworkBackend(s.rpc)
+	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
 
 	tipHash, tipHeight := s.wallet.MainChainTip(ctx)
@@ -489,7 +529,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	// Fetch any missing main chain compact filters.
 	s.fetchMissingCfiltersStart()
 	progress := make(chan wallet.MissingCFilterProgress, 1)
-	go s.wallet.FetchMissingCFiltersWithProgress(ctx, s.rpc, progress)
+	go s.wallet.FetchMissingCFiltersWithProgress(ctx, s, progress)
 	for p := range progress {
 		if p.Err != nil {
 			return p.Err
@@ -503,6 +543,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
+	defer s.unsynced()
 
 	// Request notifications for connected and disconnected blocks.
 	err = s.rpc.Call(ctx, "notifyblocks", nil)
@@ -517,7 +558,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Rebroadcast unmined transactions
-	err = s.wallet.PublishUnminedTransactions(ctx, s.rpc)
+	err = s.wallet.PublishUnminedTransactions(ctx, s)
 	if err != nil {
 		// Returning this error would end and (likely) restart sync in
 		// an endless loop.  It's possible a transaction should be

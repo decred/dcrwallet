@@ -43,8 +43,8 @@ func TestDiscoveryCursorPos(t *testing.T) {
 
 	// Perform address discovery
 	// All peer funcs may be left unimplemented; wallet only records the genesis block.
-	peer := &peerFuncs{}
-	err := w.DiscoverActiveAddresses(ctx, peer, &w.chainParams.GenesisHash, false, w.GapLimit())
+	network := &mockNetwork{}
+	err := w.DiscoverActiveAddresses(ctx, network, &w.chainParams.GenesisHash, false, w.GapLimit())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestDiscoveryCursorPos(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = w.DiscoverActiveAddresses(ctx, peer, &w.chainParams.GenesisHash, false, w.GapLimit())
+	err = w.DiscoverActiveAddresses(ctx, network, &w.chainParams.GenesisHash, false, w.GapLimit())
 	if err != nil {
 		t.Fatal(err)
 	}

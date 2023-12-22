@@ -1335,7 +1335,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 // then, if so requests them from the given peer.  The progress channel, if
 // non-nil, is sent the first height and last height of the range of filters
 // that were retrieved in that peer request.
-func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) error {
+func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, progress chan<- MissingCFilterProgress) error {
 	var missing bool
 	var height int32
 
@@ -1410,7 +1410,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 			continue
 		}
 
-		filterData, err := p.CFiltersV2(ctx, get)
+		filterData, err := n.CFiltersV2(ctx, get)
 		if err != nil {
 			return err
 		}
@@ -1466,12 +1466,12 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, p Peer, progress chan
 // the main chain before any more blocks may be attached, but this information
 // must be fetched at runtime after the upgrade as it is not already known at
 // the time of upgrade.
-func (w *Wallet) FetchMissingCFilters(ctx context.Context, p Peer) error {
+func (w *Wallet) FetchMissingCFilters(ctx context.Context, n NetworkBackend) error {
 	const opf = "wallet.FetchMissingCFilters(%v)"
 
-	err := w.fetchMissingCFilters(ctx, p, nil)
+	err := w.fetchMissingCFilters(ctx, n, nil)
 	if err != nil {
-		op := errors.Opf(opf, p)
+		op := errors.Opf(opf, n)
 		return errors.E(op, err)
 	}
 	return nil
@@ -1491,14 +1491,14 @@ type MissingCFilterProgress struct {
 // must be fetched at runtime after the upgrade as it is not already known at
 // the time of upgrade.  This function reports to a channel with any progress
 // that may have seen.
-func (w *Wallet) FetchMissingCFiltersWithProgress(ctx context.Context, p Peer, progress chan<- MissingCFilterProgress) {
+func (w *Wallet) FetchMissingCFiltersWithProgress(ctx context.Context, n NetworkBackend, progress chan<- MissingCFilterProgress) {
 	const opf = "wallet.FetchMissingCFilters(%v)"
 
 	defer close(progress)
 
-	err := w.fetchMissingCFilters(ctx, p, progress)
+	err := w.fetchMissingCFilters(ctx, n, progress)
 	if err != nil {
-		op := errors.Opf(opf, p)
+		op := errors.Opf(opf, n)
 		progress <- MissingCFilterProgress{Err: errors.E(op, err)}
 	}
 }
@@ -1676,7 +1676,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	dcp0010Active := true
 	dcp0012Active := true
 	switch n := n.(type) {
-	case *dcrd.RPC:
+	case deployments.Querier:
 		dcp0010Active, err = deployments.DCP0010Active(ctx,
 			height, w.chainParams, n)
 		if err != nil {
@@ -2998,13 +2998,12 @@ func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
 // the ability to use the rpc chain client, this function is able to determine
 // whether a ticket has been missed or not.  Otherwise, it is just known to be
 // unspent (possibly live or missed).
-func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpcCaller Caller, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
+func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpc *dcrd.RPC, hash *chainhash.Hash) (*TicketSummary, *wire.BlockHeader, error) {
 	const op errors.Op = "wallet.GetTicketInfoPrecise"
 
 	var ticketSummary *TicketSummary
 	var blockHeader *wire.BlockHeader
 
-	rpc := dcrd.New(rpcCaller)
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 
@@ -3149,18 +3148,17 @@ func (w *Wallet) blockRange(dbtx walletdb.ReadTx, startBlock, endBlock *BlockIde
 //
 // The arguments to f may be reused and should not be kept by the caller.
 //
-// The argument chainClient is always expected to be not nil in this case,
+// The argument rpc is always expected to be not nil in this case,
 // otherwise one should use the alternative GetTickets instead.  With
 // the ability to use the rpc chain client, this function is able to determine
 // whether tickets have been missed or not.  Otherwise, tickets are just known
 // to be unspent (possibly live or missed).
-func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpcCaller Caller,
+func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpc *dcrd.RPC,
 	f func([]*TicketSummary, *wire.BlockHeader) (bool, error),
 	startBlock, endBlock *BlockIdentifier) error {
 
 	const op errors.Op = "wallet.GetTicketsPrecise"
 
-	rpc := dcrd.New(rpcCaller)
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		start, end, err := w.blockRange(dbtx, startBlock, endBlock)
 		if err != nil {
@@ -4155,11 +4153,10 @@ func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 
 // StakeInfoPrecise collects and returns staking statistics for this wallet.  It
 // uses RPC to query further information than StakeInfo.
-func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpcCaller Caller) (*StakeInfoData, error) {
+func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpc *dcrd.RPC) (*StakeInfoData, error) {
 	const op errors.Op = "wallet.StakeInfoPrecise"
 
 	res := &StakeInfoData{}
-	rpc := dcrd.New(rpcCaller)
 	var g errgroup.Group
 	g.Go(func() error {
 		unminedTicketCount, err := rpc.MempoolCount(ctx, "tickets")
@@ -5221,13 +5218,13 @@ func (w *Wallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx, n Netwo
 // PublishUnminedTransactions rebroadcasts all unmined transactions
 // to the consensus RPC server so it can be propagated to other nodes
 // and eventually mined.
-func (w *Wallet) PublishUnminedTransactions(ctx context.Context, p Peer) error {
+func (w *Wallet) PublishUnminedTransactions(ctx context.Context, n NetworkBackend) error {
 	const op errors.Op = "wallet.PublishUnminedTransactions"
 	unminedTxs, err := w.UnminedTransactions(ctx)
 	if err != nil {
 		return errors.E(op, err)
 	}
-	err = p.PublishTransactions(ctx, unminedTxs...)
+	err = n.PublishTransactions(ctx, unminedTxs...)
 	if err != nil {
 		return errors.E(op, err)
 	}
