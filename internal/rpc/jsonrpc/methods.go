@@ -2564,10 +2564,7 @@ func (s *Server) getTickets(ctx context.Context, icmd any) (any, error) {
 	}
 
 	n, _ := s.walletLoader.NetworkBackend()
-	rpc, ok := n.(*dcrd.RPC)
-	if !ok {
-		return nil, errRPCClientNotConnected
-	}
+	rpc, _ := n.(*dcrd.RPC) // nil rpc indicates SPV to LiveTicketHashes
 
 	ticketHashes, err := w.LiveTicketHashes(ctx, rpc, cmd.IncludeImmature)
 	if err != nil {

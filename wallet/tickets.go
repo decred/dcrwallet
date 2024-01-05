@@ -17,7 +17,8 @@ import (
 )
 
 // LiveTicketHashes returns the hashes of live tickets that the wallet has
-// purchased or has voting authority for.
+// purchased or has voting authority for. rpcCaller can be nil if this is an
+// SPV wallet.
 func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, includeImmature bool) ([]chainhash.Hash, error) {
 	const op errors.Op = "wallet.LiveTicketHashes"
 
@@ -73,6 +74,11 @@ func (w *Wallet) LiveTicketHashes(ctx context.Context, rpcCaller Caller, include
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
+	}
+
+	// SPV wallet can't evaluate extraTickets.
+	if rpcCaller == nil {
+		return ticketHashes, nil
 	}
 
 	// Determine if the extra tickets are immature or possibly live.  Because
