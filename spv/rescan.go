@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2018-2021 The Decred developers
+// Copyright (c) 2018-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,7 +7,6 @@ package spv
 
 import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
-	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 )
@@ -15,11 +14,10 @@ import (
 // rescanCheckTransaction is a helper function to rescan both stake and regular
 // transactions in a block.  It appends transactions that match the filters to
 // *matches, while updating the filters to add outpoints for new UTXOs
-// controlled by this wallet.  New data added to the Syncer's filters is also
-// added to fadded.
+// controlled by this wallet.
 //
 // This function may only be called with the filter mutex held.
-func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf2.Entries, txs []*wire.MsgTx, tree int8) {
+func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, txs []*wire.MsgTx, tree int8) {
 	for i, tx := range txs {
 		// Keep track of whether the transaction has already been added
 		// to the result.  It shouldn't be added twice.
@@ -78,14 +76,13 @@ func (s *Syncer) rescanCheckTransactions(matches *[]*wire.MsgTx, fadded *blockcf
 }
 
 // rescanBlock rescans a block for any relevant transactions for the passed
-// lookup keys.  Returns any discovered transactions and any new data added to
-// the filter.
-func (s *Syncer) rescanBlock(block *wire.MsgBlock) (matches []*wire.MsgTx, fadded blockcf2.Entries) {
+// lookup keys.  Returns any discovered transactions.
+func (s *Syncer) rescanBlock(block *wire.MsgBlock) (matches []*wire.MsgTx) {
 	s.filterMu.Lock()
-	s.rescanCheckTransactions(&matches, &fadded, block.STransactions, wire.TxTreeStake)
-	s.rescanCheckTransactions(&matches, &fadded, block.Transactions, wire.TxTreeRegular)
+	s.rescanCheckTransactions(&matches, block.STransactions, wire.TxTreeStake)
+	s.rescanCheckTransactions(&matches, block.Transactions, wire.TxTreeRegular)
 	s.filterMu.Unlock()
-	return matches, fadded
+	return matches
 }
 
 // filterRelevant filters out all transactions considered irrelevant

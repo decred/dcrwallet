@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021 The Decred developers
+// Copyright (c) 2018-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1003,90 +1003,80 @@ func (s *Syncer) scanChain(ctx context.Context, rp *p2p.RemotePeer, chain []*wal
 		}
 	}
 
-	idx := 0
-FilterLoop:
-	for idx < len(chain) {
-		var fmatches []*chainhash.Hash
-		var fmatchidx []int
-		var fmatchMu sync.Mutex
+	var fmatches []*chainhash.Hash
+	var fmatchidx []int
+	var fmatchMu sync.Mutex
 
-		// Scan remaining filters with up to ncpu workers
-		c := make(chan int)
-		var wg sync.WaitGroup
-		worker := func() {
-			for i := range c {
-				n := chain[i]
-				f := n.FilterV2
-				k := blockcf2.Key(&n.Header.MerkleRoot)
-				if f.N() != 0 && f.MatchAny(k, filterData) {
-					fmatchMu.Lock()
-					fmatches = append(fmatches, n.Hash)
-					fmatchidx = append(fmatchidx, i)
-					fmatchMu.Unlock()
-				}
-			}
-			wg.Done()
-		}
-		nworkers := 0
-		for i := idx; i < len(chain); i++ {
-			if fetched[i] != nil {
-				continue // Already have block
-			}
-			select {
-			case c <- i:
-			default:
-				if nworkers < runtime.NumCPU() {
-					nworkers++
-					wg.Add(1)
-					go worker()
-				}
-				c <- i
+	// Scan filters with up to ncpu workers
+	c := make(chan int)
+	var wg sync.WaitGroup
+	worker := func() {
+		for i := range c {
+			n := chain[i]
+			f := n.FilterV2
+			k := blockcf2.Key(&n.Header.MerkleRoot)
+			if f.N() != 0 && f.MatchAny(k, filterData) {
+				fmatchMu.Lock()
+				fmatches = append(fmatches, n.Hash)
+				fmatchidx = append(fmatchidx, i)
+				fmatchMu.Unlock()
 			}
 		}
-		close(c)
-		wg.Wait()
-
-		if len(fmatches) != 0 {
-			blocks, err := rp.Blocks(ctx, fmatches)
-			if err != nil {
-				return nil, err
-			}
-			for j, b := range blocks {
-				i := fmatchidx[j]
-
-				// Perform context-free validation on the block.
-				// Disconnect peer when invalid.
-				err := validate.MerkleRoots(b)
-				if err != nil {
-					err = validate.DCP0005MerkleRoot(b)
-				}
-				if err != nil {
-					rp.Disconnect(err)
-					return nil, err
-				}
-
-				fetched[i] = b
-			}
+		wg.Done()
+	}
+	nworkers := 0
+	for i := 0; i < len(chain); i++ {
+		if fetched[i] != nil {
+			continue // Already have block
 		}
+		select {
+		case c <- i:
+		default:
+			if nworkers < runtime.NumCPU() {
+				nworkers++
+				wg.Add(1)
+				go worker()
+			}
+			c <- i
+		}
+	}
+	close(c)
+	wg.Wait()
 
-		if err := ctx.Err(); err != nil {
+	if len(fmatches) != 0 {
+		blocks, err := rp.Blocks(ctx, fmatches)
+		if err != nil {
 			return nil, err
 		}
+		for j, b := range blocks {
+			i := fmatchidx[j]
 
-		for i := idx; i < len(chain); i++ {
-			b := fetched[i]
-			if b == nil {
-				continue
+			// Perform context-free validation on the block.
+			// Disconnect peer when invalid.
+			err := validate.MerkleRoots(b)
+			if err != nil {
+				err = validate.DCP0005MerkleRoot(b)
 			}
-			matches, fadded := s.rescanBlock(b)
-			found[*chain[i].Hash] = matches
-			if len(fadded) != 0 {
-				idx = i + 1
-				filterData = fadded
-				continue FilterLoop
+			if err != nil {
+				rp.Disconnect(err)
+				return nil, err
 			}
+
+			fetched[i] = b
 		}
-		return found, nil
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := 0; i < len(chain); i++ {
+		b := fetched[i]
+		if b == nil {
+			continue
+		}
+		matches := s.rescanBlock(b)
+		found[*chain[i].Hash] = matches
 	}
 	return found, nil
 }

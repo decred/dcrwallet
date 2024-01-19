@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Decred developers
+// Copyright (c) 2018-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -443,123 +443,108 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 
 	blockMatches := make([]*wire.MsgBlock, len(blockHashes)) // Block assigned to slice once fetched
 
-	// Read current filter data.  filterData is reassinged to new data matches
-	// for subsequent filter checks, which improves filter matching performance
-	// by checking for less data.
+	// Read current filter data.
 	s.filterMu.Lock()
 	filterData := s.filterData
 	s.filterMu.Unlock()
 
-	idx := 0
-FilterLoop:
-	for idx < len(blockHashes) {
-		var fmatches []*chainhash.Hash
-		var fmatchidx []int
-		var fmatchMu sync.Mutex
+	var fmatches []*chainhash.Hash
+	var fmatchidx []int
+	var fmatchMu sync.Mutex
 
-		// Spawn ncpu workers to check filter matches
-		ncpu := runtime.NumCPU()
-		c := make(chan int, ncpu)
-		var wg sync.WaitGroup
-		wg.Add(ncpu)
-		for i := 0; i < ncpu; i++ {
-			go func() {
-				for i := range c {
-					blockHash := &blockHashes[i]
-					key := cfilterKeys[i]
-					f := cfilters[i]
-					if f.MatchAny(key, filterData) {
-						fmatchMu.Lock()
-						fmatches = append(fmatches, blockHash)
-						fmatchidx = append(fmatchidx, i)
-						fmatchMu.Unlock()
-					}
+	// Spawn ncpu workers to check filter matches
+	ncpu := runtime.NumCPU()
+	c := make(chan int, ncpu)
+	var wg sync.WaitGroup
+	wg.Add(ncpu)
+	for i := 0; i < ncpu; i++ {
+		go func() {
+			for i := range c {
+				blockHash := &blockHashes[i]
+				key := cfilterKeys[i]
+				f := cfilters[i]
+				if f.MatchAny(key, filterData) {
+					fmatchMu.Lock()
+					fmatches = append(fmatches, blockHash)
+					fmatchidx = append(fmatchidx, i)
+					fmatchMu.Unlock()
 				}
-				wg.Done()
-			}()
-		}
-		for i := idx; i < len(blockHashes); i++ {
-			if blockMatches[i] != nil {
-				// Already fetched this block
-				continue
 			}
-			c <- i
+			wg.Done()
+		}()
+	}
+	for i := 0; i < len(blockHashes); i++ {
+		if blockMatches[i] != nil {
+			// Already fetched this block
+			continue
 		}
-		close(c)
-		wg.Wait()
+		c <- i
+	}
+	close(c)
+	wg.Wait()
 
-		if len(fmatches) != 0 {
-		PickPeer:
-			for {
-				if err := ctx.Err(); err != nil {
-					return err
-				}
-				rp, err := s.waitForRemote(ctx, pickAny, true)
-				if err != nil {
-					return err
-				}
-
-				blocks, err := rp.Blocks(ctx, fmatches)
-				if err != nil {
-					continue PickPeer
-				}
-
-				for j, b := range blocks {
-					// Validate fetched blocks before rescanning transactions.  PoW
-					// and PoS difficulties have already been validated since the
-					// header is saved by the wallet, and modifications to these in
-					// the downloaded block would result in a different block hash
-					// and failure to fetch the block.
-					//
-					// Block filters were also validated
-					// against the header (assuming dcp0005
-					// was activated).
-					err = validate.MerkleRoots(b)
-					if err != nil {
-						err = validate.DCP0005MerkleRoot(b)
-					}
-					if err != nil {
-						err := errors.E(op, err)
-						rp.Disconnect(err)
-						rp = nil
-						continue PickPeer
-					}
-
-					i := fmatchidx[j]
-					blockMatches[i] = b
-				}
-				break
-			}
-		}
-
-		for i := idx; i < len(blockMatches); i++ {
-			b := blockMatches[i]
-			if b == nil {
-				// No filter match, skip block
-				continue
-			}
-
+	if len(fmatches) != 0 {
+	PickPeer:
+		for {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
+			rp, err := s.waitForRemote(ctx, pickAny, true)
+			if err != nil {
+				return err
+			}
 
-			matchedTxs, fadded := s.rescanBlock(b)
-			if len(matchedTxs) != 0 {
-				err := save(&blockHashes[i], matchedTxs)
+			blocks, err := rp.Blocks(ctx, fmatches)
+			if err != nil {
+				continue PickPeer
+			}
+
+			for j, b := range blocks {
+				// Validate fetched blocks before rescanning transactions.  PoW
+				// and PoS difficulties have already been validated since the
+				// header is saved by the wallet, and modifications to these in
+				// the downloaded block would result in a different block hash
+				// and failure to fetch the block.
+				//
+				// Block filters were also validated
+				// against the header (assuming dcp0005
+				// was activated).
+				err = validate.MerkleRoots(b)
 				if err != nil {
-					return err
+					err = validate.DCP0005MerkleRoot(b)
+				}
+				if err != nil {
+					err := errors.E(op, err)
+					rp.Disconnect(err)
+					rp = nil
+					continue PickPeer
 				}
 
-				// Check for more matched blocks using updated filters,
-				// starting at the next block.
-				if len(fadded) != 0 {
-					idx = i + 1
-					filterData = fadded
-					continue FilterLoop
-				}
+				i := fmatchidx[j]
+				blockMatches[i] = b
+			}
+			break
+		}
+	}
+
+	for i := 0; i < len(blockMatches); i++ {
+		b := blockMatches[i]
+		if b == nil {
+			// No filter match, skip block
+			continue
+		}
+
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		matchedTxs := s.rescanBlock(b)
+		if len(matchedTxs) != 0 {
+			err := save(&blockHashes[i], matchedTxs)
+			if err != nil {
+				return err
 			}
 		}
-		return nil
 	}
 
 	return nil
