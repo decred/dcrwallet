@@ -259,11 +259,8 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	// Disconnect from the peer if it does not specify all required services.
 	if rp.services&reqSvcs != reqSvcs {
 		op := errors.Opf(opf, rp.raddr)
-		reason := errors.Errorf("missing required service flags %v", reqSvcs&^rp.services)
-		reject := wire.NewMsgReject(wire.CmdVersion, wire.RejectNonstandard, reason.Error())
-		rp.sendMessageAck(ctx, reject)
-
-		err := errors.E(op, reason)
+		err := errors.E(op, errors.Errorf("missing required service flags %v",
+			reqSvcs&^rp.services))
 		rp.Disconnect(err)
 		return nil, err
 	}
