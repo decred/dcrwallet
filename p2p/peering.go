@@ -256,29 +256,15 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 
 	go lp.serveUntilError(ctx, rp)
 
-	var waitForAddrs <-chan time.Time
-	if lp.amgr.NeedMoreAddresses() {
-		waitForAddrs = time.After(stallTimeout)
-		err = rp.Addrs(ctx)
-		if err != nil {
-			op := errors.Opf(opf, rp.raddr)
-			return nil, errors.E(op, err)
-		}
-	}
-
 	// Disconnect from the peer if it does not specify all required services.
 	if rp.services&reqSvcs != reqSvcs {
 		op := errors.Opf(opf, rp.raddr)
 		reason := errors.Errorf("missing required service flags %v", reqSvcs&^rp.services)
+		reject := wire.NewMsgReject(wire.CmdVersion, wire.RejectNonstandard, reason.Error())
+		rp.sendMessageAck(ctx, reject)
+
 		err := errors.E(op, reason)
-		go func() {
-			if waitForAddrs != nil {
-				<-waitForAddrs
-			}
-			reject := wire.NewMsgReject(wire.CmdVersion, wire.RejectNonstandard, reason.Error())
-			rp.sendMessageAck(ctx, reject)
-			rp.Disconnect(err)
-		}()
+		rp.Disconnect(err)
 		return nil, err
 	}
 
@@ -288,17 +274,20 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	if rp.initHeight < reqHeight {
 		op := errors.Opf(opf, rp.raddr)
 		err := errors.E(op, "peer is not synced")
-		go func() {
-			if waitForAddrs != nil {
-				<-waitForAddrs
-			}
-			rp.Disconnect(err)
-		}()
+		rp.Disconnect(err)
 		return nil, err
 	}
 
 	// Mark this as a good address.
 	lp.amgr.Good(na)
+
+	if lp.amgr.NeedMoreAddresses() {
+		err = rp.Addrs(ctx)
+		if err != nil {
+			rp.Disconnect(err)
+			return nil, err
+		}
+	}
 
 	return rp, nil
 }
