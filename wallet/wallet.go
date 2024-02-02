@@ -5243,11 +5243,6 @@ func (w *Wallet) ChainParams() *chaincfg.Params {
 // should be performed to restore, per BIP0044, any generated accounts and
 // addresses from a restored seed.
 func (w *Wallet) NeedsAccountsSync(ctx context.Context) (bool, error) {
-	_, tipHeight := w.MainChainTip(ctx)
-	if tipHeight != 0 {
-		return false, nil
-	}
-
 	needsSync := true
 	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		addrmgrNs := tx.ReadBucket(waddrmgrNamespaceKey)
