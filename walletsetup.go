@@ -18,6 +18,7 @@ import (
 	"decred.org/dcrwallet/v4/internal/prompt"
 	"decred.org/dcrwallet/v4/wallet"
 	_ "decred.org/dcrwallet/v4/wallet/drivers/bdb"
+	"decred.org/dcrwallet/v4/wallet/udb"
 	"decred.org/dcrwallet/v4/walletseed"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -38,6 +39,68 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 		netname = "testnet3"
 	}
 	return filepath.Join(dataDir, netname)
+}
+
+// displaySimnetMiningAddrs shows simnet mining addresses for the passed seed.
+// If imported is false, then only the SLIP0044 address is shown (because, by
+// default, the wallet is upgraded to the SLIP0044 coin type).
+func displaySimnetMiningAddrs(seed []byte, imported bool) error {
+	params := chaincfg.SimNetParams()
+	ctLegacyKeyPriv, ctSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv, err := udb.HDKeysFromSeed(seed, params)
+	if err != nil {
+		return err
+	}
+	ctLegacyKeyPriv.Zero()
+	ctSLIP0044KeyPriv.Zero()
+	defer acctKeyLegacyPriv.Zero()
+	defer acctKeySLIP0044Priv.Zero()
+
+	keys := map[string]*hdkeychain.ExtendedKey{
+		"legacy":   acctKeyLegacyPriv,
+		"SLIP0044": acctKeySLIP0044Priv,
+	}
+
+	// If imported is false, then the wallet was created with a new random
+	// seed and is automatically upgraded to the SLIP0044 coin type,
+	// therefore the legacy key is not applicable.
+	if !imported {
+		delete(keys, "legacy")
+	}
+
+	fmt.Println("")
+	fmt.Println("NOTE: only start the wallet after at least 2 blocks (i.e. blocks at heights 1")
+	fmt.Println("and 2) have been mined in the backing dcrd node, otherwise account and address")
+	fmt.Println("discovery may not work correctly.")
+	fmt.Println("")
+
+	for _, ct := range []string{"SLIP0044", "legacy"} {
+		acctKeyPriv := keys[ct]
+		if acctKeyPriv == nil {
+			continue
+		}
+		xpub := acctKeyPriv.Neuter()
+		branch, err := xpub.Child(udb.ExternalBranch)
+		if err != nil {
+			return err
+		}
+		child, err := branch.Child(0)
+		if err != nil {
+			return err
+		}
+
+		pkh := dcrutil.Hash160(child.SerializedPubKey())
+		addr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pkh,
+			params)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Mining address for the %s coin type: %s\n", ct, addr)
+	}
+
+	fmt.Println("")
+
+	return nil
 }
 
 // createWallet prompts the user for information needed to generate a new wallet
@@ -105,10 +168,8 @@ func createWallet(ctx context.Context, cfg *config) error {
 	}
 
 	// Upgrade to the SLIP0044 cointype if this is a new (rather than
-	// user-provided) seed, and also unconditionally on simnet (to prevent
-	// the mining address printed below from ever becoming invalid if a
-	// cointype upgrade occurred later).
-	if !imported || cfg.SimNet {
+	// user-provided) seed.
+	if !imported {
 		err := w.UpgradeToSLIP0044CoinType(ctx)
 		if err != nil {
 			return err
@@ -117,25 +178,10 @@ func createWallet(ctx context.Context, cfg *config) error {
 
 	// Display a mining address when creating a simnet wallet.
 	if cfg.SimNet {
-		xpub, err := w.AccountXpub(ctx, 0)
+		err := displaySimnetMiningAddrs(seed, imported)
 		if err != nil {
 			return err
 		}
-		branch, err := xpub.Child(0)
-		if err != nil {
-			return err
-		}
-		child, err := branch.Child(0)
-		if err != nil {
-			return err
-		}
-		pkh := dcrutil.Hash160(child.SerializedPubKey())
-		addr, err := stdaddr.NewAddressPubKeyHashEcdsaSecp256k1V0(pkh,
-			chaincfg.SimNetParams())
-		if err != nil {
-			return err
-		}
-		fmt.Println("Mining address:", addr)
 	}
 
 	err = loader.UnloadWallet()
