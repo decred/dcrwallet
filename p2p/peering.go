@@ -39,10 +39,10 @@ var uaVersion = version.String()
 
 // minPver is the minimum protocol version we require remote peers to
 // implement.
-const minPver = wire.CFilterV2Version
+const minPver = wire.RemoveRejectVersion
 
 // Pver is the maximum protocol version implemented by the LocalPeer.
-const Pver = wire.InitStateVersion
+const Pver = wire.RemoveRejectVersion
 
 // connectTimeout is the amount of time allowed before connecting, peering
 // handshake, and protocol negotiation is aborted.
@@ -768,8 +768,6 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				if rp.lp.messageIsMasked(MaskInv) {
 					rp.lp.receivedInv <- newInMsg(rp, msg)
 				}
-			case *wire.MsgReject:
-				log.Warnf("%v reject(%v, %v, %v): %v", rp.raddr, m.Cmd, m.Code, &m.Hash, m.Reason)
 			case *wire.MsgGetMiningState:
 				rp.receivedGetMiningState(ctx)
 			case *wire.MsgGetInitState:
