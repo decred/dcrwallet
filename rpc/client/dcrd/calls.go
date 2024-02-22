@@ -402,7 +402,7 @@ func (r *RPC) GetBlockchainInfo(ctx context.Context) (*dcrdtypes.GetBlockChainIn
 	var chainInfo *dcrdtypes.GetBlockChainInfoResult
 	err := r.Call(ctx, "getblockchaininfo", &chainInfo)
 	if err != nil {
-		return nil, err
+		return nil, errors.E(op, err)
 	}
 	return chainInfo, nil
 }
