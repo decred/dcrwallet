@@ -4242,7 +4242,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 
 	unmanagedTickets, err := s.wallet.UnprocessedTickets(ctx)
 	if err != nil {
-		status.Errorf(codes.Unknown, "failed to retrieve unmanaged tickets. Error: %v", err)
+		return nil, status.Errorf(codes.Unknown, "failed to retrieve unmanaged tickets. Error: %v", err)
 	}
 
 	vspClient.ProcessUnprocessedTickets(ctx, unmanagedTickets)
