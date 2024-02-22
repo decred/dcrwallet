@@ -562,40 +562,17 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string,
 	na *addrmgr.NetAddress) (*RemotePeer, error) {
 
-	var c net.Conn
-	var retryDuration = 5 * time.Second
-	timer := time.NewTimer(retryDuration)
-	var err error
-	for {
-		// Mark the connection attempt.
-		lp.amgr.Attempt(na)
+	// Mark the connection attempt.
+	lp.amgr.Attempt(na)
 
-		// Dial with a timeout of 10 seconds.
-		dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		c, err = lp.dial(dialCtx, "tcp", addr)
-		cancel()
-		if err == nil {
-			break
-		}
-		var netErr net.Error
-		if errors.As(err, &netErr) && !netErr.Temporary() {
-			return nil, err
-		}
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return nil, ctx.Err()
-		case <-timer.C:
-			if retryDuration < 200*time.Second {
-				retryDuration += 5 * time.Second
-				timer.Reset(retryDuration)
-			}
-		}
+	// Dial with a timeout of 10 seconds.
+	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	c, err := lp.dial(dialCtx, "tcp", addr)
+	cancel()
+	if err != nil {
+		return nil, err
 	}
+
 	lp.amgr.Connected(na)
 
 	rp, err := handshake(ctx, lp, id, na, c)
