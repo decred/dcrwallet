@@ -1815,13 +1815,24 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			feeTx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
 		}
 		ticketHash := purchaseTicketsResponse.TicketHashes[i]
-		err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
-		if err != nil {
-			// unlock outpoints in case of error
+
+		// Unlock outpoints in case of error.
+		unlock := func() {
 			for _, outpoint := range vspFeeCredits[i] {
 				w.UnlockOutpoint(&outpoint.OutPoint.Hash,
 					outpoint.OutPoint.Index)
 			}
+		}
+
+		ticket, err := w.NewVSPTicket(ctx, ticketHash)
+		if err != nil {
+			unlock()
+			continue
+		}
+
+		err = req.VSPFeePaymentProcess(ctx, ticket, feeTx)
+		if err != nil {
+			unlock()
 			continue
 		}
 		// watch for outpoints change.
