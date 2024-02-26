@@ -703,49 +703,43 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 			return err
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		var blocks []*chainhash.Hash
+		var txs []*chainhash.Hash
+		for _, inv := range msg.InvList {
+			switch inv.Type {
+			case wire.InvTypeBlock:
+				blocks = append(blocks, &inv.Hash)
+			case wire.InvTypeTx:
+				txs = append(txs, &inv.Hash)
+			}
+		}
 
-			var blocks []*chainhash.Hash
-			var txs []*chainhash.Hash
+		if len(blocks) != 0 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
 
-			for _, inv := range msg.InvList {
-				switch inv.Type {
-				case wire.InvTypeBlock:
-					blocks = append(blocks, &inv.Hash)
-				case wire.InvTypeTx:
-					txs = append(txs, &inv.Hash)
+				err := s.handleBlockInvs(ctx, rp, blocks)
+				if ctx.Err() != nil {
+					return
 				}
-			}
-
-			if len(blocks) != 0 {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-
-					err := s.handleBlockInvs(ctx, rp, blocks)
-					if ctx.Err() != nil {
-						return
-					}
-					if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
-						log.Warnf("Disconnecting peer %v: %v", rp, err)
-						rp.Disconnect(err)
-						return
-					}
-					if err != nil {
-						log.Warnf("Failed to handle blocks inventoried by %v: %v", rp, err)
-					}
-				}()
-			}
-			if len(txs) != 0 {
-				wg.Add(1)
-				go func() {
-					s.handleTxInvs(ctx, rp, txs)
-					wg.Done()
-				}()
-			}
-		}()
+				if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
+					log.Warnf("Disconnecting peer %v: %v", rp, err)
+					rp.Disconnect(err)
+					return
+				}
+				if err != nil {
+					log.Warnf("Failed to handle blocks inventoried by %v: %v", rp, err)
+				}
+			}()
+		}
+		if len(txs) != 0 {
+			wg.Add(1)
+			go func() {
+				s.handleTxInvs(ctx, rp, txs)
+				wg.Done()
+			}()
+		}
 	}
 }
 
