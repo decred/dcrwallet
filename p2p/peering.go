@@ -44,10 +44,6 @@ const minPver = wire.RemoveRejectVersion
 // Pver is the maximum protocol version implemented by the LocalPeer.
 const Pver = wire.RemoveRejectVersion
 
-// connectTimeout is the amount of time allowed before connecting, peering
-// handshake, and protocol negotiation is aborted.
-const connectTimeout = 30 * time.Second
-
 // stallTimeout is the amount of time allowed before a request to receive data
 // that is known to exist at the RemotePeer times out with no matching reply.
 const stallTimeout = 30 * time.Second
@@ -233,9 +229,6 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 
 	log.Debugf("Attempting connection to peer %v", addr)
 
-	connectCtx, cancel := context.WithTimeout(ctx, connectTimeout)
-	defer cancel()
-
 	// Generate a unique ID for this peer and add the initial connection state.
 	id := lp.atomicPeerIDCounter.Add(1)
 
@@ -248,7 +241,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	na := addrmgr.NewNetAddressIPPort(tcpAddr.IP, uint16(tcpAddr.Port), wire.SFNodeNetwork)
 	na.Timestamp = time.Now()
 
-	rp, err := lp.connectOutbound(connectCtx, id, addr, na)
+	rp, err := lp.connectOutbound(ctx, id, addr, na)
 	if err != nil {
 		op := errors.Opf(opf, addr)
 		return nil, errors.E(op, err)
@@ -575,7 +568,10 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 
 	lp.amgr.Connected(na)
 
-	rp, err := handshake(ctx, lp, id, na, c)
+	// Handshake with a timeout of 5s.
+	handshakeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	rp, err := handshake(handshakeCtx, lp, id, na, c)
+	cancel()
 	if err != nil {
 		return nil, err
 	}
