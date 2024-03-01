@@ -1778,6 +1778,10 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
+	if req.DontSignTx {
+		return purchaseTicketsResponse, nil
+	}
+
 	for i, ticket := range tickets {
 		// Check for request context cancellation while waiting for
 		// trickle time if this was a mixed buy.
