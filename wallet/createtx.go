@@ -1711,11 +1711,10 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			return nil, err
 		}
 
-		var ticket *wire.MsgTx
 		w.lockedOutpointMu.Lock()
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Generate the ticket msgTx and sign it if DontSignTx is false.
-			ticket, err = makeTicket(w.chainParams, eopPool, eop, addrVote,
+			ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
 				addrSubsidy, int64(ticketPrice), poolAddress)
 			if err != nil {
 				return err
