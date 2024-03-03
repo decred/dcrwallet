@@ -1590,24 +1590,12 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	}
 	purchaseTicketsResponse.SplitTx = splitTx
 
-	// Process and publish split tx.
+	// Publish split tx.  The split method has already internally processed
+	// the transaction when !req.DontSignTx.
 	if !req.DontSignTx {
-		rec, err := udb.NewTxRecordFromMsgTx(splitTx, time.Now())
-		if err != nil {
-			return nil, err
-		}
-		w.lockedOutpointMu.Lock()
-		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			watch, err := w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-			watchOutPoints = append(watchOutPoints, watch...)
-			return err
-		})
-		w.lockedOutpointMu.Unlock()
-		if err != nil {
-			return nil, err
-		}
+		splitHash := splitTx.TxHash()
 		w.recentlyPublishedMu.Lock()
-		w.recentlyPublished[rec.Hash] = struct{}{}
+		w.recentlyPublished[splitHash] = struct{}{}
 		w.recentlyPublishedMu.Unlock()
 		err = n.PublishTransactions(ctx, splitTx)
 		if err != nil {
