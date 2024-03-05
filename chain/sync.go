@@ -14,6 +14,7 @@ import (
 	"runtime/trace"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
@@ -460,6 +461,43 @@ func normalizeAddress(addr string, defaultPort string) (hostport string, err err
 	return addr, nil
 }
 
+// waitRPCSync waits until the underlying node is synced up to (at least) the
+// passed height and that is has all blockchain data up to its target header
+// height.
+func (s *Syncer) waitRPCSync(ctx context.Context, minHeight int64) error {
+	for {
+		info, err := s.rpc.GetBlockchainInfo(ctx)
+		if err != nil {
+			return err
+		}
+
+		if info.Headers > minHeight {
+			minHeight = info.Headers
+		}
+		if info.Blocks >= minHeight && !info.InitialBlockDownload {
+			// dcrd is synced.
+			return nil
+		}
+
+		log.Infof("Waiting dcrd instance to catch up to minimum block "+
+			"height %d (%d blocks, %d headers, IBS=%v)",
+			minHeight, info.Blocks, info.Headers, info.InitialBlockDownload)
+
+		// Determine when to make the next check. When there are less
+		// than 100 blocks to go, use a lower check interval.
+		nextDelay := 10 * time.Second
+		if minHeight-info.Blocks < 100 {
+			nextDelay = time.Second
+		}
+
+		select {
+		case <-time.After(nextDelay):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 // hashStop is a zero value stop hash for fetching all possible data using
 // locators.
 var hashStop chainhash.Hash
@@ -568,6 +606,11 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		log.Infof("Transactions synced through block %v height %d", &h.PrevBlock, h.Height-1)
 	} else {
 		log.Infof("Transactions synced through block %v height %d", &tipHash, tipHeight)
+	}
+
+	err = s.waitRPCSync(ctx, int64(tipHeight))
+	if err != nil {
+		return err
 	}
 
 	if s.wallet.VotingEnabled() {
