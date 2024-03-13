@@ -374,8 +374,8 @@ func ImportedAccounts(reader *bufio.Reader, params *chaincfg.Params) (names []st
 	accounts["default"] = struct{}{}
 
 	for {
-		fmt.Printf("Do you have additional account extended public keys to import " +
-			"(enter account name, or 'done') [done]: ")
+		fmt.Printf("Do you have additional account extended public keys to import? " +
+			"(account name, or 'done') [done]: ")
 		reply, err := reader.ReadString('\n')
 		if err != nil {
 			return nil, nil, err
