@@ -121,6 +121,8 @@ func createWallet(ctx context.Context, cfg *config) error {
 
 	var privPass, pubPass, seed []byte
 	var imported bool
+	var importedAccountNames []string
+	var importedAccountXpubs []*hdkeychain.ExtendedKey
 	var err error
 	c := make(chan struct{}, 1)
 	go func() {
@@ -151,6 +153,13 @@ func createWallet(ctx context.Context, cfg *config) error {
 		// value the user has entered which has already been validated.
 		// There is no config flag to set the seed.
 		seed, imported, err = prompt.Seed(r)
+
+		// Prompt for any additional xpubs to import as watching-only accounts.
+		importedAccountNames, importedAccountXpubs, err = prompt.ImportedAccounts(
+			r, activeNet.Params)
+		if err != nil {
+			return
+		}
 	}()
 	select {
 	case <-ctx.Done():
@@ -171,6 +180,15 @@ func createWallet(ctx context.Context, cfg *config) error {
 	// user-provided) seed.
 	if !imported {
 		err := w.UpgradeToSLIP0044CoinType(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Import any provided account xpubs
+	for i, name := range importedAccountNames {
+		xpub := importedAccountXpubs[i]
+		err := w.ImportXpubAccount(ctx, name, xpub)
 		if err != nil {
 			return err
 		}
