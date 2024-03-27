@@ -295,7 +295,6 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 				numTxs += len(item.txs)
 
 				if numTxs >= 100 { // XXX: tune this
-					log.Infof("saving batch from block hashes %v", blockHashes)
 					err := saveRescanned(blockHashes, txs)
 					if err != nil {
 						errc <- err
