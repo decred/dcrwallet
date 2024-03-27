@@ -337,6 +337,9 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		if err != nil {
 			return err
 		}
+		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			return w.txStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
+		})
 		if p != nil {
 			p <- RescanProgress{ScannedThrough: through}
 		}
