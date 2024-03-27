@@ -254,7 +254,14 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
 
 		// Helper func to save batches of matching transactions.
-		saveRescanned := func(blocks []*chainhash.Hash, txs [][]*wire.MsgTx, lastBatch bool) error {
+		saveRescanned := func(blocks []*chainhash.Hash, txs [][]*wire.MsgTx) error {
+			if len(blocks) != len(txs) {
+				return errors.E(errors.Bug, "len(blocks) must match len(txs)")
+			}
+			if len(blocks) == 0 {
+				return nil
+			}
+
 			w.lockedOutpointMu.Lock()
 			defer w.lockedOutpointMu.Unlock()
 
@@ -269,13 +276,6 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 					}
 				}
 
-				if lastBatch && len(blocks) > 0 {
-					lastBlock := blocks[len(blocks)-1]
-					err := w.txStore.UpdateProcessedTxsBlockMarker(dbtx, lastBlock)
-					if err != nil {
-						return err
-					}
-				}
 				return nil
 			})
 		}
@@ -303,7 +303,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 				numTxs += len(item.txs)
 
 				if numTxs >= 256 { // XXX: tune this
-					err := saveRescanned(blockHashes, txs, false)
+					err := saveRescanned(blockHashes, txs)
 					if err != nil {
 						errc <- err
 						return
@@ -317,7 +317,7 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 				errc <- nil
 			}
 
-			lastBatchErr <- saveRescanned(blockHashes, txs, true)
+			lastBatchErr <- saveRescanned(blockHashes, txs)
 		}()
 
 		err = n.Rescan(ctx, rescanBlocks, func(blockHash *chainhash.Hash, txs []*wire.MsgTx) error {
