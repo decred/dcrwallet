@@ -16,6 +16,7 @@ import (
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/walletseed"
+	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"golang.org/x/term"
 )
@@ -363,6 +364,59 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 		fmt.Printf("\nSeed input successful. \nHex: %x\n", seed)
 
 		return seed, true, nil
+	}
+}
+
+// ImportedAccounts prompts for any additional account names and xpubs to
+// import at wallet creation.
+func ImportedAccounts(reader *bufio.Reader, params *chaincfg.Params) (names []string, xpubs []*hdkeychain.ExtendedKey, err error) {
+	accounts := make(map[string]struct{})
+	accounts["default"] = struct{}{}
+
+	for {
+		fmt.Printf("Do you have an additional account to import from an " +
+			"extended public key? (enter account name, or 'no') [no]: ")
+		reply, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, err
+		}
+		reply = strings.TrimSpace(reply)
+		switch strings.ToLower(reply) {
+		case "", "n", "no":
+			return names, xpubs, nil
+		case "y", "yes":
+			continue
+		default:
+		}
+
+		account := reply
+		if _, ok := accounts[account]; ok {
+			fmt.Printf("Account %q is already defined\n", account)
+			continue
+		}
+		fmt.Printf("Enter extended public key for account %q: ", account)
+		reply, err = reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				err = io.ErrUnexpectedEOF
+			}
+			return nil, nil, err
+		}
+		reply = strings.TrimSpace(reply)
+		xpub, err := hdkeychain.NewKeyFromString(reply, params)
+		if err != nil {
+			fmt.Printf("Failed to decode extended key: %v\n", err)
+			continue
+		}
+		if xpub.IsPrivate() {
+			fmt.Printf("Extended key is a private key (not neutered)\n")
+			continue
+		}
+
+		fmt.Printf("Importing account %q from extended public key\n", account)
+		names = append(names, account)
+		xpubs = append(xpubs, xpub)
+		accounts[account] = struct{}{}
 	}
 }
 
