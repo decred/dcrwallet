@@ -374,15 +374,15 @@ func ImportedAccounts(reader *bufio.Reader, params *chaincfg.Params) (names []st
 	accounts["default"] = struct{}{}
 
 	for {
-		fmt.Printf("Do you have additional account extended public keys to import? " +
-			"(account name, or 'done') [done]: ")
+		fmt.Printf("Do you have an additional account to import from an " +
+			"extended public key? (enter account name, or 'no') [no]: ")
 		reply, err := reader.ReadString('\n')
 		if err != nil {
 			return nil, nil, err
 		}
 		reply = strings.TrimSpace(reply)
 		switch strings.ToLower(reply) {
-		case "", "n", "no", "done":
+		case "", "n", "no":
 			return names, xpubs, nil
 		case "y", "yes":
 			continue
@@ -397,6 +397,9 @@ func ImportedAccounts(reader *bufio.Reader, params *chaincfg.Params) (names []st
 		fmt.Printf("Enter extended public key for account %q: ", account)
 		reply, err = reader.ReadString('\n')
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				err = io.ErrUnexpectedEOF
+			}
 			return nil, nil, err
 		}
 		reply = strings.TrimSpace(reply)
