@@ -443,9 +443,12 @@ func run(ctx context.Context) error {
 				}
 			}
 
-			if cfg.SPV {
+			switch {
+			case cfg.Offline:
+				w.SetNetworkBackend(wallet.OfflineNetworkBackend{})
+			case cfg.SPV:
 				spvLoop(ctx, w)
-			} else {
+			default:
 				rpcSyncLoop(ctx, w)
 			}
 		})

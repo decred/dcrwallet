@@ -133,6 +133,9 @@ type config struct {
 	dial         func(ctx context.Context, network, address string) (net.Conn, error)
 	lookup       func(name string) ([]net.IP, error)
 
+	// Offline mode.
+	Offline bool `long:"offline" description:"Do not sync the wallet"`
+
 	// SPV options
 	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
 	SPVConnect []string `long:"spvconnect" description:"SPV sync only with specified peers; disables DNS seeding"`
@@ -867,6 +870,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				}
 			}
 		}
+	}
+
+	if cfg.SPV && cfg.Offline {
+		err := errors.E("SPV and Offline mode cannot be specified at the same time")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
 	}
 
 	if cfg.SPV && cfg.EnableVoting {

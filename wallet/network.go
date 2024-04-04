@@ -81,3 +81,41 @@ type Caller interface {
 	// a result (if any), or nil if no result is needed.
 	Call(ctx context.Context, method string, res any, args ...any) error
 }
+
+var errOfflineNetworkBackend = errors.New("operation not supported in offline mode")
+
+// OfflineNetworkBackend is a NetworkBackend that fails every call. It is meant
+// to be used in wallets which will only perform local operations.
+type OfflineNetworkBackend struct{}
+
+func (o OfflineNetworkBackend) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
+	return nil, errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error) {
+	return nil, errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
+	return errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error {
+	return errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) Rescan(ctx context.Context, blocks []chainhash.Hash, save func(block *chainhash.Hash, txs []*wire.MsgTx) error) error {
+	return errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
+	return 0, errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) Synced(ctx context.Context) (bool, int32) {
+	return true, 0
+}
+
+// Compile time check to ensure OfflineNetworkBackend fulfills the
+// NetworkBackend interface.
+var _ NetworkBackend = OfflineNetworkBackend{}
