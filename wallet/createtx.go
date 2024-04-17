@@ -199,6 +199,62 @@ func (s *secretSource) GetScript(addr stdaddr.Address) ([]byte, error) {
 	return s.Manager.RedeemScript(s.addrmgrNs, addr)
 }
 
+// SecretsSource is an implementation of txauthor.SecretsSource querying the
+// wallet's address manager.
+//
+// The Close method must be called after the SecretsSource usage is over.
+type SecretsSource struct {
+	wallet    *Wallet
+	dbtx      walletdb.ReadTx
+	doneFuncs []func()
+}
+
+// SecretsSource returns a txauthor.SecretsSource implementor using the wallet
+// as the backing store for keys and scripts.
+func (w *Wallet) SecretsSource() (*SecretsSource, error) {
+	dbtx, err := w.db.BeginReadTx()
+	if err != nil {
+		return nil, err
+	}
+	return &SecretsSource{wallet: w, dbtx: dbtx}, nil
+}
+
+// ChainParams returns the chain parameters.
+func (s *SecretsSource) ChainParams() *chaincfg.Params {
+	return s.wallet.chainParams
+}
+
+// GetKey provides the private key associated with an address.
+func (s *SecretsSource) GetKey(addr stdaddr.Address) (key []byte, sigType dcrec.SignatureType, compressed bool, err error) {
+	addrmgrNs := s.dbtx.ReadBucket(waddrmgrNamespaceKey)
+	privKey, done, err := s.wallet.manager.PrivateKey(addrmgrNs, addr)
+	if err != nil {
+		return
+	}
+	s.doneFuncs = append(s.doneFuncs, done)
+	return privKey.Serialize(), dcrec.STEcdsaSecp256k1, true, nil
+}
+
+// GetScript provides the redeem script for a P2SH address.
+func (s *SecretsSource) GetScript(addr stdaddr.Address) ([]byte, error) {
+	addrmgrNs := s.dbtx.ReadBucket(waddrmgrNamespaceKey)
+	return s.wallet.manager.RedeemScript(addrmgrNs, addr)
+}
+
+// Close finishes the SecretsSource usage by releasing all secret key material
+// and closing the underlying database transaction.
+func (s *SecretsSource) Close() error {
+	for _, f := range s.doneFuncs {
+		f()
+	}
+	s.doneFuncs = nil
+	err := s.dbtx.Rollback()
+	if err == nil {
+		s.dbtx = nil
+	}
+	return err
+}
+
 // CreatedTx holds the state of a newly-created transaction and the change
 // output (if one was added).
 type CreatedTx struct {

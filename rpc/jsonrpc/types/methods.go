@@ -1206,14 +1206,29 @@ type ProcessUnmanagedTicketCmd struct {
 	TicketHash *string
 }
 
-type registeredMethod struct {
-	method string
-	cmd    any
-}
-
+// GetCoinjoinsByAcctCmd defines the getcoinjoinsbyaccount JSON-RPC command arguments.
 type GetCoinjoinsByAcctCmd struct{}
 
+// SpendOutputsCmd defines the spendoutputs JSON-RPC command arguments.
+type SpendOutputsCmd struct {
+	Account           string
+	PreviousOutpoints []string
+	Outputs           []AddressAmountPair
+}
+
+// AddressAmountPair represents a JSON object defining an address and an
+// amount.
+type AddressAmountPair struct {
+	Address string  `json:"address"`
+	Amount  float64 `json:"amount"`
+}
+
 func init() {
+	type registeredMethod struct {
+		method string
+		cmd    any
+	}
+
 	// Wallet-specific methods
 	register := []registeredMethod{
 		{"abandontransaction", (*AbandonTransactionCmd)(nil)},
@@ -1289,6 +1304,7 @@ func init() {
 		{"signmessage", (*SignMessageCmd)(nil)},
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
+		{"spendoutputs", (*SpendOutputsCmd)(nil)},
 		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"syncstatus", (*SyncStatusCmd)(nil)},

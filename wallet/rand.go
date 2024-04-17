@@ -45,3 +45,8 @@ func shuffle(n int, swap func(i, j int)) {
 		swap(int(i), int(j))
 	}
 }
+
+// Shuffle cryptographically shuffles a total of n items.
+func Shuffle(n int, swap func(i, j int)) {
+	shuffle(n, swap)
+}

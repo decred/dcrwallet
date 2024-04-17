@@ -55,9 +55,9 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "9.1.0"
+	jsonrpcSemverString = "9.2.0"
 	jsonrpcSemverMajor  = 9
-	jsonrpcSemverMinor  = 1
+	jsonrpcSemverMinor  = 2
 	jsonrpcSemverPatch  = 0
 )
 
@@ -170,6 +170,7 @@ var handlers = map[string]handler{
 	"signmessage":               {fn: (*Server).signMessage},
 	"signrawtransaction":        {fn: (*Server).signRawTransaction},
 	"signrawtransactions":       {fn: (*Server).signRawTransactions},
+	"spendoutputs":              {fn: (*Server).spendOutputs},
 	"stakepooluserinfo":         {fn: (*Server).stakePoolUserInfo},
 	"sweepaccount":              {fn: (*Server).sweepAccount},
 	"syncstatus":                {fn: (*Server).syncStatus},
@@ -4178,6 +4179,168 @@ func (s *Server) rescanWallet(ctx context.Context, icmd any) (any, error) {
 
 	err := w.RescanFromHeight(ctx, n, int32(*cmd.BeginHeight))
 	return nil, err
+}
+
+// spendOutputsInputSource creates an input source from a wallet and a list of
+// outputs to be spent.  Only the provided outputs will be returned by the
+// source, without any other input selection.
+func spendOutputsInputSource(ctx context.Context, w *wallet.Wallet,
+	account string, inputs []*wire.TxIn) (txauthor.InputSource, error) {
+
+	params := w.ChainParams()
+
+	detail := new(txauthor.InputDetail)
+	detail.Inputs = inputs
+	detail.Scripts = make([][]byte, len(inputs))
+	detail.RedeemScriptSizes = make([]int, len(inputs))
+	for i, in := range inputs {
+		prevOut, err := w.FetchOutput(ctx, &in.PreviousOutPoint)
+		if err != nil {
+			return nil, err
+		}
+		detail.Amount += dcrutil.Amount(prevOut.Value)
+		detail.Scripts[i] = prevOut.PkScript
+		st, addrs := stdscript.ExtractAddrs(prevOut.Version,
+			prevOut.PkScript, params)
+		var addr stdaddr.Address
+		var redeemScriptSize int
+		switch st {
+		case stdscript.STPubKeyHashEcdsaSecp256k1:
+			addr = addrs[0]
+			redeemScriptSize = txsizes.RedeemP2PKHInputSize
+		default:
+			// XXX: don't assume P2PKH, support other script types
+			return nil, errors.E("unsupport address type")
+		}
+		ka, err := w.KnownAddress(ctx, addr)
+		if err != nil {
+			return nil, err
+		}
+		if ka.AccountName() != account {
+			err := errors.Errorf("output address of %v does not "+
+				"belong to account %q", &in.PreviousOutPoint,
+				account)
+			return nil, errors.E(errors.Invalid, err)
+		}
+		detail.RedeemScriptSizes[i] = redeemScriptSize
+	}
+
+	fn := func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
+		return detail, nil
+	}
+	return fn, nil
+}
+
+type accountChangeSource struct {
+	ctx     context.Context
+	wallet  *wallet.Wallet
+	account uint32
+	addr    stdaddr.Address
+}
+
+func (a *accountChangeSource) Script() (script []byte, version uint16, err error) {
+	if a.addr == nil {
+		addr, err := a.wallet.NewChangeAddress(a.ctx, a.account)
+		if err != nil {
+			return nil, 0, err
+		}
+		a.addr = addr
+	}
+
+	version, script = a.addr.PaymentScript()
+	return
+}
+
+func (a *accountChangeSource) ScriptSize() int {
+	// XXX: shouldn't assume P2PKH
+	return txsizes.P2PKHOutputSize
+}
+
+// spendOutputs creates, signs and publishes a transaction that spends the
+// specified outputs belonging to an account, pays a list of address/amount
+// pairs, with any change returned to the specified account.
+func (s *Server) spendOutputs(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.SpendOutputsCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+	n, err := w.NetworkBackend()
+	if err != nil {
+		return nil, err
+	}
+
+	params := w.ChainParams()
+
+	account, err := w.AccountNumber(ctx, cmd.Account)
+	if err != nil {
+		return nil, err
+	}
+
+	inputs := make([]*wire.TxIn, 0, len(cmd.PreviousOutpoints))
+	outputs := make([]*wire.TxOut, 0, len(cmd.Outputs))
+	for _, outpointStr := range cmd.PreviousOutpoints {
+		op, err := parseOutpoint(outpointStr)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		inputs = append(inputs, wire.NewTxIn(op, wire.NullValueIn, nil))
+	}
+	for _, output := range cmd.Outputs {
+		addr, err := stdaddr.DecodeAddress(output.Address, params)
+		if err != nil {
+			return nil, err
+		}
+		amount, err := dcrutil.NewAmount(output.Amount)
+		if err != nil {
+			return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
+		}
+		scriptVersion, script := addr.PaymentScript()
+		txOut := wire.NewTxOut(int64(amount), script)
+		txOut.Version = scriptVersion
+		outputs = append(outputs, txOut)
+	}
+	wallet.Shuffle(len(inputs), func(i, j int) {
+		inputs[i], inputs[j] = inputs[j], inputs[i]
+	})
+	wallet.Shuffle(len(outputs), func(i, j int) {
+		outputs[i], outputs[j] = outputs[j], outputs[i]
+	})
+
+	inputSource, err := spendOutputsInputSource(ctx, w, cmd.Account,
+		inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	changeSource := &accountChangeSource{
+		ctx:     ctx,
+		wallet:  w,
+		account: account,
+	}
+
+	secretsSource, err := w.SecretsSource()
+	if err != nil {
+		return nil, err
+	}
+	defer secretsSource.Close()
+
+	atx, err := txauthor.NewUnsignedTransaction(outputs, w.RelayFee(),
+		inputSource, changeSource, params.MaxTxSize)
+	if err != nil {
+		return nil, err
+	}
+	atx.RandomizeChangePosition()
+	err = atx.AddAllInputScripts(secretsSource)
+	if err != nil {
+		return nil, err
+	}
+
+	hash, err := w.PublishTransaction(ctx, atx.Tx, n)
+	if err != nil {
+		return nil, err
+	}
+	return hash.String(), nil
 }
 
 // stakePoolUserInfo returns the ticket information for a given user from the

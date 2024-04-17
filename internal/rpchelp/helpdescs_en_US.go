@@ -869,6 +869,16 @@ var helpDescsEnUS = map[string]string{
 	"signedtransaction-sent":            "Tells if the transaction was sent.",
 	"signedtransaction-signingresult":   "Success or failure of signing.",
 
+	// SpendOutputsCmd help.
+	"spendoutputs--synopsis": "Create, sign, and publish a transaction spending the specified wallet outputs, and paying an array of address/amount pairs.\n" +
+		"Outputs must belong to the specified account, and change (if needed) is returned to an internal address of the same account.",
+	"spendoutputs-account":           "Account of specified previous outpoints, and account used to return change",
+	"spendoutputs-previousoutpoints": `Array of outpoints in string encoding ("hash:index")`,
+	"spendoutputs-outputs":           "Array of JSON objects, each specifying an address string and amount",
+	"spendoutputs--result0":          "The published transaction hash",
+	"addressamountpair-address":      "Address to pay",
+	"addressamountpair-amount":       "Amount to pay the address",
+
 	// StakePoolUserInfoCmd help.
 	"stakepooluserinfo--synopsis": "Get user info for stakepool",
 	"stakepooluserinfo-user":      "The id of the user to be looked up",
