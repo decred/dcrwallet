@@ -168,43 +168,39 @@ func (w *Wallet) logRescannedTx(txmgrNs walletdb.ReadBucket, height int32, tx *w
 // does not update the network backend with data to watch for future
 // relevant transactions as the rescanner is assumed to handle this
 // task.
-func (w *Wallet) saveRescanned(ctx context.Context, hash *chainhash.Hash,
-	txs []*wire.MsgTx, logTxs bool) error {
+func (w *Wallet) saveRescanned(ctx context.Context, dbtx walletdb.ReadWriteTx,
+	hash *chainhash.Hash, txs []*wire.MsgTx, logTxs bool) (err error) {
 
 	const op errors.Op = "wallet.saveRescanned"
-
-	defer w.lockedOutpointMu.Unlock()
-	w.lockedOutpointMu.Lock()
-
-	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-		blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, hash)
+	defer func() {
 		if err != nil {
-			return err
+			err = errors.E(op, err)
 		}
-		header, err := w.txStore.GetBlockHeader(dbtx, hash)
-		if err != nil {
-			return err
-		}
+	}()
 
-		for _, tx := range txs {
-			if logTxs {
-				w.logRescannedTx(txmgrNs, blockMeta.Height, tx)
-			}
-
-			rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
-			if err != nil {
-				return err
-			}
-			_, err = w.processTransactionRecord(ctx, dbtx, rec, header, &blockMeta)
-			if err != nil {
-				return err
-			}
-		}
-		return w.txStore.UpdateProcessedTxsBlockMarker(dbtx, hash)
-	})
+	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
+	blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, hash)
 	if err != nil {
-		return errors.E(op, err)
+		return err
+	}
+	header, err := w.txStore.GetBlockHeader(dbtx, hash)
+	if err != nil {
+		return err
+	}
+
+	for _, tx := range txs {
+		if logTxs {
+			w.logRescannedTx(txmgrNs, blockMeta.Height, tx)
+		}
+
+		rec, err := udb.NewTxRecordFromMsgTx(tx, time.Now())
+		if err != nil {
+			return err
+		}
+		_, err = w.processTransactionRecord(ctx, dbtx, rec, header, &blockMeta)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -256,19 +252,94 @@ func (w *Wallet) rescan(ctx context.Context, n NetworkBackend,
 			}
 		}
 		log.Infof("Rescanning block range [%v, %v]...", height, through)
-		saveRescanned := func(block *chainhash.Hash, txs []*wire.MsgTx) error {
-			return w.saveRescanned(ctx, block, txs, logTxs)
+
+		// Helper func to save batches of matching transactions.
+		saveRescanned := func(blocks []*chainhash.Hash, txs [][]*wire.MsgTx) error {
+			if len(blocks) != len(txs) {
+				return errors.E(errors.Bug, "len(blocks) must match len(txs)")
+			}
+			if len(blocks) == 0 {
+				return nil
+			}
+
+			w.lockedOutpointMu.Lock()
+			defer w.lockedOutpointMu.Unlock()
+
+			return walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+				for i := range blocks {
+					block := blocks[i]
+					txs := txs[i]
+
+					err := w.saveRescanned(ctx, dbtx, block, txs, logTxs)
+					if err != nil {
+						return err
+					}
+				}
+
+				return nil
+			})
 		}
-		err = n.Rescan(ctx, rescanBlocks, saveRescanned)
+
+		// Use a background goroutine reading a channel of
+		// transactions to process from the rescan.  This allows
+		// grouping the updates instead of potentially performing a
+		// single db update for every block in the rescanned range.
+		type rescannedBlock struct {
+			blockHash *chainhash.Hash
+			txs       []*wire.MsgTx
+			errc      chan error
+		}
+		ch := make(chan rescannedBlock, 1)
+		blockHashes := make([]*chainhash.Hash, 0, maxBlocksPerRescan)
+		txs := make([][]*wire.MsgTx, 0, maxBlocksPerRescan)
+		lastBatchErr := make(chan error)
+		go func() {
+			numTxs := 0
+			for item := range ch {
+				errc := item.errc
+
+				blockHashes = append(blockHashes, item.blockHash)
+				txs = append(txs, item.txs)
+				numTxs += len(item.txs)
+
+				if numTxs >= 256 { // XXX: tune this
+					err := saveRescanned(blockHashes, txs)
+					if err != nil {
+						errc <- err
+						return
+					}
+
+					blockHashes = blockHashes[:0]
+					txs = txs[:0]
+					numTxs = 0
+				}
+
+				errc <- nil
+			}
+
+			lastBatchErr <- saveRescanned(blockHashes, txs)
+		}()
+
+		err = n.Rescan(ctx, rescanBlocks, func(blockHash *chainhash.Hash, txs []*wire.MsgTx) error {
+			errc := make(chan error)
+			ch <- rescannedBlock{
+				blockHash: blockHash,
+				txs:       txs,
+				errc:      errc,
+			}
+			return <-errc
+		})
+		close(ch) // End the background worker
+		if err != nil {
+			return err
+		}
+		err = <-lastBatchErr
 		if err != nil {
 			return err
 		}
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			return w.txStore.UpdateProcessedTxsBlockMarker(dbtx, &rescanBlocks[len(rescanBlocks)-1])
 		})
-		if err != nil {
-			return err
-		}
 		if p != nil {
 			p <- RescanProgress{ScannedThrough: through}
 		}
