@@ -5344,6 +5344,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd any) (any, error) {
 		VoteBitsExtended: hex.EncodeToString(voteBits.ExtendedBits),
 		VoteVersion:      voteVersion,
 		Voting:           voting,
+		VSP:              s.cfg.VSPHost,
 		ManualTickets:    w.ManualTickets(),
 	}, nil
 }
