@@ -60,6 +60,8 @@ type RPCOptions struct {
 	Pass        string
 	Dial        func(ctx context.Context, network, address string) (net.Conn, error)
 	CA          []byte
+	ClientCert  []byte
+	ClientKey   []byte
 	Insecure    bool
 }
 
@@ -532,7 +534,9 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		addr = "wss://" + addr + "/ws"
 	}
 	opts := make([]wsrpc.Option, 0, 5)
-	opts = append(opts, wsrpc.WithBasicAuth(s.opts.User, s.opts.Pass))
+	if s.opts.User != "" {
+		opts = append(opts, wsrpc.WithBasicAuth(s.opts.User, s.opts.Pass))
+	}
 	opts = append(opts, wsrpc.WithNotifier(s.notifier))
 	opts = append(opts, wsrpc.WithoutPongDeadline())
 	if s.opts.Dial != nil {
@@ -553,6 +557,13 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			},
 			RootCAs: pool,
+		}
+		if len(s.opts.ClientCert) != 0 {
+			keypair, err := tls.X509KeyPair(s.opts.ClientCert, s.opts.ClientKey)
+			if err != nil {
+				return err
+			}
+			tc.Certificates = []tls.Certificate{keypair}
 		}
 		opts = append(opts, wsrpc.WithTLSConfig(tc))
 	}

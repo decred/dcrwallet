@@ -567,12 +567,13 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 // disassociated from the client and a new connection is attempmted.
 func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 	certs := readCAFile()
+	clientCert, clientKey := readClientCertKey()
 	dial := cfg.dial
 	if cfg.NoDcrdProxy {
 		dial = new(net.Dialer).DialContext
 	}
 	for {
-		syncer := chain.NewSyncer(w, &chain.RPCOptions{
+		rpcOptions := &chain.RPCOptions{
 			Address:     cfg.RPCConnect,
 			DefaultPort: activeNet.JSONRPCClientPort,
 			User:        cfg.DcrdUsername,
@@ -580,7 +581,14 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 			Dial:        dial,
 			CA:          certs,
 			Insecure:    cfg.DisableClientTLS,
-		})
+		}
+		if len(clientCert) != 0 {
+			rpcOptions.User = ""
+			rpcOptions.Pass = ""
+			rpcOptions.ClientCert = clientCert
+			rpcOptions.ClientKey = clientKey
+		}
+		syncer := chain.NewSyncer(w, rpcOptions)
 		err := syncer.Run(ctx)
 		if err != nil {
 			loggers.SyncLog.Errorf("Wallet synchronization stopped: %v", err)
@@ -610,4 +618,21 @@ func readCAFile() []byte {
 	}
 
 	return certs
+}
+
+func readClientCertKey() ([]byte, []byte) {
+	if cfg.DcrdAuthType != authTypeClientCert {
+		return nil, nil
+	}
+	cert, err := os.ReadFile(cfg.DcrdClientCert.Value)
+	if err != nil {
+		log.Warnf("Cannot open dcrd RPC client certificate: %v", err)
+		cert = nil
+	}
+	key, err := os.ReadFile(cfg.DcrdClientKey.Value)
+	if err != nil {
+		log.Warnf("Cannot open dcrd RPC client key: %v", err)
+		key = nil
+	}
+	return cert, key
 }

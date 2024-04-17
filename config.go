@@ -35,6 +35,12 @@ import (
 )
 
 const (
+	// Authorization types.
+	authTypeBasic      = "basic"
+	authTypeClientCert = "clientcert"
+)
+
+const (
 	defaultCAFilename              = "dcrd.cert"
 	defaultConfigFilename          = "dcrwallet.conf"
 	defaultLogLevel                = "info"
@@ -43,7 +49,7 @@ const (
 	defaultLogSize                 = "10M"
 	defaultRPCMaxClients           = 10
 	defaultRPCMaxWebsockets        = 25
-	defaultAuthType                = "basic"
+	defaultAuthType                = authTypeBasic
 	defaultEnableTicketBuyer       = false
 	defaultEnableVoting            = false
 	defaultPurchaseAccount         = "default"
@@ -67,13 +73,15 @@ const (
 )
 
 var (
-	dcrdDefaultCAFile      = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
-	defaultAppDataDir      = dcrutil.AppDataDir("dcrwallet", false)
-	defaultConfigFile      = filepath.Join(defaultAppDataDir, defaultConfigFilename)
-	defaultRPCKeyFile      = filepath.Join(defaultAppDataDir, "rpc.key")
-	defaultRPCCertFile     = filepath.Join(defaultAppDataDir, "rpc.cert")
-	defaultRPCClientCAFile = filepath.Join(defaultAppDataDir, "clients.pem")
-	defaultLogDir          = filepath.Join(defaultAppDataDir, defaultLogDirname)
+	dcrdDefaultCAFile         = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
+	defaultAppDataDir         = dcrutil.AppDataDir("dcrwallet", false)
+	defaultConfigFile         = filepath.Join(defaultAppDataDir, defaultConfigFilename)
+	defaultRPCKeyFile         = filepath.Join(defaultAppDataDir, "rpc.key")
+	defaultRPCCertFile        = filepath.Join(defaultAppDataDir, "rpc.cert")
+	defaultDcrdClientCertFile = filepath.Join(defaultAppDataDir, "dcrd-client.cert")
+	defaultDcrdClientKeyFile  = filepath.Join(defaultAppDataDir, "dcrd-client.key")
+	defaultRPCClientCAFile    = filepath.Join(defaultAppDataDir, "clients.pem")
+	defaultLogDir             = filepath.Join(defaultAppDataDir, defaultLogDirname)
 )
 
 type config struct {
@@ -122,6 +130,9 @@ type config struct {
 	DisableClientTLS bool                    `long:"noclienttls" description:"Disable TLS for dcrd RPC; only allowed when connecting to localhost"`
 	DcrdUsername     string                  `long:"dcrdusername" description:"dcrd RPC username; overrides --username"`
 	DcrdPassword     string                  `long:"dcrdpassword" default-mask:"-" description:"dcrd RPC password; overrides --password"`
+	DcrdClientCert   *cfgutil.ExplicitString `long:"dcrdclientcert" description:"TLS client certificate to present to authenticate RPC connections to dcrd"`
+	DcrdClientKey    *cfgutil.ExplicitString `long:"dcrdclientkey" description:"Key for dcrd RPC client certificate"`
+	DcrdAuthType     string                  `long:"dcrdauthtype" description:"Method for dcrd JSON-RPC client authentication (basic or clientcert)"`
 
 	// Proxy and Tor settings
 	Proxy        string `long:"proxy" description:"Establish network connections and DNS lookups through a SOCKS5 proxy (e.g. 127.0.0.1:9050)"`
@@ -350,6 +361,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		WalletPass:              wallet.InsecurePubPassphrase,
 		CAFile:                  cfgutil.NewExplicitString(""),
 		ClientCAFile:            cfgutil.NewExplicitString(defaultRPCClientCAFile),
+		DcrdClientCert:          cfgutil.NewExplicitString(defaultDcrdClientCertFile),
+		DcrdClientKey:           cfgutil.NewExplicitString(defaultDcrdClientKeyFile),
 		dial:                    new(net.Dialer).DialContext,
 		lookup:                  net.LookupIP,
 		PromptPass:              defaultPromptPass,
@@ -361,6 +374,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		LegacyRPCMaxClients:     defaultRPCMaxClients,
 		LegacyRPCMaxWebsockets:  defaultRPCMaxWebsockets,
 		JSONRPCAuthType:         defaultAuthType,
+		DcrdAuthType:            defaultAuthType,
 		EnableTicketBuyer:       defaultEnableTicketBuyer,
 		EnableVoting:            defaultEnableVoting,
 		PurchaseAccount:         defaultPurchaseAccount,
@@ -457,6 +471,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 		if !cfg.ClientCAFile.ExplicitlySet() {
 			cfg.ClientCAFile.Value = filepath.Join(cfg.AppDataDir.Value, "clients.pem")
+		}
+		if !cfg.DcrdClientCert.ExplicitlySet() {
+			cfg.DcrdClientCert.Value = filepath.Join(cfg.AppDataDir.Value, "dcrd-client.cert")
+		}
+		if !cfg.DcrdClientKey.ExplicitlySet() {
+			cfg.DcrdClientKey.Value = filepath.Join(cfg.AppDataDir.Value, "dcrd-client.key")
 		}
 		if !cfg.LogDir.ExplicitlySet() {
 			cfg.LogDir.Value = filepath.Join(cfg.AppDataDir.Value, defaultLogDirname)
@@ -1006,6 +1026,8 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	cfg.CAFile.Value = cleanAndExpandPath(cfg.CAFile.Value)
 	cfg.RPCCert.Value = cleanAndExpandPath(cfg.RPCCert.Value)
 	cfg.RPCKey.Value = cleanAndExpandPath(cfg.RPCKey.Value)
+	cfg.DcrdClientCert.Value = cleanAndExpandPath(cfg.DcrdClientCert.Value)
+	cfg.DcrdClientKey.Value = cleanAndExpandPath(cfg.DcrdClientKey.Value)
 	cfg.ClientCAFile.Value = cleanAndExpandPath(cfg.ClientCAFile.Value)
 
 	// If the dcrd username or password are unset, use the same auth as for
@@ -1019,10 +1041,44 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		cfg.DcrdPassword = cfg.Password
 	}
 
-	switch cfg.JSONRPCAuthType {
-	case "basic", "clientcert":
+	switch cfg.DcrdAuthType {
+	case authTypeBasic:
+	case authTypeClientCert:
+		if cfg.DisableClientTLS {
+			err := fmt.Errorf("dcrdauthtype=clientcert is " +
+				"incompatible with disableclienttls")
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+		dcrdClientCertExists, _ := cfgutil.FileExists(
+			cfg.DcrdClientCert.Value)
+		if !dcrdClientCertExists {
+			err := fmt.Errorf("dcrdclientcert %q is required "+
+				"by dcrdauthtype=clientcert but does not exist",
+				cfg.DcrdClientCert.Value)
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
+		dcrdClientKeyExists, _ := cfgutil.FileExists(
+			cfg.DcrdClientKey.Value)
+		if !dcrdClientKeyExists {
+			err := fmt.Errorf("dcrdclientkey %q is required "+
+				"by dcrdauthtype=clientcert but does not exist",
+				cfg.DcrdClientKey.Value)
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
 	default:
-		err := fmt.Errorf("unknown authtype %q", cfg.JSONRPCAuthType)
+		err := fmt.Errorf("unknown dcrd authtype %q", cfg.DcrdAuthType)
+		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, usageMessage)
+		return loadConfigError(err)
+	}
+
+	switch cfg.JSONRPCAuthType {
+	case authTypeBasic, authTypeClientCert:
+	default:
+		err := fmt.Errorf("unknown JSON-RPC authtype %q", cfg.JSONRPCAuthType)
 		fmt.Fprintln(os.Stderr, err)
 		fmt.Fprintln(os.Stderr, usageMessage)
 		return loadConfigError(err)
