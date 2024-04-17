@@ -1136,11 +1136,11 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 	if err != nil {
 		return
 	}
-	err = w.recordAuthoredTx(ctx, op, a)
-	if err != nil {
-		return
-	}
 	if !req.DontSignTx {
+		err = w.recordAuthoredTx(ctx, op, a)
+		if err != nil {
+			return
+		}
 		err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 		if err != nil {
 			return
@@ -1199,11 +1199,11 @@ func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, need
 	if err != nil {
 		return
 	}
-	err = w.recordAuthoredTx(ctx, op, a)
-	if err != nil {
-		return
-	}
 	if !req.DontSignTx {
+		err = w.recordAuthoredTx(ctx, op, a)
+		if err != nil {
+			return
+		}
 		err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
 		if err != nil {
 			return
