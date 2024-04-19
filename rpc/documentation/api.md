@@ -132,6 +132,11 @@ blockchain) and the private passphrase (for private keys).  Since the seed is
 not saved in the wallet database and clients should make their users backup the
 seed, it needs to be passed as part of the request.
 
+A wallet birthday can be set by time or height. If by time, a block before the
+time will be selected during initial sync. That block hash and height can be
+retrieved after initial sync with [`BirthBlock`](#BirthBlock). If not set the
+genesis block is used.
+
 After creating a wallet, the `WalletService` service begins running.
 
 Since API version 3.0.0, creating the wallet no longer automatically
@@ -151,6 +156,19 @@ synchronizes the wallet to the consensus server if it was previously loaded.
 - `bytes seed`: The BIP0032 seed used to derive all wallet keys.  The length of
   this field must be between 16 and 64 bytes, inclusive.
 
+- `bool set_birth_time`: Whether to set a wallet birthday from the passed
+  birth_time. Cannot be used with set_birth_height.
+
+- `int64 birth_time`: The UNIX timestamp of the desired wallet birthday. Must
+  be at least a day ahead of current time. set_birth_time must also be set in
+  order for this to be used.
+
+- `bool set_birth_height`: Whether to set a wallet birthday from the passed
+  birth_height. Cannot be used with set_birth_time.
+
+- `uint32 birth_height`: The block number of the desired wallet birthday.
+  set_birth_height must also be set in order for this to be used.
+
 **Response:** `CreateWalletReponse`
 
 **Expected errors:**
@@ -162,6 +180,9 @@ synchronizes the wallet to the consensus server if it was previously loaded.
 - `InvalidArgument`: A private passphrase was not included in the request, or
   the seed is of incorrect length.
 
+- `InvalidArgument`: set_birth_time and set_birth_height are both true.
+
+- `InvalidArgument`: birth_time is not 24 hours ahead of current time.
 ___
 
 #### `CreateWatchingOnlyWallet`
@@ -444,6 +465,7 @@ The service provides the following methods:
 - [`GetTrackedVSPTickets`](#GetTrackedVSPTickets)
 - [`Address`](#Address)
 - [`DumpPrivateKey`](#DumpPrivateKey)
+- [`BirthBlock`](#BirthBlock)
 
 #### `Ping`
 
@@ -2694,6 +2716,23 @@ or account must be unlocked.
 - `FailedPrecondition`: Account locked.
 
 - `InvalidArgument`: Watching only wallet.
+
+#### `BirthBlock`
+
+The `BirthBlock` method returns the wallets birthday block if set. Rescans
+should generally be started from after this block.
+
+**Request:** `BirthBlockRequest`
+
+**Response:** `BirthBlockResponse`
+
+- `bytes hash`: The birth block hash.
+
+- `uint32 height`: The birth block height.
+
+**Expected errors:**
+
+- `NotFound`: Birth block never set or pending being found.
 
 ## `SeedService`
 

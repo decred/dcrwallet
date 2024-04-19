@@ -616,6 +616,28 @@ func (s *walletServer) DumpPrivateKey(ctx context.Context, req *pb.DumpPrivateKe
 	return &pb.DumpPrivateKeyResponse{PrivateKeyWif: key}, nil
 }
 
+func (s *walletServer) BirthBlock(ctx context.Context, req *pb.BirthBlockRequest) (
+	*pb.BirthBlockResponse, error) {
+
+	birthState, err := s.wallet.BirthState(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"failed to get birth state: %v", err)
+	}
+	if birthState == nil || birthState.SetFromTime || birthState.SetFromHeight {
+		errMsg := "birth block not set"
+		if birthState != nil {
+			errMsg = "birth block is pending..."
+		}
+		return nil, status.Errorf(codes.NotFound, errMsg)
+	}
+
+	return &pb.BirthBlockResponse{
+		Hash:   birthState.Hash[:],
+		Height: birthState.Height,
+	}, nil
+}
+
 func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPrivateKeyRequest) (
 	*pb.ImportPrivateKeyResponse, error) {
 
@@ -2809,9 +2831,45 @@ func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletReq
 		return nil, status.Errorf(codes.InvalidArgument, "seed is a required parameter")
 	}
 
-	_, err := s.loader.CreateNewWallet(ctx, pubPassphrase, req.PrivatePassphrase, req.Seed)
+	if req.SetBirthTime && req.SetBirthHeight {
+		return nil, status.Errorf(codes.InvalidArgument, "both set birth time and height cannot be set")
+	}
+
+	var birthState *udb.BirthdayState
+	if req.SetBirthTime {
+		birthday := time.Unix(req.BirthTime, 0)
+		if time.Since(birthday) < time.Hour*24 {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"birth time cannot be in the future or too close (one day) to the present")
+		}
+		birthState = &udb.BirthdayState{
+			SetFromTime: true,
+			Time:        birthday,
+		}
+	}
+
+	if req.SetBirthTime {
+		birthState = &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        req.BirthHeight,
+		}
+	}
+
+	if birthState == nil {
+		// Set the genesis block as the birthday.
+		birthState = &udb.BirthdayState{
+			SetFromHeight: true,
+		}
+	}
+
+	w, err := s.loader.CreateNewWallet(ctx, pubPassphrase, req.PrivatePassphrase, req.Seed)
 	if err != nil {
 		return nil, translateError(err)
+	}
+
+	if err := w.SetBirthState(ctx, birthState); err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"unable to set birthday state: %s", err.Error())
 	}
 
 	return &pb.CreateWalletResponse{}, nil

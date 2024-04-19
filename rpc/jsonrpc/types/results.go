@@ -421,6 +421,8 @@ type WalletInfoResult struct {
 	Voting           bool    `json:"voting"`
 	VSP              string  `json:"vsp"`
 	ManualTickets    bool    `json:"manualtickets"`
+	BirthHash        string  `json:"birthhash"`
+	BirthHeight      uint32  `json:"birthheight"`
 }
 
 // AccountUnlockedResult models the data returned by the accountunlocked

@@ -427,7 +427,8 @@ func (w *Wallet) filterBlocks(ctx context.Context, startBlock *chainhash.Hash, d
 	return matches, ctx.Err()
 }
 
-func (w *Wallet) findLastUsedAccount(ctx context.Context, n NetworkBackend, blockCache blockCommitmentCache, coinTypeXpriv *hd.ExtendedKey, gapLimit uint32) (uint32, error) {
+func (w *Wallet) findLastUsedAccount(ctx context.Context, n NetworkBackend, blockCache blockCommitmentCache,
+	coinTypeXpriv *hd.ExtendedKey, gapLimit uint32, startBlock *chainhash.Hash) (uint32, error) {
 	var (
 		acctGapLimit = uint32(w.accountGapLimit)
 		addrScripts  = make([][]byte, 0, acctGapLimit*gapLimit*2*2)
@@ -471,7 +472,11 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, n NetworkBackend, bloc
 			}
 		}
 
-		searchBlocks, err := w.filterBlocks(ctx, &w.chainParams.GenesisHash, addrScripts)
+		sb := startBlock
+		if sb == nil {
+			sb = &w.chainParams.GenesisHash
+		}
+		searchBlocks, err := w.filterBlocks(ctx, sb, addrScripts)
 		if err != nil {
 			return 0, err
 		}
@@ -774,7 +779,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, 
 			f := existsAddrIndexFinder{w, rpc, gapLimit}
 			lastUsed, err = f.findLastUsedAccount(ctx, coinTypePrivKey)
 		} else {
-			lastUsed, err = w.findLastUsedAccount(ctx, n, blockAddresses, coinTypePrivKey, gapLimit)
+			lastUsed, err = w.findLastUsedAccount(ctx, n, blockAddresses, coinTypePrivKey, gapLimit, startBlock)
 		}
 		if err != nil {
 			return errors.E(op, err)

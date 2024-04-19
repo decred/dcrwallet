@@ -321,6 +321,77 @@ func (s *Store) UpdateProcessedTxsBlockMarker(dbtx walletdb.ReadWriteTx, hash *c
 	return nil
 }
 
+// BirthdayState holds fields for setting and reading the birthday block.
+// SetFromHeight and SetFromTime indicate that the birthday block should be set
+// from those respective fields. Upon setting the hash and height are filled in
+// and SetFrom fields set to false.
+type BirthdayState struct {
+	Hash                       chainhash.Hash
+	Height                     uint32
+	Time                       time.Time
+	SetFromHeight, SetFromTime bool
+}
+
+// SetBirthState sets the birthday state in the database.
+//
+// [0:1] Options (1 byte)
+// [1:33]  Birthblock block header hash (32 bytes)
+// [33:37] Birthblock block height (4 bytes)
+// [37:45] Birthday time (8 bytes)
+func SetBirthState(dbtx walletdb.ReadWriteTx, bs *BirthdayState) error {
+	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+	const (
+		optionsSize       = 1
+		heightSize        = 4
+		timeSize          = 8
+		flagSetFromHeight = 1
+		flagSetFromTime   = 1 << 1
+	)
+	v := make([]byte, optionsSize+chainhash.HashSize+heightSize+timeSize)
+	options := 0
+	if bs.SetFromHeight {
+		options += flagSetFromHeight
+	}
+	if bs.SetFromTime {
+		options += flagSetFromTime
+	}
+	v[0] = byte(options)
+	copy(v[optionsSize:], bs.Hash[:])
+	byteOrder.PutUint32(v[optionsSize+chainhash.HashSize:], bs.Height)
+	byteOrder.PutUint64(v[optionsSize+chainhash.HashSize+heightSize:], uint64(bs.Time.Unix()))
+	return ns.Put(rootBirthState, v)
+}
+
+// BirthState returns the current birthday state.
+func BirthState(dbtx walletdb.ReadTx) *BirthdayState {
+	ns := dbtx.ReadBucket(wtxmgrBucketKey)
+	const (
+		optionsSize       = 1
+		heightSize        = 4
+		timeSize          = 8
+		flagSetFromHeight = 1
+		flagSetFromTime   = 1 << 1
+	)
+	v := ns.Get(rootBirthState)
+	if len(v) != optionsSize+chainhash.HashSize+heightSize+timeSize {
+		return nil
+	}
+	options := v[0]
+	setFromHeight := options&flagSetFromHeight != 0
+	setFromTime := options&flagSetFromTime != 0
+	var h chainhash.Hash
+	copy(h[:], v[optionsSize:])
+	height := byteOrder.Uint32(v[optionsSize+chainhash.HashSize:])
+	t := time.Unix(int64(byteOrder.Uint64(v[optionsSize+chainhash.HashSize+heightSize:])), 0)
+	return &BirthdayState{
+		Hash:          h,
+		Height:        height,
+		Time:          t,
+		SetFromHeight: setFromHeight,
+		SetFromTime:   setFromTime,
+	}
+}
+
 // IsMissingMainChainCFilters returns whether all compact filters for main chain
 // blocks have been recorded to the database after the upgrade which began to
 // require them to extend the main chain.  If compact filters are missing, they

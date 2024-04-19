@@ -160,6 +160,8 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 			}
 		}
 
+		birthState := udb.BirthState(dbtx)
+
 		for _, n := range chain {
 			if voteVersion(w.chainParams) < n.Header.StakeVersion {
 				log.Warnf("Old vote version detected (v%v), please update your "+
@@ -174,6 +176,31 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 			// Add the block hash to the notification.
 			chainTipChanges.AttachedBlocks = append(chainTipChanges.AttachedBlocks, n.Hash)
+
+			if birthState != nil &&
+				((birthState.SetFromTime && n.Header.Timestamp.After(birthState.Time)) ||
+					(birthState.SetFromHeight && n.Header.Height == birthState.Height+1)) &&
+				n.Header.Height != 0 {
+				bh := n.Header.PrevBlock
+				height := n.Header.Height - 1
+				birthState.Hash = bh
+				birthState.Height = height
+				birthState.SetFromTime = false
+				birthState.SetFromHeight = false
+				if err := udb.SetBirthState(dbtx, birthState); err != nil {
+					return err
+				}
+				// Do not store the tip hash as that will cause w.rescanPoint
+				// to return nil. This is why we wait for one block pass the
+				// height if set.
+				if err := w.txStore.UpdateProcessedTxsBlockMarker(dbtx, &bh); err != nil {
+					return err
+				}
+				log.Infof("Set wallet birthday to block %d (%v).",
+					height, bh)
+			}
+			// NOTE: A birthday block or time set past the main tip
+			// searches until it is passed.
 		}
 
 		if relevantTxs != nil {

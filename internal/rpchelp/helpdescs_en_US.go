@@ -1026,6 +1026,8 @@ var helpDescsEnUS = map[string]string{
 	"walletinforesult-voting":           "Whether or not the wallet is currently voting tickets",
 	"walletinforesult-vsp":              "VSP URL used when purchasing tickets",
 	"walletinforesult-manualtickets":    "Whether or not the wallet is only accepting tickets manually",
+	"walletinforesult-birthhash":        "The wallet birth hash.",
+	"walletinforesult-birthheight":      "The wallet birth height.",
 
 	// WalletIsLockedCmd help.
 	"walletislocked--synopsis": "Returns whether or not the wallet is locked.",

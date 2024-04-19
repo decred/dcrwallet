@@ -41,6 +41,7 @@ service WalletService {
 	rpc GetCFilters (GetCFiltersRequest) returns (stream GetCFiltersResponse);
 	rpc GetPeerInfo(GetPeerInfoRequest) returns (GetPeerInfoResponse);
 	rpc DumpPrivateKey (DumpPrivateKeyRequest) returns (DumpPrivateKeyResponse);
+	rpc BirthBlock (BirthBlockRequest) returns (BirthBlockResponse);
 
 	// Notifications
 	rpc TransactionNotifications (TransactionNotificationsRequest) returns (stream TransactionNotificationsResponse);
@@ -319,6 +320,13 @@ message DumpPrivateKeyRequest {
 }
 message DumpPrivateKeyResponse {
 	string private_key_wif = 1;
+}
+
+message BirthBlockRequest {
+}
+message BirthBlockResponse {
+	bytes hash = 1;
+	uint32 height = 2;
 }
 
 message ImportVotingAccountFromSeedRequest {
@@ -752,6 +760,10 @@ message CreateWalletRequest {
 	bytes public_passphrase = 1;
 	bytes private_passphrase = 2;
 	bytes seed = 3;
+	bool set_birth_time = 4;
+	int64 birth_time = 5;
+	bool set_birth_height = 6;
+	uint32 birth_height = 7;
 }
 message CreateWalletResponse {}
 
