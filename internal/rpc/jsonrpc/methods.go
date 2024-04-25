@@ -3491,7 +3491,17 @@ func (s *Server) processUnmanagedTicket(ctx context.Context, icmd any) (any, err
 		return nil, err
 	}
 
-	err = vspClient.Process(ctx, hash, nil)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	ticket, err := w.NewVSPTicket(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	err = vspClient.Process(ctx, ticket, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -4833,7 +4843,13 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		if err != nil {
 			return err
 		}
-		err = vspClient.SetVoteChoice(ctx, ticketHash, choices, tspendPolicy, treasuryPolicy)
+
+		ticket, err := w.NewVSPTicket(ctx, ticketHash)
+		if err != nil {
+			return err
+		}
+
+		err = vspClient.SetVoteChoice(ctx, ticket, choices, tspendPolicy, treasuryPolicy)
 		return err
 	}
 
@@ -4850,9 +4866,15 @@ func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, tic
 		if err != nil {
 			return err
 		}
+
+		ticket, err := w.NewVSPTicket(ctx, hash)
+		if err != nil {
+			return err
+		}
+
 		// Never return errors here, so all tickets are tried.
 		// The first error will be returned to the user.
-		err = vspClient.SetVoteChoice(ctx, hash, choices, tspendPolicy, treasuryPolicy)
+		err = vspClient.SetVoteChoice(ctx, ticket, choices, tspendPolicy, treasuryPolicy)
 		if err != nil {
 			return err
 		}

@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2023 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -561,30 +561,6 @@ func (w *Wallet) SetAgendaChoices(ctx context.Context, ticketHash *chainhash.Has
 	return voteBits, nil
 }
 
-// TreasuryKeyPolicyForTicket returns all of the treasury key policies set for a
-// single ticket. It does not consider the global wallet setting.
-func (w *Wallet) TreasuryKeyPolicyForTicket(ticketHash *chainhash.Hash) map[string]string {
-	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	policies := make(map[string]string)
-	for key, value := range w.vspTSpendKeyPolicy {
-		if key.Ticket.IsEqual(ticketHash) {
-			var choice string
-			switch value {
-			case stake.TreasuryVoteYes:
-				choice = "yes"
-			case stake.TreasuryVoteNo:
-				choice = "no"
-			default:
-				choice = "abstain"
-			}
-			policies[key.TreasuryKey] = choice
-		}
-	}
-	return policies
-}
-
 // TreasuryKeyPolicy returns a vote policy for provided Pi key. If there is
 // no policy this method returns TreasuryVoteInvalid.
 // A non-nil ticket hash may be used by a VSP to return per-ticket policies.
@@ -600,30 +576,6 @@ func (w *Wallet) TreasuryKeyPolicy(pikey []byte, ticket *chainhash.Hash) stake.T
 		}]
 	}
 	return w.tspendKeyPolicy[string(pikey)]
-}
-
-// TSpendPolicyForTicket returns all of the tspend policies set for a single
-// ticket. It does not consider the global wallet setting.
-func (w *Wallet) TSpendPolicyForTicket(ticketHash *chainhash.Hash) map[string]string {
-	w.stakeSettingsLock.Lock()
-	defer w.stakeSettingsLock.Unlock()
-
-	policies := make(map[string]string)
-	for key, value := range w.vspTSpendPolicy {
-		if key.Ticket.IsEqual(ticketHash) {
-			var choice string
-			switch value {
-			case stake.TreasuryVoteYes:
-				choice = "yes"
-			case stake.TreasuryVoteNo:
-				choice = "no"
-			default:
-				choice = "abstain"
-			}
-			policies[key.TSpend.String()] = choice
-		}
-	}
-	return policies
 }
 
 // TSpendPolicy returns a vote policy for a tspend.  If a policy is set for a
@@ -1625,7 +1577,7 @@ type PurchaseTicketsRequest struct {
 	// VSPFeePaymentProcess checks the fee payment status for the specified
 	// ticket and, if necessary, starts a long-lived handler to process the fee
 	// payment.
-	VSPFeePaymentProcess func(context.Context, *chainhash.Hash, *wire.MsgTx) error
+	VSPFeePaymentProcess func(context.Context, *VSPTicket, *wire.MsgTx) error
 
 	// extraSplitOutput is an additional transaction output created during
 	// UTXO contention, to be used as the input to pay a VSP fee
@@ -5736,41 +5688,6 @@ func (w *Wallet) SetPublished(ctx context.Context, hash *chainhash.Hash, publish
 	return nil
 }
 
-type VSPTicket struct {
-	FeeHash     chainhash.Hash
-	FeeTxStatus uint32
-	VSPHostID   uint32
-	Host        string
-	PubKey      []byte
-}
-
-// VSPTicketInfo returns the various information for a given vsp ticket
-func (w *Wallet) VSPTicketInfo(ctx context.Context, ticketHash *chainhash.Hash) (*VSPTicket, error) {
-	var data *udb.VSPTicket
-	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
-		var err error
-		data, err = udb.GetVSPTicket(dbtx, *ticketHash)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	if err == nil && data == nil {
-		err = errors.E(errors.NotExist)
-		return nil, err
-	} else if data == nil {
-		return nil, err
-	}
-	convertedData := &VSPTicket{
-		FeeHash:     data.FeeHash,
-		FeeTxStatus: data.FeeTxStatus,
-		VSPHostID:   data.VSPHostID,
-		Host:        data.Host,
-		PubKey:      data.PubKey,
-	}
-	return convertedData, err
-}
-
 // VSPFeeHashForTicket returns the hash of the fee transaction associated with a
 // VSP payment.
 func (w *Wallet) VSPFeeHashForTicket(ctx context.Context, ticketHash *chainhash.Hash) (chainhash.Hash, error) {
@@ -5823,68 +5740,6 @@ func (w *Wallet) IsVSPTicketConfirmed(ctx context.Context, ticketHash *chainhash
 	return confirmed, err
 }
 
-// UpdateVspTicketFeeToPaid updates a vsp ticket fee status to paid.
-// This is needed when finishing the fee payment on VSPs Process.
-func (w *Wallet) UpdateVspTicketFeeToPaid(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessPaid),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToStarted(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessStarted),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToErrored(ctx context.Context, ticketHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     chainhash.Hash{},
-			FeeTxStatus: uint32(udb.VSPFeeProcessErrored),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
-func (w *Wallet) UpdateVspTicketFeeToConfirmed(ctx context.Context, ticketHash, feeHash *chainhash.Hash, host string, pubkey []byte) error {
-	var err error
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		err = udb.SetVSPTicket(dbtx, ticketHash, &udb.VSPTicket{
-			FeeHash:     *feeHash,
-			FeeTxStatus: uint32(udb.VSPFeeProcessConfirmed),
-			Host:        host,
-			PubKey:      pubkey,
-		})
-		return err
-	})
-
-	return err
-}
-
 // ForUnspentUnexpiredTickets performs a function on every unexpired and unspent
 // ticket from the wallet.
 func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
@@ -5933,8 +5788,8 @@ func (w *Wallet) ForUnspentUnexpiredTickets(ctx context.Context,
 
 // UnprocessedTickets returns the hash of every live/immature ticket in the
 // wallet database which is not currently being processed by a VSP.
-func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
-	unmanagedTickets := make([]*chainhash.Hash, 0)
+func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*VSPTicket, error) {
+	hashes := make([]*chainhash.Hash, 0)
 	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// Skip tickets which have a fee tx already associated with
 		// them; they are already processed by some vsp.
@@ -5957,11 +5812,19 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 			return nil
 		}
 
-		unmanagedTickets = append(unmanagedTickets, hash)
+		hashes = append(hashes, hash)
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	unmanagedTickets := make([]*VSPTicket, len(hashes))
+	for i, hash := range hashes {
+		unmanagedTickets[i], err = w.NewVSPTicket(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return unmanagedTickets, nil
@@ -5969,8 +5832,8 @@ func (w *Wallet) UnprocessedTickets(ctx context.Context) ([]*chainhash.Hash, err
 
 // ProcessedTickets returns the hash of every live/immature ticket in the wallet
 // database which is currently being processed by a VSP but isnt confirmed yet.
-func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*chainhash.Hash, error) {
-	managedTickets := make([]*chainhash.Hash, 0)
+func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*VSPTicket, error) {
+	hashes := make([]*chainhash.Hash, 0)
 	err := w.ForUnspentUnexpiredTickets(ctx, func(hash *chainhash.Hash) error {
 		// We only want to process tickets that haven't been confirmed yet.
 		confirmed, err := w.IsVSPTicketConfirmed(ctx, hash)
@@ -5986,12 +5849,19 @@ func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*chainhash.Hash, error
 			return nil
 		}
 
-		managedTickets = append(managedTickets, hash)
+		hashes = append(hashes, hash)
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
+	}
+
+	managedTickets := make([]*VSPTicket, len(hashes))
+	for i, hash := range hashes {
+		managedTickets[i], err = w.NewVSPTicket(ctx, hash)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return managedTickets, nil

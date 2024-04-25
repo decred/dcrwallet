@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2023 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1874,13 +1874,24 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			feeTx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
 		}
 		ticketHash := purchaseTicketsResponse.TicketHashes[i]
-		err = req.VSPFeePaymentProcess(ctx, ticketHash, feeTx)
-		if err != nil {
-			// unlock outpoints in case of error
+
+		// Unlock outpoints in case of error.
+		unlock := func() {
 			for _, outpoint := range vspFeeCredits[i] {
 				w.UnlockOutpoint(&outpoint.OutPoint.Hash,
 					outpoint.OutPoint.Index)
 			}
+		}
+
+		ticket, err := w.NewVSPTicket(ctx, ticketHash)
+		if err != nil {
+			unlock()
+			continue
+		}
+
+		err = req.VSPFeePaymentProcess(ctx, ticket, feeTx)
+		if err != nil {
+			unlock()
 			continue
 		}
 		// watch for outpoints change.

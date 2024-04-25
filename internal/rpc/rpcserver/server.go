@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2023 The Decred developers
+// Copyright (c) 2016-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -4156,14 +4156,21 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
 	}
 
-	// process tickets fee if needed.
+	// Process tickets fee if needed.
 	for _, ticketHash := range failedTicketsFee {
-		feeTx := new(wire.MsgTx)
-		err := vspClient.Process(ctx, &ticketHash, feeTx)
+
+		// If it fails to process again, we log it and continue with
+		// the wallet start.
+		// Not sure we need to log here since it's already warned elsewhere
+
+		t, err := s.wallet.NewVSPTicket(ctx, &ticketHash)
 		if err != nil {
-			// if it fails to process again, we log it and continue with
-			// the wallet start.
-			// Not sure we need to log here since it's already warned elsewhere
+			continue
+		}
+		feeTx := new(wire.MsgTx)
+		err = vspClient.Process(ctx, t, feeTx)
+		if err != nil {
+			continue
 		}
 	}
 	return &pb.SyncVSPTicketsResponse{}, nil
@@ -4320,7 +4327,11 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 			return err
 		}
 		if ticketHost == vspHost {
-			err = vspClient.SetVoteChoice(ctx, hash, choices, tSpendChoices, treasuryChoices)
+			ticket, err := s.wallet.NewVSPTicket(ctx, hash)
+			if err != nil {
+				return err
+			}
+			err = vspClient.SetVoteChoice(ctx, ticket, choices, tSpendChoices, treasuryChoices)
 			if err != nil {
 				return err
 			}
