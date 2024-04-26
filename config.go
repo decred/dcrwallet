@@ -148,8 +148,9 @@ type config struct {
 	Offline bool `long:"offline" description:"Do not sync the wallet"`
 
 	// SPV options
-	SPV        bool     `long:"spv" description:"Sync using simplified payment verification"`
-	SPVConnect []string `long:"spvconnect" description:"SPV sync only with specified peers; disables DNS seeding"`
+	SPV               bool     `long:"spv" description:"Sync using simplified payment verification"`
+	SPVConnect        []string `long:"spvconnect" description:"SPV sync only with specified peers; disables DNS seeding"`
+	SPVDisableRelayTx bool     `long:"spvdisablerelaytx" description:"Disable receiving mempool transactions when in SPV mode"`
 
 	// RPC server options
 	RPCCert                *cfgutil.ExplicitString `long:"rpccert" description:"RPC server TLS certificate"`

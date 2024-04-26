@@ -133,9 +133,10 @@ type LocalPeer struct {
 	announcedHeaders  chan *inMsg
 	receivedInitState chan *inMsg
 
-	extaddr     net.Addr
-	amgr        *addrmgr.AddrManager
-	chainParams *chaincfg.Params
+	extaddr        net.Addr
+	amgr           *addrmgr.AddrManager
+	chainParams    *chaincfg.Params
+	disableRelayTx bool
 
 	rpByID map[uint64]*RemotePeer
 	rpMu   sync.Mutex
@@ -166,6 +167,13 @@ type DialFunc func(ctx context.Context, net, addr string) (net.Conn, error)
 // SetDialFunc sets the function used to dial peer and seeder connections.
 func (lp *LocalPeer) SetDialFunc(dial DialFunc) {
 	lp.dial = dial
+}
+
+// SetDisableRelayTx sets whether remote peers will be asked to relay
+// transactions to the local peer. This must be called before the local peer
+// runs.
+func (lp *LocalPeer) SetDisableRelayTx(disableRelayTx bool) {
+	lp.disableRelayTx = disableRelayTx
 }
 
 func isCGNAT(ip net.IP) bool {
@@ -210,6 +218,7 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, c net.Conn) (*wire.MsgVersion, e
 	v := wire.NewMsgVersion(la, ra, nonce, 0)
 	v.AddUserAgent(uaName, uaVersion)
 	v.ProtocolVersion = int32(pver)
+	v.DisableRelayTx = lp.disableRelayTx
 	return v, nil
 }
 
@@ -738,9 +747,7 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 			case *wire.MsgHeaders:
 				rp.receivedHeaders(ctx, m)
 			case *wire.MsgInv:
-				if rp.lp.messageIsMasked(MaskInv) {
-					rp.lp.receivedInv <- newInMsg(rp, msg)
-				}
+				rp.receivedInv(ctx, m)
 			case *wire.MsgGetMiningState:
 				rp.receivedGetMiningState(ctx)
 			case *wire.MsgGetInitState:
@@ -1845,5 +1852,39 @@ func (rp *RemotePeer) GetInitState(ctx context.Context, msg *wire.MsgGetInitStat
 			}
 			return msg, nil
 		}
+	}
+}
+
+// invVecContainsTx returns true if at least one inv vector is of type
+// transaction.
+func invVecContainsTx(inv []*wire.InvVect) bool {
+	for i := range inv {
+		if inv[i].Type == wire.InvTypeTx {
+			return true
+		}
+	}
+	return false
+}
+
+// receivedInv is called when an inv message is received from the remote peer.
+func (rp *RemotePeer) receivedInv(ctx context.Context, inv *wire.MsgInv) {
+	const opf = "remotepeer(%v).receivedInv"
+
+	// When tx relay is disabled, we don't expect transactions on invs.
+	if rp.lp.disableRelayTx && invVecContainsTx(inv.InvList) {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "received tx in msginv when tx relaying is disabled")
+		rp.Disconnect(err)
+		return
+	}
+
+	// Ignore if the user is not interested in invs.
+	if !rp.lp.messageIsMasked(MaskInv) {
+		return
+	}
+
+	select {
+	case rp.lp.receivedInv <- newInMsg(rp, inv):
+	case <-ctx.Done():
 	}
 }
