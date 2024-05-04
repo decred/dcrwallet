@@ -467,6 +467,7 @@ func normalizeAddress(addr string, defaultPort string) (hostport string, err err
 // passed height and that is has all blockchain data up to its target header
 // height.
 func (s *Syncer) waitRPCSync(ctx context.Context, minHeight int64) error {
+	isSimnet := s.wallet.ChainParams().Net == wire.SimNet
 	for {
 		info, err := s.rpc.GetBlockchainInfo(ctx)
 		if err != nil {
@@ -476,7 +477,7 @@ func (s *Syncer) waitRPCSync(ctx context.Context, minHeight int64) error {
 		if info.Headers > minHeight {
 			minHeight = info.Headers
 		}
-		if info.Blocks >= minHeight && !info.InitialBlockDownload {
+		if info.Blocks >= minHeight && (isSimnet || !info.InitialBlockDownload) {
 			// dcrd is synced.
 			return nil
 		}
