@@ -5518,7 +5518,7 @@ func (s *Server) walletInfo(ctx context.Context, icmd any) (any, error) {
 	_ = binary.Read(bytes.NewBuffer(voteBits.ExtendedBits[0:4]), binary.LittleEndian, &voteVersion)
 	voting := w.VotingEnabled()
 
-	return &types.WalletInfoResult{
+	wi := &types.WalletInfoResult{
 		DaemonConnected:  connected,
 		SPV:              spvMode,
 		Unlocked:         unlocked,
@@ -5530,7 +5530,18 @@ func (s *Server) walletInfo(ctx context.Context, icmd any) (any, error) {
 		Voting:           voting,
 		VSP:              s.cfg.VSPHost,
 		ManualTickets:    w.ManualTickets(),
-	}, nil
+	}
+
+	birthState, err := w.BirthState(ctx)
+	if err != nil {
+		log.Errorf("Failed to get birth state: %v", err)
+	} else if birthState != nil &&
+		!(birthState.SetFromTime || birthState.SetFromHeight) {
+		wi.BirthHash = birthState.Hash.String()
+		wi.BirthHeight = birthState.Height
+	}
+
+	return wi, nil
 }
 
 // walletIsLocked handles the walletislocked extension request by

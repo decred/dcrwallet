@@ -202,10 +202,15 @@ const (
 	// error on startup.
 	importVotingAccountVersion = 25
 
+	// birthBlockVersion is the 26th version of the database. It allows
+	// saving a birth state. For all current wallets, set the birth block to
+	// the genesis block.
+	birthBlockVersion = 26
+
 	// DBVersion is the latest version of the database that is understood by the
 	// program.  Databases with recorded versions higher than this will fail to
 	// open (meaning any upgrades prevent reverting to older software).
-	DBVersion = importVotingAccountVersion
+	DBVersion = birthBlockVersion
 )
 
 // upgrades maps between old database versions and the upgrade function to
@@ -236,6 +241,7 @@ var upgrades = [...]func(walletdb.ReadWriteTx, []byte, *chaincfg.Params) error{
 	vspHostVersion - 1:                    vspHostVersionUpgrade,
 	vspTreasuryPoliciesVersion - 1:        vspTreasuryPoliciesUpgrade,
 	importVotingAccountVersion - 1:        importVotingAccountUpgrade,
+	birthBlockVersion - 1:                 birthBlockUpgrade,
 }
 
 func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, params *chaincfg.Params) error {
@@ -1667,6 +1673,32 @@ func importVotingAccountUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte
 	}
 	if dbVersion != oldVersion {
 		return errors.E(errors.Invalid, "importVotingAccountUpgrade inappropriately called")
+	}
+
+	// Write the new database version.
+	return unifiedDBMetadata{}.putVersion(metadataBucket, newVersion)
+}
+
+func birthBlockUpgrade(tx walletdb.ReadWriteTx, _ []byte, params *chaincfg.Params) error {
+	const oldVersion = 25
+	const newVersion = 26
+
+	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
+
+	// Assert that this function is only called on version 25 databases.
+	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
+	if err != nil {
+		return err
+	}
+	if dbVersion != oldVersion {
+		return errors.E(errors.Invalid, "birthBlockUpgrade inappropriately called")
+	}
+
+	bs := &BirthdayState{
+		Hash: params.GenesisHash,
+	}
+	if err := SetBirthState(tx, bs); err != nil {
+		return err
 	}
 
 	// Write the new database version.

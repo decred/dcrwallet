@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/loader"
@@ -125,6 +126,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 	var importedAccountNames []string
 	var importedAccountXpubs []*hdkeychain.ExtendedKey
 	var err error
+	var birthState *udb.BirthdayState
 	c := make(chan struct{}, 1)
 	go func() {
 		defer func() { c <- struct{}{} }()
@@ -163,6 +165,39 @@ func createWallet(ctx context.Context, cfg *config) error {
 		// default answers.  This allows scripts e.g. the tmux simnet
 		// script which provide scripted input to create wallets to
 		// continue working.
+
+		// Ask for a birthday if the wallet was created from seed. If
+		// the wallet is new the birthday is now. Add a day buffer to be safe.
+		if imported {
+			birthday, birthblock, err := prompt.Birthday(r)
+			if err != nil {
+				return
+			}
+			if birthday != nil {
+				birthState = &udb.BirthdayState{
+					Time:        *birthday,
+					SetFromTime: true,
+				}
+			}
+			if birthblock != nil {
+				birthState = &udb.BirthdayState{
+					Height:        *birthblock,
+					SetFromHeight: true,
+				}
+			}
+		} else {
+			birthState = &udb.BirthdayState{
+				Time:        time.Now().Add(time.Hour * -24),
+				SetFromTime: true,
+			}
+		}
+		if birthState == nil {
+			// Set the genesis block as the birthday for imported
+			// wallets that did not set a birthday or birthblock.
+			birthState = &udb.BirthdayState{
+				SetFromHeight: true,
+			}
+		}
 
 		// Prompt for any additional xpubs to import as watching-only accounts.
 		importedAccountNames, importedAccountXpubs, err = prompt.ImportedAccounts(
@@ -211,6 +246,10 @@ func createWallet(ctx context.Context, cfg *config) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if err := w.SetBirthState(ctx, birthState); err != nil {
+		return err
 	}
 
 	err = loader.UnloadWallet()

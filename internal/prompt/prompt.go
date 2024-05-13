@@ -11,7 +11,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"decred.org/dcrwallet/v4/errors"
@@ -364,6 +366,45 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 		fmt.Printf("\nSeed input successful. \nHex: %x\n", seed)
 
 		return seed, true, nil
+	}
+}
+
+// Birthday prompts for a wallet birthday. Return values may be nil with no error.
+func Birthday(reader *bufio.Reader) (*time.Time, *uint32, error) {
+	for {
+		fmt.Printf("Do you have a wallet birthday we should rescan from? (enter date as YYYY-MM-DD, or a block number, or 'no') [no]: ")
+		reply, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, err
+		}
+		reply = strings.TrimSpace(reply)
+		switch strings.ToLower(reply) {
+		case "", "n", "no":
+			return nil, nil, nil
+		case "y", "yes":
+			continue
+		default:
+		}
+
+		// If just a uint assume this is a block number and return that.
+		// Ignoring errors and parsing as a birthday below.
+		if n, err := strconv.ParseUint(reply, 10, 32); err == nil {
+			birthdayBlock := uint32(n)
+			fmt.Printf("Using birthday block %d.\n", birthdayBlock)
+			return nil, &birthdayBlock, nil
+		}
+
+		birthday, err := time.Parse("2006-01-02", reply)
+		if err != nil {
+			fmt.Printf("Unable to parse date: %v\n", err)
+			continue
+		}
+		if time.Since(birthday) < time.Hour*24 {
+			fmt.Println("Birthday cannot be in the future or too close (one day) to the present.")
+			continue
+		}
+		fmt.Printf("Using birthday time %s.\n", birthday)
+		return &birthday, nil, nil
 	}
 }
 
