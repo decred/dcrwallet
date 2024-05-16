@@ -6,6 +6,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"net/rpc"
@@ -14,9 +15,9 @@ import (
 	"github.com/decred/dcrd/mixing"
 )
 
-func testStartedSolverWorks() bool {
+func testStartedSolverWorks() error {
 	if err := solverrpc.StartSolver(); err != nil {
-		return false
+		return err
 	}
 
 	// Values don't matter; we just need to not observe an io.UnexpectedEOF
@@ -27,8 +28,8 @@ func testStartedSolverWorks() bool {
 	}
 	_, err := solverrpc.Roots(coeffs, mixing.F)
 	if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, rpc.ErrShutdown) {
-		return false
+		return fmt.Errorf("rpc failed: %w", err)
 	}
 
-	return true
+	return nil
 }

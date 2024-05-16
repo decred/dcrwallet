@@ -795,10 +795,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				"other peers publishing results")
 		}
 	}
-	if solverMustWork && !testStartedSolverWorks() {
-		err := errors.Errorf("csppsolver process is not operating properly")
-		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
+	if solverMustWork {
+		if err := testStartedSolverWorks(); err != nil {
+			err := errors.Errorf("csppsolver process is not operating properly: %v", err)
+			fmt.Fprintln(os.Stderr, err)
+			return loadConfigError(err)
+		}
 	}
 
 	// Parse mixedaccount account/branch
