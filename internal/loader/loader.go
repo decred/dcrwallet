@@ -7,7 +7,6 @@ package loader
 
 import (
 	"context"
-	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -44,14 +43,13 @@ type Loader struct {
 	watchLast               uint32
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
+	disableMixing           bool
 	allowHighFees           bool
 	manualTickets           bool
 	relayFee                dcrutil.Amount
 	mixSplitLimit           int
 
 	mu sync.Mutex
-
-	DialCSPPServer DialFunc
 }
 
 // StakeOptions contains the various options necessary for stake mining.
@@ -63,15 +61,10 @@ type StakeOptions struct {
 	StakePoolColdExtKey string
 }
 
-// DialFunc provides a method to dial a network connection.
-// If the dialed network connection is secured by TLS, TLS
-// configuration is provided by the method, not the caller.
-type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
-
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, manualTickets bool, mixSplitLimit int) *Loader {
+	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -81,6 +74,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *Sta
 		watchLast:               watchLast,
 		accountGapLimit:         accountGapLimit,
 		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
+		disableMixing:           disableMixing,
 		allowHighFees:           allowHighFees,
 		manualTickets:           manualTickets,
 		relayFee:                relayFee,
@@ -190,6 +184,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
+		DisableMixing:           l.disableMixing,
 		StakePoolColdExtKey:     so.StakePoolColdExtKey,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,

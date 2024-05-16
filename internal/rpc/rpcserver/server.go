@@ -178,9 +178,8 @@ type versionServer struct {
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
-	ready          atomic.Uint32
-	wallet         *wallet.Wallet
-	dialCSPPServer func(ctx context.Context, network, addr string) (net.Conn, error)
+	ready  atomic.Uint32
+	wallet *wallet.Wallet
 	pb.UnimplementedWalletServiceServer
 }
 
@@ -326,12 +325,11 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // StartWalletService starts the WalletService.
-func StartWalletService(server *grpc.Server, wallet *wallet.Wallet, dialCSPP dialFunc) {
+func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
 	if walletService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 	walletService.wallet = wallet
-	walletService.dialCSPPServer = dialCSPP
 }
 
 func (s *walletServer) checkReady() bool {
@@ -1935,8 +1933,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		VotingAccount:    req.VotingAccount,
 
 		// CSPP
-		CSPPServer:         csppServer,
-		DialCSPPServer:     s.dialCSPPServer,
+		Mixing:             csppServer != "",
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
@@ -2610,11 +2607,10 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 
 	// Set ticketbuyerV2 config
 	tb.AccessConfig(func(c *ticketbuyer.Config) {
+		c.Mixing = req.CsppServer != ""
 		c.MixedAccountBranch = req.MixedAccountBranch
 		c.MixedAccount = req.MixedAccount
 		c.ChangeAccount = req.ChangeAccount
-		c.CSPPServer = req.CsppServer
-		c.DialCSPPServer = t.loader.DialCSPPServer
 		c.BuyTickets = false
 		c.MixChange = true
 	})
@@ -2772,10 +2768,9 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.PoolFeeAddr = poolAddress
 		c.PoolFees = req.PoolFees
 		c.VSP = vspClient
+		c.Mixing = csppServer != ""
 		c.MixedAccount = mixedAccount
 		c.MixChange = mixedChange
-		c.CSPPServer = csppServer
-		c.DialCSPPServer = t.loader.DialCSPPServer
 		c.ChangeAccount = changeAccount
 		c.MixedAccountBranch = mixedAccountBranch
 		c.TicketSplitAccount = mixedSplitAccount

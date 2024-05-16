@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
@@ -424,6 +425,51 @@ func (s *Syncer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) er
 		}
 		return rp.SendMessage(ctx, msg)
 	})
+}
+
+// PublishMixMessages implements the PublishMixMessages method of the
+// wallet.NetworkBackend interface.
+func (s *Syncer) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
+	const op errors.Op = "spv.PublishMixMessages"
+
+	// When we inventory a KE, also add our own PR hash from our KE
+	// message to recently-inventoried message LRU, so they can be queried
+	// by nodes that learn of them through the KE.
+	var ownPRs []*chainhash.Hash
+
+	msg := wire.NewMsgInvSizeHint(uint(len(msgs)))
+	for _, mixMsg := range msgs {
+		mixMsgHash := mixMsg.Hash()
+		err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeMix, &mixMsgHash))
+		if err != nil {
+			return errors.E(op, errors.Protocol, err)
+		}
+		if ke, ok := mixMsg.(*wire.MsgMixKeyExchange); ok {
+			ownPRs = append(ownPRs, &ke.SeenPRs[ke.Pos])
+		}
+	}
+	var mixingPeers int
+	err := s.forRemotes(func(rp *p2p.RemotePeer) error {
+		if rp.Pver() < wire.MixVersion {
+			return nil
+		}
+		mixingPeers++
+		for _, inv := range msg.InvList {
+			rp.InvsSent().Add(inv.Hash)
+		}
+		for _, prHash := range ownPRs {
+			rp.InvsSent().Add(*prHash)
+		}
+		return rp.SendMessage(ctx, msg)
+	})
+	if err != nil {
+		return errors.E(op, err)
+	}
+	if mixingPeers == 0 {
+		s := "no connected peers support the mixing protocol version"
+		return errors.E(op, errors.Protocol, s)
+	}
+	return nil
 }
 
 // Rescan implements the Rescan method of the wallet.NetworkBackend interface.

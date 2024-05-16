@@ -7,8 +7,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"os"
@@ -19,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"decred.org/cspp/v2/solverrpc"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/cfgutil"
 	"decred.org/dcrwallet/v4/internal/loggers"
@@ -175,10 +174,11 @@ type config struct {
 	IssueClientCert   bool  `long:"issueclientcert" description:"Notify a client cert and key over the TX pipe for RPC authentication"`
 
 	// CSPP
-	CSPPServer         string `long:"csppserver" description:"Network address of CoinShuffle++ server"`
-	CSPPServerCA       string `long:"csppserver.ca" description:"CoinShuffle++ Certificate Authority"`
-	dialCSPPServer     func(ctx context.Context, network, addr string) (net.Conn, error)
-	MixedAccount       string `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
+	CSPPServer         string                  `long:"csppserver" description:"(deprecated) Network address of CoinShuffle++ server"`
+	CSPPServerCA       string                  `long:"csppserver.ca" description:"(deprecated) CoinShuffle++ TLS Certificate Authority"`
+	Mixing             bool                    `long:"mixing" description:"Enable mixing support"`
+	CSPPSolver         *cfgutil.ExplicitString `long:"csppsolver" description:"Path to CSPP solver executable (if not in PATH)"`
+	MixedAccount       string                  `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
 	mixedAccount       string
 	mixedBranch        uint32
 	TicketSplitAccount string `long:"ticketsplitaccount" description:"Account to derive fresh addresses from for mixed ticket splits; uses mixedaccount if unset"`
@@ -388,6 +388,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 		CircuitLimit:            defaultCircuitLimit,
 		MixSplitLimit:           defaultMixSplitLimit,
+		CSPPSolver:              cfgutil.NewExplicitString(solverrpc.SolverProcess),
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
@@ -774,38 +775,30 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 
-	// Create CoinShuffle++ TLS dialer based on server name and certificate
-	// authority settings.
-	csppTLSConfig := new(tls.Config)
 	if cfg.CSPPServer != "" {
-		csppTLSConfig.ServerName, _, err = net.SplitHostPort(cfg.CSPPServer)
-		if err != nil {
-			err := errors.Errorf("Cannot parse CoinShuffle++ "+
-				"server name %q: %v", cfg.CSPPServer, err)
-			fmt.Fprintln(os.Stderr, err.Error())
-			return loadConfigError(err)
+		log.Warnf("--csppserver option is deprecated; set --mixing instead")
+		if !cfg.Mixing {
+			log.Warnf("Enabling --mixing option due to --csppserver being configured")
+			cfg.Mixing = true
 		}
 	}
-	if cfg.CSPPServerCA != "" {
-		cfg.CSPPServerCA = cleanAndExpandPath(cfg.CSPPServerCA)
-		ca, err := os.ReadFile(cfg.CSPPServerCA)
-		if err != nil {
-			err := errors.Errorf("Cannot read CoinShuffle++ "+
-				"Certificate Authority file: %v", err)
-			fmt.Fprintln(os.Stderr, err.Error())
-			return loadConfigError(err)
+
+	var solverMustWork bool
+	if cfg.Mixing {
+		if cfg.CSPPSolver.ExplicitlySet() {
+			solverrpc.SolverProcess = cfg.CSPPSolver.Value
+			solverMustWork = true
+		} else if err := solverrpc.StartSolver(); err == nil {
+			solverMustWork = true
+		} else {
+			log.Warnf("Unable to start csppsolver; must rely on " +
+				"other peers publishing results")
 		}
-		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM(ca)
-		csppTLSConfig.RootCAs = pool
 	}
-	cfg.dialCSPPServer = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		conn, err := cfg.dial(ctx, network, addr)
-		if err != nil {
-			return nil, err
-		}
-		conn = tls.Client(conn, csppTLSConfig)
-		return conn, nil
+	if solverMustWork && !testStartedSolverWorks() {
+		err := errors.Errorf("csppsolver process is not operating properly")
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
 	}
 
 	// Parse mixedaccount account/branch

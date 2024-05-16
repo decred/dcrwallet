@@ -3349,14 +3349,14 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		dontSignTx = *cmd.DontSignTx
 	}
 
-	var csppServer string
+	var mixing bool
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
 	var changeAccount = account
 
-	if s.cfg.CSPPServer != "" {
-		csppServer = s.cfg.CSPPServer
+	if s.cfg.Mixing {
+		mixing = true
 		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
@@ -3411,8 +3411,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		VSPFees:       poolFee,
 
 		// CSPP
-		CSPPServer:         csppServer,
-		DialCSPPServer:     s.cfg.DialCSPPServer,
+		Mixing:             mixing,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
@@ -3541,7 +3540,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // All errors are returned in dcrjson.RPCError format
 func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	changeAccount := account
-	if s.cfg.CSPPServer != "" && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
+	if s.cfg.Mixing && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return "", err
@@ -3577,7 +3576,7 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 // returned in dcrjson.RPCError format
 func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	changeAccount := account
-	if s.cfg.CSPPServer != "" {
+	if s.cfg.Mixing {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return "", err
@@ -5616,9 +5615,6 @@ func (s *Server) walletPassphraseChange(ctx context.Context, icmd any) (any, err
 
 func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.MixOutputCmd)
-	if s.cfg.CSPPServer == "" {
-		return nil, errors.E("CoinShuffle++ server is not configured")
-	}
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
@@ -5644,17 +5640,15 @@ func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 		return nil, err
 	}
 
-	dial := s.cfg.DialCSPPServer
-	server := s.cfg.CSPPServer
 	mixBranch := s.cfg.MixBranch
 
-	err = w.MixOutput(ctx, dial, server, outpoint, changeAccount, mixAccount, mixBranch)
+	err = w.MixOutput(ctx, outpoint, changeAccount, mixAccount, mixBranch)
 	return nil, err
 }
 
 func (s *Server) mixAccount(ctx context.Context, icmd any) (any, error) {
-	if s.cfg.CSPPServer == "" {
-		return nil, errors.E("CoinShuffle++ server is not configured")
+	if s.cfg.Mixing {
+		return nil, errors.E("Mixing is not configured")
 	}
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
@@ -5676,11 +5670,9 @@ func (s *Server) mixAccount(ctx context.Context, icmd any) (any, error) {
 		return nil, err
 	}
 
-	dial := s.cfg.DialCSPPServer
-	server := s.cfg.CSPPServer
 	mixBranch := s.cfg.MixBranch
 
-	err = w.MixAccount(ctx, dial, server, changeAccount, mixAccount, mixBranch)
+	err = w.MixAccount(ctx, changeAccount, mixAccount, mixBranch)
 	return nil, err
 }
 

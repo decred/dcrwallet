@@ -10,6 +10,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/mixing"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
@@ -35,6 +36,12 @@ func (s *Syncer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) 
 // PublishTransactions is part of the wallet.NetworkBackend interface.
 func (s *Syncer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
 	return s.rpc.PublishTransactions(ctx, txs...)
+}
+
+// PublishMixMessages submits each mixing message to the dcrd mixpool for acceptance.
+// If accepted, the messages are published to other peers.
+func (s *Syncer) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
+	return s.rpc.PublishMixMessages(ctx, msgs...)
 }
 
 // LoadTxFilter is part of the wallet.NetworkBackend interface.

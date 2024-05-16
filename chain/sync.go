@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"net"
 	"runtime/trace"
 	"sync"
@@ -17,17 +18,19 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/validate"
 	"decred.org/dcrwallet/v4/wallet"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/sync/errgroup"
 )
 
-var requiredAPIVersion = semver{Major: 8, Minor: 0, Patch: 0}
+var requiredAPIVersion = semver{Major: 8, Minor: 2, Patch: 0}
 
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
@@ -39,6 +42,9 @@ type Syncer struct {
 	opts     *RPCOptions
 	rpc      *dcrd.RPC
 	notifier *notifier
+
+	blake256Hasher   hash.Hash
+	blake256HasherMu sync.Mutex
 
 	discoverAccts bool
 	mu            sync.Mutex
@@ -68,10 +74,11 @@ type RPCOptions struct {
 // NewSyncer creates a Syncer that will sync the wallet using dcrd JSON-RPC.
 func NewSyncer(w *wallet.Wallet, r *RPCOptions) *Syncer {
 	return &Syncer{
-		wallet:        w,
-		opts:          r,
-		discoverAccts: !w.Locked(),
-		relevantTxs:   make(map[chainhash.Hash][]*wire.MsgTx),
+		wallet:         w,
+		opts:           r,
+		blake256Hasher: blake256.New(),
+		discoverAccts:  !w.Locked(),
+		relevantTxs:    make(map[chainhash.Hash][]*wire.MsgTx),
 	}
 }
 
@@ -625,6 +632,13 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		// Run wallet background goroutines (currently, this just runs
+		// mixclient).
+		return s.wallet.Run(ctx)
+	})
+
 	if s.wallet.VotingEnabled() {
 		err = s.rpc.Call(ctx, "notifywinningtickets", nil)
 		if err != nil {
@@ -692,6 +706,29 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	// Request notifications for mixing messages.
+	if s.wallet.MixingEnabled() {
+		err = s.rpc.Call(ctx, "notifymixmessages", nil)
+		if err != nil {
+			return err
+		}
+
+		// Populate existing mix pair requests.
+		mixPRs, err := s.rpc.MixPairRequests(ctx)
+		if err != nil {
+			return err
+		}
+		s.blake256HasherMu.Lock()
+		for _, pr := range mixPRs {
+			pr.WriteHash(s.blake256Hasher)
+		}
+		s.blake256HasherMu.Unlock()
+		for _, pr := range mixPRs {
+			loggers.MixcLog.Debugf("accepting PR hash %s at initial sync", pr.Hash())
+			s.wallet.AcceptMixMessage(pr)
+		}
+	}
+
 	log.Infof("Blockchain sync completed, wallet ready for general usage.")
 
 	// Wait for notifications to finish before returning
@@ -699,13 +736,16 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		<-s.notifier.closed
 	}()
 
-	select {
-	case <-ctx.Done():
-		client.Close()
-		return ctx.Err()
-	case <-client.Done():
-		return client.Err()
-	}
+	g.Go(func() error {
+		select {
+		case <-ctx.Done():
+			client.Close()
+			return ctx.Err()
+		case <-client.Done():
+			return client.Err()
+		}
+	})
+	return g.Wait()
 }
 
 type notifier struct {
@@ -746,6 +786,11 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 		}
 	case "tspend":
 		err := s.storeTSpend(ctx, params)
+		if err != nil {
+			log.Error(errors.E(op, err))
+		}
+	case "mixmessage":
+		err := s.mixMessage(ctx, params)
 		if err != nil {
 			log.Error(errors.E(op, err))
 		}
@@ -871,4 +916,29 @@ func (s *Syncer) storeTSpend(ctx context.Context, params json.RawMessage) error 
 		return err
 	}
 	return s.wallet.AddTSpend(*tx)
+}
+
+func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
+	if !s.wallet.MixingEnabled() {
+		log.Debugf("Ignoring mixmessage notification: mixing disabled")
+		return nil
+	}
+
+	msg, err := dcrd.MixMessage(params)
+	if err != nil {
+		return err
+	}
+	s.blake256HasherMu.Lock()
+	msg.WriteHash(s.blake256Hasher)
+	s.blake256HasherMu.Unlock()
+	msgHash := msg.Hash()
+	err = s.wallet.AcceptMixMessage(msg)
+	if err == nil {
+		loggers.MixpLog.Debugf("Accepted mix message %T %s by %x",
+			msg, &msgHash, msg.Pub())
+	} else {
+		loggers.MixpLog.Debugf("Rejected mix message %T %s by %x",
+			msg, &msgHash, msg.Pub())
+	}
+	return err
 }

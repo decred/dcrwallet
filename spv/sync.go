@@ -22,6 +22,8 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"
+	"github.com/decred/dcrd/mixing"
+	"github.com/decred/dcrd/mixing/mixpool"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/wire"
 	"golang.org/x/sync/errgroup"
@@ -63,11 +65,12 @@ type Syncer struct {
 	filterData   blockcf2.Entries
 	filterMu     sync.Mutex
 
-	// seenTxs records hashes of received inventoried transactions.  Once a
-	// transaction is fetched and processed from one peer, the hash is added to
-	// this cache to avoid fetching it again from other peers that announce the
-	// transaction.
-	seenTxs lru.Cache[chainhash.Hash]
+	// These LRU caches record hashes of received inventoried messages.
+	// Once a message is fetched and processed from one peer, the hash is
+	// added to the cache to avoid fetching it again from other peers that
+	// also announce it.
+	seenTxs     lru.Cache[chainhash.Hash]
+	seenMixMsgs lru.Cache[chainhash.Hash]
 
 	// Sidechain management
 	sidechains  wallet.SidechainForest
@@ -122,6 +125,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		remotes:           make(map[string]*p2p.RemotePeer),
 		rescanFilter:      wallet.NewRescanFilter(nil, nil),
 		seenTxs:           lru.NewCache[chainhash.Hash](2000),
+		seenMixMsgs:       lru.NewCache[chainhash.Hash](2000),
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
 		initialSyncDone:   make(chan struct{}),
@@ -343,6 +347,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 	g.Go(func() error { return s.receiveGetData(ctx) })
 	g.Go(func() error { return s.receiveInv(ctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
+	g.Go(func() error { return s.receiveMixMsgs(ctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
@@ -394,6 +399,12 @@ func (s *Syncer) Run(ctx context.Context) error {
 		// Signal that the initial sync has completed.
 		close(s.initialSyncDone)
 		return nil
+	})
+
+	// Run wallet background goroutines (currently, this just runs
+	// mixclient).
+	g.Go(func() error {
+		return s.wallet.Run(ctx)
 	})
 
 	// Wait until cancellation or a handler errors.
@@ -627,6 +638,7 @@ func (s *Syncer) receiveGetData(ctx context.Context) error {
 			defer wg.Done()
 			// Ensure that the data was (recently) announced using an inv.
 			var txHashes []*chainhash.Hash
+			var mixHashes []*chainhash.Hash
 			var notFound []*wire.InvVect
 			for _, inv := range msg.InvList {
 				if !rp.InvsSent().Contains(inv.Hash) {
@@ -636,6 +648,12 @@ func (s *Syncer) receiveGetData(ctx context.Context) error {
 				switch inv.Type {
 				case wire.InvTypeTx:
 					txHashes = append(txHashes, &inv.Hash)
+				case wire.InvTypeMix:
+					if !s.wallet.MixingEnabled() {
+						notFound = append(notFound, inv)
+						continue
+					}
+					mixHashes = append(mixHashes, &inv.Hash)
 				default:
 					notFound = append(notFound, inv)
 				}
@@ -665,9 +683,35 @@ func (s *Syncer) receiveGetData(ctx context.Context) error {
 				}
 			}
 
+			// Search for requested mix messages
+			var foundMixMsgs []mixing.Message
+			if len(mixHashes) != 0 {
+				for _, hash := range mixHashes {
+					msg, err := s.wallet.MixMessage(hash)
+					if err != nil {
+						invvect := wire.NewInvVect(wire.InvTypeMix, hash)
+						notFound = append(notFound, invvect)
+						continue
+					}
+					foundMixMsgs = append(foundMixMsgs, msg)
+				}
+			}
+
 			// Send all found transactions
 			for _, tx := range foundTxs {
 				err := rp.SendMessage(ctx, tx)
+				if ctx.Err() != nil {
+					return
+				}
+				if err != nil {
+					log.Warnf("Failed to send getdata reply to peer %v: %v",
+						rp.RemoteAddr(), err)
+				}
+			}
+
+			// Send all found mix messages
+			for _, msg := range foundMixMsgs {
+				err := rp.SendMessage(ctx, msg)
 				if ctx.Err() != nil {
 					return
 				}
@@ -705,12 +749,17 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 
 		var blocks []*chainhash.Hash
 		var txs []*chainhash.Hash
+		var mixMsgs []*chainhash.Hash
 		for _, inv := range msg.InvList {
 			switch inv.Type {
 			case wire.InvTypeBlock:
 				blocks = append(blocks, &inv.Hash)
 			case wire.InvTypeTx:
 				txs = append(txs, &inv.Hash)
+			case wire.InvTypeMix:
+				if s.wallet.MixingEnabled() {
+					mixMsgs = append(mixMsgs, &inv.Hash)
+				}
 			}
 		}
 
@@ -737,6 +786,13 @@ func (s *Syncer) receiveInv(ctx context.Context) error {
 			wg.Add(1)
 			go func() {
 				s.handleTxInvs(ctx, rp, txs)
+				wg.Done()
+			}()
+		}
+		if len(mixMsgs) != 0 {
+			wg.Add(1)
+			go func() {
+				s.handleMixInvs(ctx, rp, mixMsgs, nil)
 				wg.Done()
 			}()
 		}
@@ -959,6 +1015,90 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 	s.mempoolTxs(relevant)
 }
 
+// handleMixInvs responds to the inv message created by rp by fetching all
+// unseen mix messages announced by the peer.  Any messages not known to the
+// wallet's mixpool are requested from the announcing peer.
+func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []*chainhash.Hash,
+	onlyByID map[[33]byte]struct{}) {
+
+	const opf = "spv.handleMixInvs(%v)"
+
+	// Ignore already-processed messages
+	unseen := hashes[:0]
+	for _, h := range hashes {
+		if !s.seenMixMsgs.Contains(*h) {
+			unseen = append(unseen, h)
+		}
+	}
+	if len(unseen) == 0 {
+		return
+	}
+
+	msgs, err := rp.MixMessages(ctx, unseen)
+	if errors.Is(err, errors.NotExist) {
+		err = nil
+		// Remove notfound txs.
+		prevMsgs, prevUnseen := msgs, unseen
+		msgs, unseen = msgs[:0], unseen[:0]
+		for i, msg := range prevMsgs {
+			if msg != nil {
+				msgs = append(msgs, msg)
+				unseen = append(unseen, prevUnseen[i])
+			}
+		}
+	}
+	if err != nil {
+		if ctx.Err() == nil {
+			op := errors.Opf(opf, rp.RemoteAddr())
+			err := errors.E(op, err)
+			log.Warn(err)
+		}
+		return
+	}
+
+	// Mark messages as processed so they are not queried from other nodes
+	// who announce them in the future.
+	for _, h := range unseen {
+		s.seenMixMsgs.Add(*h)
+	}
+
+	requestUnknownPRs := make(map[chainhash.Hash]struct{})
+	unknownPRIDs := make(map[[33]byte]struct{})
+
+	// Accept mix messages to the wallet's mixpool.  If any KE was an
+	// orphan and does not reference its own PR, request the previous
+	// messages as well.
+	for _, msg := range msgs {
+		if len(onlyByID) != 0 {
+			if _, ok := onlyByID[[33]byte(msg.Pub())]; !ok {
+				continue
+			}
+		}
+
+		err := s.wallet.AcceptMixMessage(msg)
+		var missingPRErr *mixpool.MissingOwnPRError
+		if errors.As(err, &missingPRErr) {
+			ke := msg.(*wire.MsgMixKeyExchange)
+			log.Debugf("will request unknown PR from %x", ke.Identity[:])
+			requestUnknownPRs[missingPRErr.MissingPR] = struct{}{}
+			unknownPRIDs[ke.Identity] = struct{}{}
+		} else if err != nil {
+			op := errors.Opf(opf, rp.RemoteAddr())
+			log.Warn(errors.E(op, err))
+		}
+	}
+
+	if len(requestUnknownPRs) > 0 {
+		requestUnknownPRs := make(map[chainhash.Hash]struct{})
+		unknownPRs := make([]*chainhash.Hash, 0, len(requestUnknownPRs))
+		for hash := range requestUnknownPRs {
+			hash := hash
+			unknownPRs = append(unknownPRs, &hash)
+		}
+		s.handleMixInvs(ctx, rp, unknownPRs, unknownPRIDs)
+	}
+}
+
 // receiveHeaderAnnouncements receives all block announcements through pushed
 // headers messages messages from peers and starts goroutines to handle the
 // announced header.
@@ -983,6 +1123,34 @@ func (s *Syncer) receiveHeadersAnnouncements(ctx context.Context) error {
 				}
 
 				log.Warnf("Failed to handle headers announced by %v: %v", rp, err)
+			}
+		}()
+	}
+}
+
+// receiveMixMsgs receives all mixing messages from peers and starts goroutines
+// to handle the message acceptance.
+func (s *Syncer) receiveMixMsgs(ctx context.Context) error {
+	for {
+		rp, msg, err := s.lp.ReceiveMixMessage(ctx)
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			err := s.handleMixMessage(ctx, rp, msg)
+			if err != nil {
+				if ctx.Err() != nil {
+					return
+				}
+
+				if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
+					log.Warnf("Disconnecting peer %v: %v", rp, err)
+					rp.Disconnect(err)
+					return
+				}
+
+				log.Warnf("Failed to handle mix message announced by %v: %v", rp, err)
 			}
 		}()
 	}
@@ -1632,7 +1800,7 @@ func (s *Syncer) peerStartup(ctx context.Context, rp *p2p.RemotePeer) error {
 	if rp.Pver() >= wire.InitStateVersion {
 		err := s.GetInitState(ctx, rp)
 		if err != nil {
-			log.Errorf("Failed to get init state", err)
+			log.Errorf("Failed to get init state: %v", err)
 		}
 	}
 
@@ -1688,4 +1856,16 @@ func (s *Syncer) handleMempool(ctx context.Context) error {
 			return ctx.Err()
 		}
 	}
+}
+
+// handleMixMessage handles mixing messages announced by peers.  It adds the
+// messages to the wallet's mixing pool, thereby allowing the wallet to perform
+// the mixing protocol.
+func (s *Syncer) handleMixMessage(ctx context.Context, rp *p2p.RemotePeer, msg mixing.Message) (err error) {
+	err = s.wallet.AcceptMixMessage(msg)
+	if err != nil {
+		return err
+	}
+
+	return
 }

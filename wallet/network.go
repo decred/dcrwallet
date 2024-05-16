@@ -11,6 +11,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
@@ -35,6 +36,7 @@ type NetworkBackend interface {
 	Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error)
 	CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error)
 	PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
+	PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error
 	LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error
 	Rescan(ctx context.Context, blocks []chainhash.Hash, save func(block *chainhash.Hash, txs []*wire.MsgTx) error) error
 
@@ -97,6 +99,10 @@ func (o OfflineNetworkBackend) CFiltersV2(ctx context.Context, blockHashes []*ch
 }
 
 func (o OfflineNetworkBackend) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
+	return errOfflineNetworkBackend
+}
+
+func (o OfflineNetworkBackend) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
 	return errOfflineNetworkBackend
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"decred.org/dcrwallet/v4/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -72,4 +73,43 @@ func TSpend(params json.RawMessage) (tx *wire.MsgTx, err error) {
 	tx = new(wire.MsgTx)
 	err = unmarshalArray(params, unhex(tx))
 	return
+}
+
+// MixMessage extracts the mixing message from a mixmessage JSON-RPC
+// notification.
+func MixMessage(params json.RawMessage) (msg mixing.Message, err error) {
+	// Parameters (array):
+	// 0: wire command string
+	// 1: hex-encoded serialized message
+	var command string
+	var messageBytes buffer
+	err = unmarshalArray(params, &command, unhex(&messageBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	switch command {
+	case wire.CmdMixPairReq:
+		msg = new(wire.MsgMixPairReq)
+	case wire.CmdMixKeyExchange:
+		msg = new(wire.MsgMixKeyExchange)
+	case wire.CmdMixCiphertexts:
+		msg = new(wire.MsgMixCiphertexts)
+	case wire.CmdMixSlotReserve:
+		msg = new(wire.MsgMixSlotReserve)
+	case wire.CmdMixDCNet:
+		msg = new(wire.MsgMixDCNet)
+	case wire.CmdMixConfirm:
+		msg = new(wire.MsgMixConfirm)
+	case wire.CmdMixFactoredPoly:
+		msg = new(wire.MsgMixFactoredPoly)
+	case wire.CmdMixSecrets:
+		msg = new(wire.MsgMixSecrets)
+	default:
+		err = errors.E("unrecognized mixing message command string")
+		return nil, err
+	}
+
+	err = msg.BtcDecode(&messageBytes.Buffer, wire.MixVersion)
+	return msg, err
 }

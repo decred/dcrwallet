@@ -52,6 +52,8 @@ var (
 	GrpcLog    = backendLog.Logger("GRPC")
 	JsonrpcLog = backendLog.Logger("RPCS")
 	CmgrLog    = backendLog.Logger("CMGR")
+	MixcLog    = backendLog.Logger("MIXC")
+	MixpLog    = backendLog.Logger("MIXP")
 	VspcLog    = backendLog.Logger("VSPC")
 )
 

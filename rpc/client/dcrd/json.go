@@ -279,3 +279,52 @@ func (t *transactions) UnmarshalJSON(j []byte) error {
 	}
 	return nil
 }
+
+type msgPtr[T any] interface {
+	*T
+	wire.Message
+}
+
+type messageArray[T any, P msgPtr[T]] struct {
+	pver     uint32
+	Messages []P
+}
+
+func makeMessageArray[T any, P msgPtr[T]](pver uint32) messageArray[T, P] {
+	var msgArray messageArray[T, P]
+	msgArray.pver = pver
+	return msgArray
+}
+
+func (m *messageArray[T, P]) UnmarshalJSON(j []byte) error {
+	if bytes.Equal(j, []byte("null")) {
+		m.Messages = nil
+		return nil
+	}
+	var array []json.RawMessage
+	err := json.Unmarshal(j, &array)
+	if err != nil {
+		return err
+	}
+	m.Messages = make([]P, len(array))
+	for i, j := range array {
+		if len(j) < 2 || j[0] != '"' || j[len(j)-1] != '"' {
+			return errors.E(errors.Encoding, "not a string")
+		}
+		m.Messages[i] = new(T)
+		err = m.Messages[i].BtcDecode(hex.NewDecoder(bytes.NewReader(j[1:len(j)-1])), m.pver)
+		if err != nil {
+			return errors.E(errors.Encoding, err)
+		}
+	}
+	return nil
+}
+
+type buffer struct {
+	Buffer bytes.Buffer
+}
+
+func (b *buffer) Deserialize(r io.Reader) error {
+	_, err := b.Buffer.ReadFrom(r)
+	return err
+}

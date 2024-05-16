@@ -9,6 +9,7 @@ import (
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
@@ -24,7 +25,8 @@ func (mockNetwork) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([
 func (mockNetwork) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]FilterProof, error) {
 	return nil, nil
 }
-func (mockNetwork) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error { return nil }
+func (mockNetwork) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error   { return nil }
+func (mockNetwork) PublishMixMessages(ctx context.Context, txs ...mixing.Message) error { return nil }
 func (mockNetwork) LoadTxFilter(ctx context.Context, reload bool, addrs []stdaddr.Address, outpoints []wire.OutPoint) error {
 	return nil
 }

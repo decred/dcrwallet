@@ -175,9 +175,8 @@ func run(ctx context.Context) error {
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.ManualTickets,
-		cfg.MixSplitLimit)
-	loader.DialCSPPServer = cfg.dialCSPPServer
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
+		cfg.ManualTickets, cfg.MixSplitLimit)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
@@ -259,7 +258,7 @@ func run(ctx context.Context) error {
 
 		if cfg.VSPOpts.URL != "" {
 			changeAccountName := cfg.ChangeAccount
-			if changeAccountName == "" && cfg.CSPPServer == "" {
+			if changeAccountName == "" && !cfg.Mixing {
 				log.Warnf("Change account not set, using "+
 					"purchase account %q", cfg.PurchaseAccount)
 				changeAccountName = cfg.PurchaseAccount
@@ -314,19 +313,19 @@ func run(ctx context.Context) error {
 		var (
 			purchaseAccount    uint32 // enableticketbuyer
 			votingAccount      uint32 // enableticketbuyer
-			mixedAccount       uint32 // (enableticketbuyer && csppserver) || mixchange
-			changeAccount      uint32 // (enableticketbuyer && csppserver) || mixchange
-			ticketSplitAccount uint32 // enableticketbuyer && csppserver
+			mixedAccount       uint32 // (enableticketbuyer && mixing) || mixchange
+			changeAccount      uint32 // (enableticketbuyer && mixing) || mixchange
+			ticketSplitAccount uint32 // enableticketbuyer && mixing
 
 			votingAddr  = cfg.TBOpts.votingAddress
 			poolFeeAddr = cfg.poolAddress
 		)
 		if cfg.EnableTicketBuyer {
 			purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
-			if cfg.CSPPServer != "" {
+			if cfg.Mixing {
 				poolFeeAddr = nil
 			}
-			if cfg.CSPPServer != "" && cfg.TBOpts.VotingAccount == "" {
+			if cfg.Mixing && cfg.TBOpts.VotingAccount == "" {
 				err := errors.New("cannot run mixed ticketbuyer without --votingaccount")
 				log.Error(err)
 				return err
@@ -336,11 +335,11 @@ func run(ctx context.Context) error {
 				votingAddr = nil
 			}
 		}
-		if (cfg.EnableTicketBuyer && cfg.CSPPServer != "") || cfg.MixChange {
+		if (cfg.EnableTicketBuyer && cfg.Mixing) || cfg.MixChange {
 			mixedAccount = lookup("mixedaccount", cfg.mixedAccount)
 			changeAccount = lookup("changeaccount", cfg.ChangeAccount)
 		}
-		if cfg.EnableTicketBuyer && cfg.CSPPServer != "" {
+		if cfg.EnableTicketBuyer && cfg.Mixing {
 			ticketSplitAccount = lookup("ticketsplitaccount", cfg.TicketSplitAccount)
 		}
 		if err != nil {
@@ -358,8 +357,7 @@ func run(ctx context.Context) error {
 				c.PoolFeeAddr = poolFeeAddr
 				c.Limit = int(cfg.TBOpts.Limit)
 				c.VotingAccount = votingAccount
-				c.CSPPServer = cfg.CSPPServer
-				c.DialCSPPServer = cfg.dialCSPPServer
+				c.Mixing = cfg.Mixing
 				c.MixChange = cfg.MixChange
 				c.MixedAccount = mixedAccount
 				c.MixedAccountBranch = cfg.mixedBranch
@@ -400,7 +398,7 @@ func run(ctx context.Context) error {
 		// Start wallet, voting and network gRPC services after a
 		// wallet is loaded.
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
-			rpcserver.StartWalletService(gRPCServer, w, cfg.dialCSPPServer)
+			rpcserver.StartWalletService(gRPCServer, w)
 			rpcserver.StartNetworkService(gRPCServer, w)
 			rpcserver.StartVotingService(gRPCServer, w)
 		})

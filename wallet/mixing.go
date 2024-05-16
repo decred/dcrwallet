@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 The Decred developers
+// Copyright (c) 2019-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,23 +6,219 @@ package wallet
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/tls"
-	"net"
-	"time"
+	cryptorand "crypto/rand"
 
-	"decred.org/cspp/v2"
-	"decred.org/cspp/v2/coinjoin"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/wallet/txrules"
 	"decred.org/dcrwallet/v4/wallet/txsizes"
 	"decred.org/dcrwallet/v4/wallet/udb"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/dcrec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/mixing"
+	"github.com/decred/dcrd/mixing/mixclient"
+	"github.com/decred/dcrd/mixing/mixpool"
+	"github.com/decred/dcrd/txscript/v4"
+	"github.com/decred/dcrd/txscript/v4/sign"
+	"github.com/decred/dcrd/txscript/v4/stdaddr"
+	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/go-socks/socks"
 	"golang.org/x/sync/errgroup"
 )
+
+// MixMessage queries the mixpool for a message.  Only messages that have been
+// recently inv'd should be queried.
+func (w *Wallet) MixMessage(query *chainhash.Hash) (mixing.Message, error) {
+	return w.mixpool.Message(query)
+}
+
+type mixpoolBlockchain Wallet
+
+func (b *mixpoolBlockchain) CurrentTip() (chainhash.Hash, int64) {
+	w := (*Wallet)(b)
+	ctx := context.Background()
+	hash, height := w.MainChainTip(ctx)
+	return hash, int64(height)
+}
+
+func (b *mixpoolBlockchain) ChainParams() *chaincfg.Params {
+	return (*Wallet)(b).chainParams
+}
+
+func (w *Wallet) makeGen(ctx context.Context, account, branch uint32) mixclient.GenFunc {
+	const op errors.Op = "gen"
+
+	gen := func(mcount uint32) (wire.MixVect, error) {
+		gen := make(wire.MixVect, mcount)
+		var updates []func(walletdb.ReadWriteTx) error
+
+		for i := uint32(0); i < mcount; i++ {
+			persist := w.deferPersistReturnedChild(ctx, &updates)
+			const accountName = "" // not used, so can be faked.
+			mixAddr, err := w.nextAddress(ctx, op, persist,
+				accountName, account, branch, WithGapPolicyIgnore())
+			if err != nil {
+				return nil, err
+			}
+			hash160er, ok := mixAddr.(stdaddr.Hash160er)
+			if !ok {
+				return nil, errors.E("address does not have Hash160 method")
+			}
+			gen[i] = *hash160er.Hash160()
+		}
+
+		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			for _, f := range updates {
+				if err := f(dbtx); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		return gen, nil
+	}
+	return mixclient.GenFunc(gen)
+}
+
+// mixingWallet implements the mixclient.Wallet interface.
+type mixingWallet Wallet
+
+// BestBlock returns the wallet's current best tip block height and hash.
+func (w *mixingWallet) BestBlock() (uint32, chainhash.Hash) {
+	wallet := (*Wallet)(w)
+	hash, height := wallet.MainChainTip(context.Background())
+	return uint32(height), hash
+}
+
+// Mixpool returns access to the wallet's mixing message pool.
+//
+// The mixpool should only be used for message access and deletion,
+// but never publishing; SubmitMixMessage must be used instead for
+// message publishing.
+func (w *mixingWallet) Mixpool() *mixpool.Pool {
+	wallet := (*Wallet)(w)
+	return wallet.mixpool
+}
+
+// SubmitMixMessage submits a mixing message to the wallet's mixpool
+// and broadcasts it to the network.
+func (w *mixingWallet) SubmitMixMessage(ctx context.Context, msg mixing.Message) (err error) {
+	defer func() {
+		if err != nil {
+			w.mixpool.RemoveMessage(msg)
+		}
+	}()
+
+	_, err = w.mixpool.AcceptMessage(msg)
+	if err != nil {
+		return err
+	}
+
+	w.networkBackendMu.Lock()
+	n := w.networkBackend
+	w.networkBackendMu.Unlock()
+	if n == nil {
+		return errors.NoPeers
+	}
+	return n.PublishMixMessages(ctx, msg)
+}
+
+// SignInput adds a signature script to a transaction input.
+func (w *mixingWallet) SignInput(tx *wire.MsgTx, index int, prevScript []byte) error {
+	wallet := (*Wallet)(w)
+	ctx := context.Background()
+	in := tx.TxIn[index]
+
+	return walletdb.View(ctx, wallet.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+
+		const scriptVersion = 0
+		_, addrs := stdscript.ExtractAddrs(scriptVersion, prevScript,
+			wallet.chainParams)
+		if len(addrs) != 1 {
+			return errors.E(errors.Invalid, "previous output is not P2PKH")
+		}
+		apkh, ok := addrs[0].(*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0)
+		if !ok {
+			return errors.E(errors.Invalid, "previous output is not P2PKH")
+		}
+		privKey, done, err := wallet.manager.PrivateKey(addrmgrNs, apkh)
+		if err != nil {
+			return err
+		}
+		defer done()
+		sigscript, err := sign.SignatureScript(tx, index, prevScript,
+			txscript.SigHashAll, privKey.Serialize(),
+			dcrec.STEcdsaSecp256k1, true)
+		if err != nil {
+			return errors.E(errors.Op("sign.SignatureScript"), err)
+		}
+		in.SignatureScript = sigscript
+		return nil
+	})
+}
+
+// PublishTransaction adds the transaction to the wallet and publishes
+// it to the network.
+func (w *mixingWallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx) error {
+	wallet := (*Wallet)(w)
+
+	wallet.networkBackendMu.Lock()
+	n := wallet.networkBackend
+	wallet.networkBackendMu.Unlock()
+
+	_, err := wallet.PublishTransaction(ctx, tx, n)
+	return err
+}
+
+func (w *Wallet) dicemixExpiry(ctx context.Context) uint32 {
+	_, height := w.MainChainTip(ctx)
+	return mixing.MaxExpiry(uint32(height), w.chainParams) - 2
+}
+
+// addCoinJoinInput adds a wallet's controlled UTXO to the coinjoin
+// transaction.  This method looks up the private key of the previous output
+// to create the UTXO signature proof and requires the wallet or account to be
+// unlocked.
+func (w *Wallet) addCoinJoinInput(ctx context.Context, cj *mixclient.CoinJoin,
+	input *wire.TxIn, prevScript []byte, prevScriptVersion uint16) error {
+
+	const scriptVersion = 0
+	_, addrs := stdscript.ExtractAddrs(scriptVersion, prevScript,
+		w.chainParams)
+	if len(addrs) != 1 {
+		return errors.E(errors.Invalid, "previous output is not P2PKH")
+	}
+	prevP2PKH, ok := addrs[0].(*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0)
+	if !ok {
+		return errors.E(errors.Invalid, "previous output is not P2PKH")
+	}
+	var privKey *secp256k1.PrivateKey
+	var privKeyDone func()
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		var err error
+		privKey, privKeyDone, err = w.manager.PrivateKey(addrmgrNs, prevP2PKH)
+		return err
+	})
+	if err != nil {
+		if privKeyDone != nil {
+			privKeyDone()
+		}
+		return err
+	}
+
+	err = cj.AddInput(input, prevScript, prevScriptVersion, privKey)
+	privKeyDone()
+	return err
+}
 
 // must be sorted large to small
 var splitPoints = [...]dcrutil.Amount{
@@ -64,13 +260,18 @@ var (
 	errThrottledMixRequest = errors.New("throttled mix request for split denomination")
 )
 
-// DialFunc provides a method to dial a network connection.
-// If the dialed network connection is secured by TLS, TLS
-// configuration is provided by the method, not the caller.
-type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+// MixOutput performs a mix of a single output into standard sized outputs
+// under the current ticket price.
+func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAccount, mixAccount,
+	mixBranch uint32) error {
 
-func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver string, output *wire.OutPoint, changeAccount, mixAccount, mixBranch uint32) error {
 	op := errors.Opf("wallet.MixOutput(%v)", output)
+
+	// Mixing requests require wallet mixing support.
+	if !w.mixing {
+		s := "wallet mixing support is disabled"
+		return errors.E(op, errors.Invalid, s)
+	}
 
 	sdiff, err := w.NextStakeDifficulty(ctx)
 	if err != nil {
@@ -85,6 +286,7 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 	}
 
 	var prevScript []byte
+	var prevScriptVersion uint16
 	var amount dcrutil.Amount
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
@@ -92,7 +294,9 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		if err != nil {
 			return err
 		}
-		prevScript = txDetails.MsgTx.TxOut[output.Index].PkScript
+		out := txDetails.MsgTx.TxOut[output.Index]
+		prevScript = out.PkScript
+		prevScriptVersion = out.Version
 		amount = dcrutil.Amount(txDetails.MsgTx.TxOut[output.Index].Value)
 		return nil
 	})
@@ -109,7 +313,8 @@ func (w *Wallet) MixOutput(ctx context.Context, dialTLS DialFunc, csppserver str
 		w.lockedOutpointMu.Unlock()
 	}()
 
-	var i, count int
+	var i int
+	var count uint32
 	var mixValue, remValue, changeValue dcrutil.Amount
 	var feeRate = w.RelayFee()
 	var smallestMixChange = smallestMixChange(feeRate)
@@ -130,7 +335,7 @@ SplitPoints:
 			continue
 		}
 
-		count = int(amount / mixValue)
+		count = uint32(amount / mixValue)
 		if count > 4 {
 			count = 4
 		}
@@ -206,68 +411,29 @@ SplitPoints:
 		}
 	}
 
-	const (
-		txVersion = 1
-		locktime  = 0
-		expiry    = 0
-	)
-	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(mixValue), txVersion, locktime, expiry)
-	ses, err := cspp.NewSession(rand.Reader, debugLog, pairing, count)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	var conn net.Conn
-	if dialTLS != nil {
-		conn, err = dialTLS(ctx, "tcp", csppserver)
-	} else {
-		conn, err = tls.Dial("tcp", csppserver, nil)
-	}
-	if err != nil {
-		return errors.E(op, err)
-	}
-	defer conn.Close()
-	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
-
 	log.Infof("Mixing output %v (%v)", output, amount)
-	cj := w.newCsppJoin(ctx, change, mixValue, mixAccount, mixBranch, count)
-	cj.addTxIn(prevScript, &wire.TxIn{
+
+	gen := w.makeGen(ctx, mixAccount, mixBranch)
+	expires := w.dicemixExpiry(ctx)
+	cj := mixclient.NewCoinJoin(gen, change, int64(mixValue), expires, count)
+	input := &wire.TxIn{
 		PreviousOutPoint: *output,
 		ValueIn:          int64(amount),
-	})
-	err = ses.DiceMix(ctx, conn, cj)
+	}
+	err = w.addCoinJoinInput(ctx, cj, input, prevScript, prevScriptVersion)
 	if err != nil {
 		return errors.E(op, err)
 	}
-	cjHash := cj.tx.TxHash()
-	log.Infof("Completed CoinShuffle++ mix of output %v in transaction %v", output, &cjHash)
 
-	var watch []wire.OutPoint
-	w.lockedOutpointMu.Lock()
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		for _, f := range updates {
-			if err := f(dbtx); err != nil {
-				return err
-			}
-		}
-		rec, err := udb.NewTxRecordFromMsgTx(cj.tx, time.Now())
-		if err != nil {
-			return errors.E(op, err)
-		}
-		watch, err = w.processTransactionRecord(ctx, dbtx, rec, nil, nil)
-		if err != nil {
-			return err
-		}
-		return nil
-	})
-	w.lockedOutpointMu.Unlock()
+	err = w.mixClient.Dicemix(ctx, cryptorand.Reader, cj)
 	if err != nil {
 		return errors.E(op, err)
 	}
-	n, _ := w.NetworkBackend()
-	if n != nil {
-		err = w.publishAndWatch(ctx, op, n, cj.tx, watch)
-	}
-	return err
+
+	tx := cj.Tx()
+	cjHash := tx.TxHash()
+	log.Infof("Completed CoinShuffle++ mix of output %v in transaction %v", output, &cjHash)
+	return nil
 }
 
 // MixAccount individually mixes outputs of an account into standard
@@ -275,15 +441,22 @@ SplitPoints:
 //
 // Due to performance concerns of timing out in a CoinShuffle++ run, this
 // function may throttle how many of the outputs are mixed each call.
-func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver string, changeAccount, mixAccount, mixBranch uint32) error {
+func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
+	mixBranch uint32) error {
 	const op errors.Op = "wallet.MixAccount"
+
+	// Mixing requests require wallet mixing support.
+	if !w.mixing {
+		s := "wallet mixing support is disabled"
+		return errors.E(op, errors.Invalid, s)
+	}
 
 	_, tipHeight := w.MainChainTip(ctx)
 	w.lockedOutpointMu.Lock()
 	var credits []Input
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
-		const minconf = 1
+		const minconf = 2
 		const targetAmount = 0
 		var minAmount = splitPoints[len(splitPoints)-1]
 		var maxResults = cap(w.mixSems.splitSems[0]) * len(splitPoints)
@@ -301,7 +474,7 @@ func (w *Wallet) MixAccount(ctx context.Context, dialTLS DialFunc, csppserver st
 	for i := range credits {
 		op := &credits[i].OutPoint
 		g.Go(func() error {
-			err := w.MixOutput(ctx, dialTLS, csppserver, op, changeAccount, mixAccount, mixBranch)
+			err := w.MixOutput(ctx, op, changeAccount, mixAccount, mixBranch)
 			if errors.Is(err, errThrottledMixRequest) {
 				return nil
 			}
@@ -364,4 +537,15 @@ func PossibleCoinJoin(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint
 
 	isMix = mixCount >= uint32(len(tx.TxOut)/2)
 	return
+}
+
+// AcceptMixMessage adds a mixing message received from the network backend to
+// the wallet's mixpool.
+func (w *Wallet) AcceptMixMessage(msg mixing.Message) error {
+	_, err := w.mixpool.AcceptMessage(msg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -6,7 +6,6 @@ package ticketbuyer
 
 import (
 	"context"
-	"net"
 	"runtime/trace"
 	"sync"
 
@@ -46,8 +45,7 @@ type Config struct {
 	Limit int
 
 	// CSPP-related options
-	CSPPServer         string
-	DialCSPPServer     func(ctx context.Context, network, addr string) (net.Conn, error)
+	Mixing             bool
 	MixedAccount       uint32
 	MixedAccountBranch uint32
 	TicketSplitAccount uint32
@@ -170,7 +168,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			tb.mu.Unlock()
 
 			multiple := 1
-			if cfg.CSPPServer != "" {
+			if cfg.Mixing {
 				multiple = cfg.Limit
 				cfg.Limit = 1
 			}
@@ -246,13 +244,17 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	poolFeeAddr := cfg.PoolFeeAddr
 	poolFees := cfg.PoolFees
 	limit := cfg.Limit
-	csppServer := cfg.CSPPServer
-	dialCSPPServer := cfg.DialCSPPServer
+	mixing := cfg.Mixing
 	votingAccount := cfg.VotingAccount
 	mixedAccount := cfg.MixedAccount
 	mixedBranch := cfg.MixedAccountBranch
 	splitAccount := cfg.TicketSplitAccount
 	changeAccount := cfg.ChangeAccount
+
+	minconf := int32(minconf)
+	if mixing {
+		minconf = 2
+	}
 
 	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tip)
 	if err != nil {
@@ -284,7 +286,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	} else {
 		buy = int(w.ChainParams().MaxFreshStakePerBlock)
 	}
-	if limit == 0 && csppServer != "" {
+	if limit == 0 && mixing {
 		buy = 1
 	} else if limit > 0 && buy > limit {
 		buy = limit
@@ -298,8 +300,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		Expiry:        expiry,
 
 		// CSPP
-		CSPPServer:         csppServer,
-		DialCSPPServer:     dialCSPPServer,
+		Mixing:             mixing,
 		VotingAccount:      votingAccount,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedBranch,
@@ -336,19 +337,18 @@ func (tb *TB) AccessConfig(f func(cfg *Config)) {
 
 func (tb *TB) mixChange(ctx context.Context, cfg *Config) error {
 	// Read config
-	dial := cfg.DialCSPPServer
-	csppServer := cfg.CSPPServer
+	mixing := cfg.Mixing
 	mixedAccount := cfg.MixedAccount
 	mixedBranch := cfg.MixedAccountBranch
 	changeAccount := cfg.ChangeAccount
 	mixChange := cfg.MixChange
 
-	if !mixChange || csppServer == "" {
+	if !mixChange || !mixing {
 		return nil
 	}
 
 	ctx, task := trace.NewTask(ctx, "ticketbuyer.mixChange")
 	defer task.End()
 
-	return tb.wallet.MixAccount(ctx, dial, csppServer, changeAccount, mixedAccount, mixedBranch)
+	return tb.wallet.MixAccount(ctx, changeAccount, mixedAccount, mixedBranch)
 }

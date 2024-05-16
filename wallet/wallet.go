@@ -23,6 +23,7 @@ import (
 	"decred.org/dcrwallet/v4/deployments"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/compat"
+	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/v4/validate"
@@ -43,6 +44,8 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	gcs2 "github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
+	"github.com/decred/dcrd/mixing/mixclient"
+	"github.com/decred/dcrd/mixing/mixpool"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
@@ -160,8 +163,11 @@ type Wallet struct {
 	passphraseTimeoutMu     sync.Mutex
 	passphraseTimeoutCancel chan struct{}
 
-	// Mix rate limiting
-	mixSems mixSemaphores
+	// Mixing
+	mixing    bool
+	mixpool   *mixpool.Pool
+	mixSems   mixSemaphores
+	mixClient *mixclient.Client
 
 	// Cached Blake3 anchor candidate
 	cachedBlake3WorkDiffCandidateAnchor   *wire.BlockHeader
@@ -191,6 +197,7 @@ type Config struct {
 	AccountGapLimit         int
 	MixSplitLimit           int
 	DisableCoinTypeUpgrades bool
+	DisableMixing           bool
 
 	StakePoolColdExtKey string
 	ManualTickets       bool
@@ -1553,13 +1560,12 @@ type PurchaseTicketsRequest struct {
 	VotingAddress    stdaddr.StakeAddress
 	MinConf          int32
 	Expiry           int32
-	VotingAccount    uint32 // Used when VotingAddress == nil, or CSPPServer != ""
+	VotingAccount    uint32 // Used when VotingAddress == nil, or Mixing == true
 	UseVotingAccount bool   // Forces use of supplied voting account.
 	DontSignTx       bool
 
 	// Mixed split buying through CoinShuffle++
-	CSPPServer         string
-	DialCSPPServer     DialFunc
+	Mixing             bool
 	MixedAccount       uint32
 	MixedAccountBranch uint32
 	MixedSplitAccount  uint32
@@ -1610,7 +1616,11 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	// Do not attempt to split utxos for a fee payment when spending from
 	// the mixed account.  This error is rather unlikely anyways, as mixed
 	// accounts probably have very many outputs.
-	if req.CSPPServer != "" && req.MixedAccount == req.SourceAccount {
+	if req.Mixing && !w.mixing {
+		s := "wallet mixing support is disabled"
+		return nil, errors.E(op, errors.Invalid, s)
+	}
+	if req.Mixing && req.MixedAccount == req.SourceAccount {
 		return nil, errors.E(op, errors.InsufficientBalance)
 	}
 
@@ -5481,6 +5491,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		addressBuffers: make(map[uint32]*bip0044AccountData),
 
 		mixSems: newMixSemaphores(cfg.MixSplitLimit),
+		mixing:  !cfg.DisableMixing,
 	}
 
 	// Open database managers
@@ -5588,7 +5599,27 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	// Record current tip as initialHeight.
 	_, w.initialHeight = w.MainChainTip(ctx)
 
+	if w.mixing {
+		w.mixpool = mixpool.NewPool((*mixpoolBlockchain)(w))
+		w.mixClient = mixclient.NewClient((*mixingWallet)(w))
+		w.mixClient.SetLogger(loggers.MixcLog)
+	}
+
 	return w, nil
+}
+
+// MixingEnabled returns whether the wallet is enabled for mixing and is
+// running the mixing client.
+func (w *Wallet) MixingEnabled() bool {
+	return w.mixing
+}
+
+// Run executes any necessary background goroutines for the wallet.
+func (w *Wallet) Run(ctx context.Context) error {
+	if w.mixing {
+		return w.mixClient.Run(ctx)
+	}
+	return nil
 }
 
 // getCoinjoinTxsSumbByAcct returns a map with key representing the account and

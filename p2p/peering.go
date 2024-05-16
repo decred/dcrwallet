@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Decred developers
+// Copyright (c) 2018-2023 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -24,8 +24,10 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"
+	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/gcs/v4"
 	blockcf "github.com/decred/dcrd/gcs/v4/blockcf2"
+	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/go-socks/socks"
 	"golang.org/x/sync/errgroup"
@@ -42,7 +44,7 @@ var uaVersion = version.String()
 const minPver = wire.RemoveRejectVersion
 
 // Pver is the maximum protocol version implemented by the LocalPeer.
-const Pver = wire.RemoveRejectVersion
+const Pver = wire.MixVersion
 
 // stallTimeout is the amount of time allowed before a request to receive data
 // that is known to exist at the RemotePeer times out with no matching reply.
@@ -93,8 +95,12 @@ type RemotePeer struct {
 	requestedBlocks   map[chainhash.Hash]*blockRequest
 
 	requestedCFiltersV2 sync.Map // k=chainhash.Hash v=chan<- *wire.MsgCFilterV2
-	requestedTxs        map[chainhash.Hash]chan<- *wire.MsgTx
-	requestedTxsMu      sync.Mutex
+
+	requestedTxs   map[chainhash.Hash]chan<- *wire.MsgTx
+	requestedTxsMu sync.Mutex
+
+	requestedMixMsgs   map[chainhash.Hash]chan<- mixing.Message
+	requestedMixMsgsMu sync.Mutex
 
 	// headers message management.  Headers can either be fetched synchronously
 	// or used to push block notifications with sendheaders.
@@ -132,6 +138,7 @@ type LocalPeer struct {
 	receivedInv       chan *inMsg
 	announcedHeaders  chan *inMsg
 	receivedInitState chan *inMsg
+	receivedMixMsg    chan *inMsg
 
 	extaddr        net.Addr
 	amgr           *addrmgr.AddrManager
@@ -153,6 +160,7 @@ func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.A
 		receivedInv:       make(chan *inMsg),
 		announcedHeaders:  make(chan *inMsg),
 		receivedInitState: make(chan *inMsg),
+		receivedMixMsg:    make(chan *inMsg),
 		extaddr:           extaddr,
 		amgr:              amgr,
 		chainParams:       params,
@@ -492,23 +500,24 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 	const op errors.Op = "p2p.handshake"
 
 	rp := &RemotePeer{
-		id:              id,
-		lp:              lp,
-		ua:              "",
-		services:        0,
-		pver:            Pver,
-		raddr:           c.RemoteAddr(),
-		na:              na,
-		c:               c,
-		mr:              msgReader{r: c, net: lp.chainParams.Net},
-		out:             nil,
-		outPrio:         nil,
-		pongs:           make(chan *wire.MsgPong, 1),
-		requestedBlocks: make(map[chainhash.Hash]*blockRequest),
-		requestedTxs:    make(map[chainhash.Hash]chan<- *wire.MsgTx),
-		invsSent:        lru.NewCache[chainhash.Hash](invLRUSize),
-		invsRecv:        lru.NewCache[chainhash.Hash](invLRUSize),
-		errc:            make(chan struct{}),
+		id:               id,
+		lp:               lp,
+		ua:               "",
+		services:         0,
+		pver:             Pver,
+		raddr:            c.RemoteAddr(),
+		na:               na,
+		c:                c,
+		mr:               msgReader{r: c, net: lp.chainParams.Net},
+		out:              nil,
+		outPrio:          nil,
+		pongs:            make(chan *wire.MsgPong, 1),
+		requestedBlocks:  make(map[chainhash.Hash]*blockRequest),
+		requestedTxs:     make(map[chainhash.Hash]chan<- *wire.MsgTx),
+		requestedMixMsgs: make(map[chainhash.Hash]chan<- mixing.Message),
+		invsSent:         lru.NewCache[chainhash.Hash](invLRUSize),
+		invsRecv:         lru.NewCache[chainhash.Hash](invLRUSize),
+		errc:             make(chan struct{}),
 	}
 
 	mw := msgWriter{c, lp.chainParams.Net}
@@ -758,6 +767,23 @@ func (rp *RemotePeer) readMessages(ctx context.Context) error {
 				pong(ctx, m, rp)
 			case *wire.MsgPong:
 				rp.receivedPong(ctx, m)
+
+			case *wire.MsgMixPairReq:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixKeyExchange:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixCiphertexts:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixSlotReserve:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixDCNet:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixConfirm:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixFactoredPoly:
+				rp.receivedMixMsg(ctx, m)
+			case *wire.MsgMixSecrets:
+				rp.receivedMixMsg(ctx, m)
 			}
 		}()
 	}
@@ -854,6 +880,19 @@ func (lp *LocalPeer) ReceiveHeadersAnnouncement(ctx context.Context) (*RemotePee
 	}
 }
 
+// ReceiveMixMessage waits for a mixing message from a remote peer, returning
+// the peer that sent the message, and the message itself.
+func (lp *LocalPeer) ReceiveMixMessage(ctx context.Context) (*RemotePeer, mixing.Message, error) {
+	select {
+	case <-ctx.Done():
+		return nil, nil, ctx.Err()
+	case r := <-lp.receivedMixMsg:
+		rp, msg := r.rp, r.msg.(mixing.Message)
+		recycleInMsg(r)
+		return rp, msg, nil
+	}
+}
+
 func (rp *RemotePeer) pingPong(ctx context.Context) {
 	nonce, err := wire.RandomUint64()
 	if err != nil {
@@ -933,6 +972,7 @@ func (rp *RemotePeer) deleteRequestedCFilterV2(hash *chainhash.Hash) {
 }
 
 func (rp *RemotePeer) receivedCFilterV2(ctx context.Context, msg *wire.MsgCFilterV2) {
+	log.Debugf("received cfilter for block %v", &msg.BlockHash)
 	const opf = "remotepeer(%v).receivedCFilterV2(%v)"
 	var k any = msg.BlockHash
 	v, ok := rp.requestedCFiltersV2.Load(k)
@@ -1076,6 +1116,54 @@ func (rp *RemotePeer) receivedTx(ctx context.Context, msg *wire.MsgTx) {
 	if !ok {
 		op := errors.Opf(opf, rp.raddr, &txHash)
 		err := errors.E(op, errors.Protocol, "received unrequested tx")
+		rp.Disconnect(err)
+		return
+	}
+	select {
+	case <-ctx.Done():
+	case c <- msg:
+	}
+}
+
+var (
+	blake256Hasher = blake256.New()
+	blake256Mu     sync.Mutex
+)
+
+func writeMixMsgHash(msg mixing.Message) chainhash.Hash {
+	blake256Mu.Lock()
+	defer blake256Mu.Unlock()
+
+	msg.WriteHash(blake256Hasher)
+	return msg.Hash()
+}
+
+func (rp *RemotePeer) addRequestedMixMsg(hash *chainhash.Hash, c chan<- mixing.Message) (newRequest bool) {
+	rp.requestedMixMsgsMu.Lock()
+	_, ok := rp.requestedMixMsgs[*hash]
+	if !ok {
+		rp.requestedMixMsgs[*hash] = c
+	}
+	rp.requestedMixMsgsMu.Unlock()
+	return !ok
+}
+
+func (rp *RemotePeer) deleteRequestedMixMsg(hash *chainhash.Hash) {
+	rp.requestedMixMsgsMu.Lock()
+	delete(rp.requestedMixMsgs, *hash)
+	rp.requestedMixMsgsMu.Unlock()
+}
+
+func (rp *RemotePeer) receivedMixMsg(ctx context.Context, msg mixing.Message) {
+	const opf = "remotepeer(%v).receivedMixMsg(%v)"
+	mixHash := writeMixMsgHash(msg)
+	rp.requestedMixMsgsMu.Lock()
+	c, ok := rp.requestedMixMsgs[mixHash]
+	delete(rp.requestedMixMsgs, mixHash)
+	rp.requestedMixMsgsMu.Unlock()
+	if !ok {
+		op := errors.Opf(opf, rp.raddr, &mixHash)
+		err := errors.E(op, errors.Protocol, "received unrequested mix msg")
 		rp.Disconnect(err)
 		return
 	}
@@ -1408,6 +1496,76 @@ func (rp *RemotePeer) Transactions(ctx context.Context, hashes []*chainhash.Hash
 		return txs, ErrNotFound
 	}
 	return txs, nil
+}
+
+// MixMessages requests multiple mixing messages at a time from a RemotePeer
+// using a single getdata message.  It returns when all of the messages
+// and/or notfound messages have been received.  The same message may not be
+// requested multiple times concurrently from the same peer.  Returns
+// ErrNotFound with a slice of one or more nil messages if any notfound
+// messages are received for requested mix messages.
+func (rp *RemotePeer) MixMessages(ctx context.Context, hashes []*chainhash.Hash) ([]mixing.Message, error) {
+	const opf = "remotepeer(%v).MixMessages"
+
+	m := wire.NewMsgGetDataSizeHint(uint(len(hashes)))
+	cs := make([]chan mixing.Message, len(hashes))
+	for i, h := range hashes {
+		err := m.AddInvVect(wire.NewInvVect(wire.InvTypeMix, h))
+		if err != nil {
+			op := errors.Opf(opf, rp.raddr)
+			return nil, errors.E(op, err)
+		}
+		cs[i] = make(chan mixing.Message, 1)
+		if !rp.addRequestedMixMsg(h, cs[i]) {
+			for _, h := range hashes[:i] {
+				rp.deleteRequestedMixMsg(h)
+			}
+			op := errors.Opf(opf, rp.raddr)
+			return nil, errors.E(op, errors.Errorf("mix msg %v is already being requested from this peer", h))
+		}
+	}
+	select {
+	case <-ctx.Done():
+		for _, h := range hashes {
+			rp.deleteRequestedMixMsg(h)
+		}
+		return nil, ctx.Err()
+	case rp.out <- &msgAck{m, nil}:
+	}
+	msgs := make([]mixing.Message, len(hashes))
+	var notfound bool
+	stalled := time.NewTimer(stallTimeout)
+	for i := 0; i < len(hashes); i++ {
+		select {
+		case <-ctx.Done():
+			go func() {
+				<-stalled.C
+				for _, h := range hashes[i:] {
+					rp.deleteRequestedMixMsg(h)
+				}
+			}()
+			return nil, ctx.Err()
+		case <-stalled.C:
+			for _, h := range hashes[i:] {
+				rp.deleteRequestedMixMsg(h)
+			}
+			op := errors.Opf(opf, rp.raddr)
+			err := errors.E(op, errors.IO, "peer appears stalled")
+			rp.Disconnect(err)
+			return nil, err
+		case <-rp.errc:
+			stalled.Stop()
+			return nil, rp.err
+		case m, ok := <-cs[i]:
+			msgs[i] = m
+			notfound = notfound || !ok
+		}
+	}
+	stalled.Stop()
+	if notfound {
+		return msgs, ErrNotFound
+	}
+	return msgs, nil
 }
 
 // CFilterV2 requests a version 2 regular compact filter from a RemotePeer
@@ -1748,17 +1906,48 @@ func (rp *RemotePeer) HeadersAsync(ctx context.Context, blockLocators []*chainha
 // hashes of txs.
 func (rp *RemotePeer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
 	const opf = "remotepeer(%v).PublishTransactions"
-	msg := wire.NewMsgInvSizeHint(uint(len(txs)))
+	inv := wire.NewMsgInvSizeHint(uint(len(txs)))
 	for i := range txs {
 		txHash := txs[i].TxHash()
 		rp.invsSent.Add(txHash)
-		err := msg.AddInvVect(wire.NewInvVect(wire.InvTypeTx, &txHash))
+		err := inv.AddInvVect(wire.NewInvVect(wire.InvTypeTx, &txHash))
 		if err != nil {
 			op := errors.Opf(opf, rp.raddr)
 			return errors.E(op, errors.Protocol, err)
 		}
 	}
-	err := rp.SendMessage(ctx, msg)
+	err := rp.SendMessage(ctx, inv)
+	if err != nil {
+		op := errors.Opf(opf, rp.raddr)
+		return errors.E(op, err)
+	}
+	return nil
+}
+
+// PublishTransactions pushes an inventory message advertising transaction
+// hashes of txs.
+func (rp *RemotePeer) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
+	const opf = "remotepeer(%v).PublishMixMessages"
+
+	if rp.pver < wire.MixVersion {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.Errorf("protocol version %v is too low to publish mix messages",
+			rp.pver)
+		return errors.E(op, errors.Protocol, err)
+	}
+
+	inv := wire.NewMsgInvSizeHint(uint(len(msgs)))
+	for _, msg := range msgs {
+		msgHash := msg.Hash() // Must be type chainhash.Hash
+		log.Debugf("Publishing inv for mix message %v", msgHash)
+		rp.invsSent.Add(msgHash)
+		err := inv.AddInvVect(wire.NewInvVect(wire.InvTypeMix, &msgHash))
+		if err != nil {
+			op := errors.Opf(opf, rp.raddr)
+			return errors.E(op, errors.Protocol, err)
+		}
+	}
+	err := rp.SendMessage(ctx, inv)
 	if err != nil {
 		op := errors.Opf(opf, rp.raddr)
 		return errors.E(op, err)

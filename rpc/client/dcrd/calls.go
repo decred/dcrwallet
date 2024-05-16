@@ -17,6 +17,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
+	"github.com/decred/dcrd/mixing"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
@@ -219,6 +220,46 @@ func (r *RPC) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error
 		return errors.E(op, firstErr)
 	}
 	return nil
+}
+
+func (r *RPC) publishMixMessage(ctx context.Context, op errors.Op, msg mixing.Message) error {
+	var b strings.Builder
+	err := msg.BtcEncode(hex.NewEncoder(&b), wire.MixVersion)
+	if err != nil {
+		return errors.E(op, errors.Encoding, err)
+	}
+	return r.Call(ctx, "sendrawmixmessage", nil, msg.Command(), b.String())
+}
+
+// PublishMixMessages submits each mixing message to the dcrd mixpool for acceptance.
+// If accepted, the messages are published to other peers.
+func (r *RPC) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
+	const op errors.Op = "dcrd.PublishMixMessages"
+
+	var firstErr error
+	for _, msg := range msgs {
+		err := r.publishMixMessage(ctx, op, msg)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if firstErr != nil {
+		return errors.E(op, firstErr)
+	}
+	return nil
+}
+
+// MixPairRequests returns all mixing pair request messages currently held by
+// the dcrd mixpool.
+func (r *RPC) MixPairRequests(ctx context.Context) ([]*wire.MsgMixPairReq, error) {
+	const op errors.Op = "dcrd.MixPairRequests"
+
+	mixPRs := makeMessageArray[wire.MsgMixPairReq](wire.MixVersion)
+	err := r.Call(ctx, "getmixpairrequests", &mixPRs)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	return mixPRs.Messages, nil
 }
 
 // Blocks returns the blocks for each block hash.

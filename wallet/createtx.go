@@ -8,14 +8,10 @@ package wallet
 import (
 	"context"
 	"crypto/rand"
-	"crypto/tls"
 	"encoding/binary"
-	"net"
 	"sort"
 	"time"
 
-	"decred.org/cspp/v2"
-	"decred.org/cspp/v2/coinjoin"
 	"decred.org/dcrwallet/v4/deployments"
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/uniformprng"
@@ -30,6 +26,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/mixing/mixclient"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -1114,40 +1111,25 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	if change != nil && dcrutil.Amount(change.Value) < smallestMixChange(relayFee) {
 		change = nil
 	}
-	const (
-		txVersion = 1
-		locktime  = 0
-		expiry    = 0
-	)
-	pairing := coinjoin.EncodeDesc(coinjoin.P2PKHv0, int64(neededPerTicket), txVersion, locktime, expiry)
-	cj := w.newCsppJoin(ctx, change, neededPerTicket, req.MixedSplitAccount, req.MixedAccountBranch, req.Count)
+	gen := w.makeGen(ctx, req.MixedAccount, req.MixedAccountBranch)
+	expires := w.dicemixExpiry(ctx)
+	cj := mixclient.NewCoinJoin(gen, change, int64(neededPerTicket), expires, uint32(req.Count))
 	for i, in := range atx.Tx.TxIn {
-		cj.addTxIn(atx.PrevScripts[i], in)
+		var scriptVersion uint16 = 0 // XXX
+		err = w.addCoinJoinInput(ctx, cj, in, atx.PrevScripts[i], scriptVersion)
+		if err != nil {
+			return
+		}
 	}
 
-	csppSession, err := cspp.NewSession(rand.Reader, debugLog, pairing, req.Count)
+	err = w.mixClient.Dicemix(ctx, rand.Reader, cj)
 	if err != nil {
 		return
 	}
-	var conn net.Conn
-	if req.DialCSPPServer != nil {
-		conn, err = req.DialCSPPServer(ctx, "tcp", req.CSPPServer)
-	} else {
-		conn, err = tls.Dial("tcp", req.CSPPServer, nil)
-	}
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-	log.Infof("Dialed CSPPServer %v -> %v", conn.LocalAddr(), conn.RemoteAddr())
-	err = csppSession.DiceMix(ctx, conn, cj)
-	if err != nil {
-		return
-	}
-	splitTx := cj.tx
+	splitTx := cj.Tx()
 	splitTxHash := splitTx.TxHash()
 	log.Infof("Completed CoinShuffle++ mix of ticket split transaction %v", &splitTxHash)
-	return splitTx, cj.mixOutputIndexes(), nil
+	return splitTx, cj.MixedIndices(), nil
 }
 
 func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
@@ -1611,7 +1593,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	var splitOutputIndexes []int
 	for {
 		switch {
-		case req.CSPPServer != "":
+		case req.Mixing:
 			splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
 		case req.VSPAddress != nil:
 			splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
@@ -1664,7 +1646,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	// Random times between 20s to 1m from now are chosen for each ticket,
 	// and tickets will not be published until their trickle time is reached.
 	var trickleTickets []time.Time
-	if req.CSPPServer != "" {
+	if req.Mixing {
 		now := time.Now()
 		trickleTickets = make([]time.Time, 0, len(splitOutputIndexes))
 		for range splitOutputIndexes {
@@ -1746,7 +1728,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			}
 		} else {
 			addrVote = req.VotingAddress
-			if addrVote == nil && req.CSPPServer == "" {
+			if addrVote == nil && req.Mixing {
 				addrVote = w.ticketAddress
 			}
 			if addrVote == nil {
@@ -1758,7 +1740,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		subsidyAccount := req.SourceAccount
 		var branch uint32 = 1
-		if req.CSPPServer != "" {
+		if req.Mixing {
 			subsidyAccount = req.MixedAccount
 			branch = req.MixedAccountBranch
 		}
