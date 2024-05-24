@@ -25,12 +25,13 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/blake256"
+	"github.com/decred/dcrd/mixing/mixpool"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"
 	"golang.org/x/sync/errgroup"
 )
 
-var requiredAPIVersion = semver{Major: 8, Minor: 2, Patch: 0}
+var requiredAPIVersion = semver{Major: 8, Minor: 3, Patch: 0}
 
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
@@ -640,11 +641,6 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			err = e
 		}
 	}()
-	g.Go(func() error {
-		// Run wallet background goroutines (currently, this just runs
-		// mixclient).
-		return s.wallet.Run(ctx)
-	})
 
 	if s.wallet.VotingEnabled() {
 		err = s.rpc.Call(ctx, "notifywinningtickets", nil)
@@ -670,6 +666,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.fetchMissingCfiltersFinished()
 
 	// Fetch all headers the wallet has not processed yet.
+	// XXX: this also loads active addresses.
 	err = s.getHeaders(ctx)
 	if err != nil {
 		return err
@@ -713,26 +710,17 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	g.Go(func() error {
+		// Run wallet background goroutines (currently, this just runs
+		// mixclient).
+		return s.wallet.Run(ctx)
+	})
+
 	// Request notifications for mixing messages.
 	if s.wallet.MixingEnabled() {
 		err = s.rpc.Call(ctx, "notifymixmessages", nil)
 		if err != nil {
 			return err
-		}
-
-		// Populate existing mix pair requests.
-		mixPRs, err := s.rpc.MixPairRequests(ctx)
-		if err != nil {
-			return err
-		}
-		s.blake256HasherMu.Lock()
-		for _, pr := range mixPRs {
-			pr.WriteHash(s.blake256Hasher)
-		}
-		s.blake256HasherMu.Unlock()
-		for _, pr := range mixPRs {
-			loggers.MixcLog.Debugf("accepting PR hash %s at initial sync", pr.Hash())
-			s.wallet.AcceptMixMessage(pr)
 		}
 	}
 
@@ -947,5 +935,28 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 		loggers.MixpLog.Debugf("Rejected mix message %T %s by %x",
 			msg, &msgHash, msg.Pub())
 	}
+
+	var e *mixpool.MissingOwnPRError
+	if errors.As(err, &e) {
+		ke, ok := msg.(*wire.MsgMixKeyExchange)
+		if !ok || ke.Run != 0 {
+			return err
+		}
+		pr, err := s.rpc.MixMessage(ctx, &e.MissingPR)
+		if err == nil {
+			s.blake256HasherMu.Lock()
+			pr.WriteHash(s.blake256Hasher)
+			s.blake256HasherMu.Unlock()
+			prHash := pr.Hash()
+
+			err = s.wallet.AcceptMixMessage(pr)
+			if err == nil {
+				loggers.MixpLog.Debugf("Accepted missing PR %s for "+
+					"previous orphan KE %s", &prHash, &msgHash)
+			}
+		}
+		return err
+	}
+
 	return err
 }

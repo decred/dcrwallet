@@ -249,6 +249,43 @@ func (r *RPC) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) er
 	return nil
 }
 
+// MixMessage queries the dcrd mixpool for a mixing message by its hash.
+func (r *RPC) MixMessage(ctx context.Context, hash *chainhash.Hash) (mixing.Message, error) {
+	const op errors.Op = "dcrd.MixMessage"
+
+	var mixMessage *dcrdtypes.GetMixMessageResult
+	err := r.Call(ctx, "getmixmessage", &mixMessage, hash.String())
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+
+	var msg mixing.Message
+	switch mixMessage.Type {
+	case wire.CmdMixPairReq:
+		msg = new(wire.MsgMixPairReq)
+	case wire.CmdMixKeyExchange:
+		msg = new(wire.MsgMixKeyExchange)
+	case wire.CmdMixCiphertexts:
+		msg = new(wire.MsgMixCiphertexts)
+	case wire.CmdMixSlotReserve:
+		msg = new(wire.MsgMixSlotReserve)
+	case wire.CmdMixDCNet:
+		msg = new(wire.MsgMixDCNet)
+	case wire.CmdMixConfirm:
+		msg = new(wire.MsgMixConfirm)
+	case wire.CmdMixFactoredPoly:
+		msg = new(wire.MsgMixFactoredPoly)
+	case wire.CmdMixSecrets:
+		msg = new(wire.MsgMixSecrets)
+	default:
+		err = errors.E(op, "unrecognized mixing message type")
+		return nil, err
+	}
+
+	err = msg.BtcDecode(hex.NewDecoder(strings.NewReader(mixMessage.Message)), wire.MixVersion)
+	return msg, err
+}
+
 // MixPairRequests returns all mixing pair request messages currently held by
 // the dcrd mixpool.
 func (r *RPC) MixPairRequests(ctx context.Context) ([]*wire.MsgMixPairReq, error) {
