@@ -5,7 +5,7 @@ import (
 
 	"decred.org/dcrwallet/v4/errors"
 	"decred.org/dcrwallet/v4/internal/loggers"
-	"decred.org/dcrwallet/v4/internal/vsp"
+	"decred.org/dcrwallet/v4/vsp"
 )
 
 var vspClients = struct {
