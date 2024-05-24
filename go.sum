@@ -61,6 +61,8 @@ github.com/decred/dcrd/hdkeychain/v3 v3.1.2 h1:x25WuuE7zM/20EynuVMyOhL0K8BwGBBse
 github.com/decred/dcrd/hdkeychain/v3 v3.1.2/go.mod h1:FnNJmZ7jqUDeAo6/c/xkQi5cuxh3EWtJeMmW6/Z8lcc=
 github.com/decred/dcrd/mixing v0.1.0 h1:XmRdBipQE7dSpY/5VAvI2EOqGu9bzAh2KzS0JSZ1CIs=
 github.com/decred/dcrd/mixing v0.1.0/go.mod h1:W3K7yJKmoI03G2U5Yw+HSRNe6lLBegi63ZR6fFLnM9c=
+github.com/decred/dcrd/mixing v0.1.1-0.20240518194732-ac51ffa827c1 h1:4mzKsOnVI3Ugq5KX1fGB5+nKUoNmpLnhWVVciOYGR0s=
+github.com/decred/dcrd/mixing v0.1.1-0.20240518194732-ac51ffa827c1/go.mod h1:W3K7yJKmoI03G2U5Yw+HSRNe6lLBegi63ZR6fFLnM9c=
 github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.2.0 h1:BmxdaVwddO5UeYkWFO1JIZiQe8kE1DdNkohlLx9aDec=
 github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.2.0/go.mod h1:dDHO7ivrPAhZjFD3LoOJN/kdq5gi0sxie6zCsWHAiUo=
 github.com/decred/dcrd/rpcclient/v8 v8.0.1 h1:hd81e4w1KSqvPcozJlnz6XJfWKDNuahgooH/N5E8vOU=
