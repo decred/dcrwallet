@@ -394,9 +394,8 @@ SplitPoints:
 	}
 
 	var change *wire.TxOut
-	var updates []func(walletdb.ReadWriteTx) error
 	if changeValue > 0 {
-		persist := w.deferPersistReturnedChild(ctx, &updates)
+		persist := w.persistReturnedChild(ctx, nil)
 		const accountName = "" // not used, so can be faked.
 		addr, err := w.nextAddress(ctx, op, persist,
 			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
