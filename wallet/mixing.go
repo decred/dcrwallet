@@ -175,6 +175,9 @@ func (w *mixingWallet) PublishTransaction(ctx context.Context, tx *wire.MsgTx) e
 	wallet.networkBackendMu.Unlock()
 
 	_, err := wallet.PublishTransaction(ctx, tx, n)
+	if err != nil {
+		log.Errorf("Failed to publish mix transaction: %v", err)
+	}
 	return err
 }
 
