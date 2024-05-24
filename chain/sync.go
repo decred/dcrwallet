@@ -632,7 +632,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	g, ctx := errgroup.WithContext(ctx)
+	defer func() {
+		cancel()
+		if e := g.Wait(); err == nil {
+			err = e
+		}
+	}()
 	g.Go(func() error {
 		// Run wallet background goroutines (currently, this just runs
 		// mixclient).
