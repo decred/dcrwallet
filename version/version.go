@@ -18,7 +18,7 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 // Constants defining the application version number.
 const (
 	Major = 2
-	Minor = 0
+	Minor = 1
 	Patch = 0
 )
 
