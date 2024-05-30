@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/rpc/client/dcrd"
 	"decred.org/dcrwallet/v4/validate"
 	"decred.org/dcrwallet/v4/wallet"
@@ -926,16 +925,8 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 	s.blake256HasherMu.Lock()
 	msg.WriteHash(s.blake256Hasher)
 	s.blake256HasherMu.Unlock()
-	msgHash := msg.Hash()
-	err = s.wallet.AcceptMixMessage(msg)
-	if err == nil {
-		loggers.MixpLog.Debugf("Accepted mix message %T %s by %x",
-			msg, &msgHash, msg.Pub())
-	} else {
-		loggers.MixpLog.Debugf("Rejected mix message %T %s by %x",
-			msg, &msgHash, msg.Pub())
-	}
 
+	err = s.wallet.AcceptMixMessage(msg)
 	var e *mixpool.MissingOwnPRError
 	if errors.As(err, &e) {
 		ke, ok := msg.(*wire.MsgMixKeyExchange)
@@ -947,13 +938,8 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 			s.blake256HasherMu.Lock()
 			pr.WriteHash(s.blake256Hasher)
 			s.blake256HasherMu.Unlock()
-			prHash := pr.Hash()
 
 			err = s.wallet.AcceptMixMessage(pr)
-			if err == nil {
-				loggers.MixpLog.Debugf("Accepted missing PR %s for "+
-					"previous orphan KE %s", &prHash, &msgHash)
-			}
 		}
 		return err
 	}
