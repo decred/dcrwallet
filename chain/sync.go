@@ -928,12 +928,23 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 	s.blake256HasherMu.Unlock()
 	msgHash := msg.Hash()
 	err = s.wallet.AcceptMixMessage(msg)
-	if err == nil {
-		loggers.MixpLog.Debugf("Accepted mix message %T %s by %x",
-			msg, &msgHash, msg.Pub())
-	} else {
-		loggers.MixpLog.Debugf("Rejected mix message %T %s by %x",
-			msg, &msgHash, msg.Pub())
+	switch msg.(type) {
+	case *wire.MsgMixPairReq:
+		if err == nil {
+			loggers.MixpLog.Debugf("Accepted mix message %T %s by %x",
+				msg, &msgHash, msg.Pub())
+		} else {
+			loggers.MixpLog.Debugf("Rejected mix message %T %s by %x",
+				msg, &msgHash, msg.Pub())
+		}
+	default:
+		if err == nil {
+			loggers.MixpLog.Debugf("Accepted mix message %T %s (session %x) by %x",
+				msg, &msgHash, msg.Sid(), msg.Pub())
+		} else {
+			loggers.MixpLog.Debugf("Rejected mix message %T %s (session %x) by %x",
+				msg, &msgHash, msg.Sid(), msg.Pub())
+		}
 	}
 
 	var e *mixpool.MissingOwnPRError
