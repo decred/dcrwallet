@@ -2141,11 +2141,14 @@ func (rp *RemotePeer) GetInitState(ctx context.Context, msg *wire.MsgGetInitStat
 	}
 }
 
-// invVecContainsTx returns true if at least one inv vector is of type
-// transaction.
-func invVecContainsTx(inv []*wire.InvVect) bool {
+// invVecContainsTxOrMix returns true if at least one inv vector is of type
+// transaction or mix message.
+func invVecContainsTxOrMix(inv []*wire.InvVect) bool {
 	for i := range inv {
 		if inv[i].Type == wire.InvTypeTx {
+			return true
+		}
+		if inv[i].Type == wire.InvTypeMix {
 			return true
 		}
 	}
@@ -2157,7 +2160,7 @@ func (rp *RemotePeer) receivedInv(ctx context.Context, inv *wire.MsgInv) {
 	const opf = "remotepeer(%v).receivedInv"
 
 	// When tx relay is disabled, we don't expect transactions on invs.
-	if rp.lp.disableRelayTx && invVecContainsTx(inv.InvList) {
+	if rp.lp.disableRelayTx && invVecContainsTxOrMix(inv.InvList) {
 		op := errors.Opf(opf, rp.raddr)
 		err := errors.E(op, errors.Protocol, "received tx in msginv when tx relaying is disabled")
 		rp.Disconnect(err)
