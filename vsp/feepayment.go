@@ -7,57 +7,21 @@ package vsp
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/bits"
 	"sync"
 	"time"
 
 	"decred.org/dcrwallet/v4/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/vspd/types/v2"
 )
-
-// randInt63 returns a cryptographically random 63-bit positive integer as an
-// int64.
-func randInt63() int64 {
-	buf := make([]byte, 8)
-	_, err := rand.Read(buf)
-	if err != nil {
-		panic(fmt.Sprintf("unhandled crypto/rand error: %v", err))
-	}
-	return int64(binary.LittleEndian.Uint64(buf) &^ (1 << 63))
-}
-
-// randInt63n returns, as an int64, a cryptographically-random 63-bit positive
-// integer in [0,n) without modulo bias.
-// It panics if n <= 0.
-func randInt63n(n int64) int64 {
-	if n <= 0 {
-		panic("invalid argument to int63n")
-	}
-	n--
-	mask := int64(^uint64(0) >> bits.LeadingZeros64(uint64(n)))
-	for {
-		v := randInt63() & mask
-		if v <= n {
-			return v
-		}
-	}
-}
-
-// randomDuration returns a random time.Duration in [0,d) with uniform
-// distribution.
-func randomDuration(d time.Duration) time.Duration {
-	return time.Duration(randInt63n(int64(d)))
-}
 
 var (
 	errStopped = errors.New("fee processing stopped")
@@ -251,7 +215,7 @@ func (fp *feePayment) next() time.Duration {
 		jitter = unminedJitter
 	}
 
-	return randomDuration(jitter)
+	return rand.Duration(jitter)
 }
 
 // task returns a function running a feePayment method.

@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,6 +11,7 @@ import (
 	"decred.org/dcrwallet/v4/wallet/txrules"
 	"decred.org/dcrwallet/v4/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/sign"
@@ -168,7 +169,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 // swapping it with a random output.  The new index is returned.  This should be
 // done before signing.
 func RandomizeOutputPosition(outputs []*wire.TxOut, index int) int {
-	r := cprng.Int31n(int32(len(outputs)))
+	r := rand.Int32N(int32(len(outputs)))
 	outputs[r], outputs[index] = outputs[index], outputs[r]
 	return int(r)
 }

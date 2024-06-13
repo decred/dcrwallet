@@ -1,16 +1,14 @@
 // Copyright (c) 2014-2016 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package udb
 
 import (
-	"crypto/rand"
 	"crypto/subtle"
 	"fmt"
 	"hash"
-	"io"
 	"sync"
 
 	"decred.org/dcrwallet/v4/errors"
@@ -19,6 +17,7 @@ import (
 	"decred.org/dcrwallet/v4/wallet/internal/snacl"
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
@@ -168,13 +167,10 @@ const (
 // argon2id-derived keys.
 type keyType []byte
 
-func seal(rand io.Reader, key keyType, plaintext []byte) ([]byte, error) {
+func seal(key keyType, plaintext []byte) ([]byte, error) {
 	sealedLen := len(plaintext) + xchacha20poly1305Overhead
 	nonce := make([]byte, xchacha20NonceSize, sealedLen)
-	_, err := io.ReadFull(rand, nonce)
-	if err != nil {
-		return nil, errors.E(errors.IO, err)
-	}
+	rand.Read(nonce)
 
 	aead, err := chacha20poly1305.NewX(key)
 	if err != nil {
@@ -513,10 +509,7 @@ func (m *Manager) loadAccountInfo(ns walletdb.ReadBucket, account uint32) (*acco
 		acctInfo.uniqueKey = row.uniqueKey
 		if acctInfo.uniqueKey != nil { // a passphrase hasher is required
 			hashKey := make([]byte, 32)
-			_, err = io.ReadFull(rand.Reader, hashKey)
-			if err != nil {
-				return nil, errors.E(errors.IO, err)
-			}
+			rand.Read(hashKey)
 			hasher, err := blake2b.New256(hashKey)
 			if err != nil {
 				return nil, errors.E(errors.IO, err)
@@ -1084,10 +1077,7 @@ func (m *Manager) ChangePassphrase(ns walletdb.ReadWriteBucket, oldPassphrase, n
 
 		// Create a new passphrase hasher.
 		hashKey := make([]byte, 32)
-		_, err := io.ReadFull(rand.Reader, hashKey)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
+		rand.Read(hashKey)
 		passHasher, err := blake2b.New256(hashKey)
 		if err != nil {
 			return err
@@ -1739,10 +1729,7 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	// Create a new passphase hasher from a new key, and hash the new
 	// passphrase.
 	hashKey := make([]byte, 32)
-	_, err = io.ReadFull(rand.Reader, hashKey)
-	if err != nil {
-		return errors.E(errors.IO, err)
-	}
+	rand.Read(hashKey)
 	hasher, err := blake2b.New256(hashKey)
 	if err != nil {
 		return errors.E(errors.IO, err)
@@ -1751,13 +1738,13 @@ func (m *Manager) SetAccountPassphrase(dbtx walletdb.ReadWriteTx, account uint32
 	passHash := hasher.Sum(nil)
 
 	// Encrypt the account xpriv with a new key.
-	kdfp, err := kdf.NewArgon2idParams(rand.Reader)
+	kdfp, err := kdf.NewArgon2idParams(rand.Reader())
 	if err != nil {
 		return err
 	}
 	plaintext := []byte(acctInfo.acctKeyPriv.String())
 	key := argon2idKey(passphrase, kdfp)
-	ciphertext, err := seal(rand.Reader, key, plaintext)
+	ciphertext, err := seal(key, plaintext)
 	zero(plaintext)
 	if err != nil {
 		return err
@@ -2202,13 +2189,13 @@ func (m *Manager) ImportVotingAccount(dbtx walletdb.ReadWriteTx, acctKeyPriv *hd
 		return 0, err
 	}
 	// Encrypt the account xpriv with a new key.
-	kdfp, err := kdf.NewArgon2idParams(rand.Reader)
+	kdfp, err := kdf.NewArgon2idParams(rand.Reader())
 	if err != nil {
 		return 0, err
 	}
 	plaintext := []byte(acctKeyPriv.String())
 	key := argon2idKey(passphrase, kdfp)
-	ciphertext, err := seal(rand.Reader, key, plaintext)
+	ciphertext, err := seal(key, plaintext)
 	zero(plaintext)
 	if err != nil {
 		return 0, err
@@ -2789,10 +2776,7 @@ func loadManager(ns walletdb.ReadBucket, pubPassphrase []byte, chainParams *chai
 
 	// Generate a private passphrase hasher.
 	hasherKey := make([]byte, 32)
-	_, err = io.ReadFull(rand.Reader, hasherKey)
-	if err != nil {
-		return nil, errors.E(errors.IO, err)
-	}
+	rand.Read(hasherKey)
 	passHasher, err := blake2b.New256(hasherKey)
 	if err != nil {
 		return nil, err

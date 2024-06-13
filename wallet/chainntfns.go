@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -18,6 +18,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -931,7 +932,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			if dp > 0 {
 				if w.chainParams.Net == wire.MainNet {
 					log.Warnf("block disapprove percent set on mainnet")
-				} else if int64(dp) > randInt63n(100) {
+				} else if int64(dp) > rand.Int64N(100) {
 					log.Infof("Disapproving block %v voted with ticket %v",
 						blockHash, ticketHash)
 					// Set the BlockValid bit to zero,

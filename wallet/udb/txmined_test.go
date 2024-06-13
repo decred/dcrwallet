@@ -6,19 +6,17 @@ package udb
 
 import (
 	"context"
-	"math/rand"
 	"testing"
 	"time"
 
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/crypto/rand"
 )
-
-var r = rand.New(rand.NewSource(time.Now().Unix()))
 
 func randomBytes(len int) []byte {
 	bytes := make([]byte, len)
-	r.Read(bytes)
+	rand.Read(bytes)
 	return bytes
 }
 
@@ -45,10 +43,10 @@ func TestSetBirthState(t *testing.T) {
 		name: "ok",
 		birthState: &BirthdayState{
 			Hash:          randomHash(),
-			Height:        uint32(r.Intn(100000)),
-			Time:          time.Unix(r.Int63n(100000000), 0),
-			SetFromHeight: r.Intn(2) == 0,
-			SetFromTime:   r.Intn(2) == 0,
+			Height:        uint32(rand.IntN(100000)),
+			Time:          time.Unix(rand.Int64N(100000000), 0),
+			SetFromHeight: rand.IntN(2) == 0,
+			SetFromTime:   rand.IntN(2) == 0,
 		},
 	}}
 

@@ -19,7 +19,6 @@ package rpcserver
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -50,6 +49,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/gcs/v4"
@@ -3290,10 +3290,7 @@ func (s *seedServer) GenerateRandomSeed(ctx context.Context, req *pb.GenerateRan
 	}
 
 	seed := make([]byte, seedSize)
-	_, err := rand.Read(seed)
-	if err != nil {
-		return nil, status.Errorf(codes.Unavailable, "failed to read cryptographically-random data for seed: %v", err)
-	}
+	rand.Read(seed)
 
 	res := &pb.GenerateRandomSeedResponse{
 		SeedBytes:    seed,

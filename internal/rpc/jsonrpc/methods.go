@@ -8,7 +8,6 @@ package jsonrpc
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -39,6 +38,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrjson/v4"
@@ -3633,11 +3633,7 @@ func (s *Server) sendOutputsFromTreasury(ctx context.Context, w *wallet.Wallet, 
 	// OP_RETURN <8 Bytes ValueIn><24 byte random>. The encoded ValueIn is
 	// added at the end of this function.
 	var payload [32]byte
-	_, err = rand.Read(payload[8:])
-	if err != nil {
-		return "", rpcErrorf(dcrjson.ErrRPCInternal.Code,
-			"sendOutputsFromTreasury Read: %v", err)
-	}
+	rand.Read(payload[8:])
 	builder := txscript.NewScriptBuilder()
 	builder.AddOp(txscript.OP_RETURN)
 	builder.AddData(payload[:])
@@ -4308,10 +4304,10 @@ func (s *Server) spendOutputs(ctx context.Context, icmd any) (any, error) {
 		txOut.Version = scriptVersion
 		outputs = append(outputs, txOut)
 	}
-	wallet.Shuffle(len(inputs), func(i, j int) {
+	rand.Shuffle(len(inputs), func(i, j int) {
 		inputs[i], inputs[j] = inputs[j], inputs[i]
 	})
-	wallet.Shuffle(len(outputs), func(i, j int) {
+	rand.Shuffle(len(outputs), func(i, j int) {
 		outputs[i], outputs[j] = outputs[j], outputs[i]
 	})
 

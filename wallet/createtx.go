@@ -7,14 +7,12 @@ package wallet
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/binary"
 	"sort"
 	"time"
 
 	"decred.org/dcrwallet/v4/deployments"
 	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/internal/uniformprng"
 	"decred.org/dcrwallet/v4/wallet/txauthor"
 	"decred.org/dcrwallet/v4/wallet/txrules"
 	"decred.org/dcrwallet/v4/wallet/txsizes"
@@ -24,6 +22,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/mixing/mixclient"
@@ -999,10 +998,6 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 	// fees for votes.
 	vers, pkScript = addrSubsidy.RewardCommitmentScript(
 		amountsCommitted[userSubsidyNullIdx], 0, revocationFeeLimit)
-	if err != nil {
-		return nil, errors.E(errors.Invalid,
-			errors.Errorf("commitment address %v", addrSubsidy))
-	}
 	txout := &wire.TxOut{
 		Value:    0,
 		PkScript: pkScript,
@@ -1122,7 +1117,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 	}
 
-	err = w.mixClient.Dicemix(ctx, rand.Reader, cj)
+	err = w.mixClient.Dicemix(ctx, rand.Reader(), cj)
 	if err != nil {
 		return
 	}
@@ -1650,12 +1645,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		now := time.Now()
 		trickleTickets = make([]time.Time, 0, len(splitOutputIndexes))
 		for range splitOutputIndexes {
-			delay, err := uniformprng.Int63n(rand.Reader,
-				int64(40*time.Second))
-			if err != nil {
-				return nil, err
-			}
-			t := now.Add(time.Duration(delay) + 20*time.Second)
+			t := now.Add(20*time.Second + rand.Duration(40*time.Second))
 			trickleTickets = append(trickleTickets, t)
 		}
 		sort.Slice(trickleTickets, func(i, j int) bool {
@@ -2173,7 +2163,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 	if err != nil {
 		return nil, err
 	}
-	shuffle(len(unspent), func(i, j int) {
+	rand.Shuffle(len(unspent), func(i, j int) {
 		unspent[i], unspent[j] = unspent[j], unspent[i]
 	})
 

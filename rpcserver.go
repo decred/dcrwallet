@@ -8,7 +8,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -28,6 +27,7 @@ import (
 	"decred.org/dcrwallet/v4/internal/loggers"
 	"decred.org/dcrwallet/v4/internal/rpc/jsonrpc"
 	"decred.org/dcrwallet/v4/internal/rpc/rpcserver"
+	"github.com/decred/dcrd/crypto/rand"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -114,13 +114,10 @@ func generateRPCKeyPair(writeKey bool) (tls.Certificate, error) {
 	return keyPair, nil
 }
 
-func randomX509SerialNumber() (*big.Int, error) {
+func randomX509SerialNumber() *big.Int {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate serial number: %s", err)
-	}
-	return serialNumber, nil
+	serialNumber := rand.BigInt(serialNumberLimit)
+	return serialNumber
 }
 
 // End of ASN.1 time
@@ -141,10 +138,7 @@ func generateAuthority(pub, priv any) (*ClientCA, error) {
 	if validUntil.Before(now) {
 		return nil, fmt.Errorf("valid until date %v already elapsed", validUntil)
 	}
-	serialNumber, err := randomX509SerialNumber()
-	if err != nil {
-		return nil, err
-	}
+	serialNumber := randomX509SerialNumber()
 	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
@@ -158,7 +152,7 @@ func generateAuthority(pub, priv any) (*ClientCA, error) {
 		BasicConstraintsValid: true,
 		IsCA:                  true,
 	}
-	cert, err := x509.CreateCertificate(rand.Reader, template, template, pub, priv)
+	cert, err := x509.CreateCertificate(rand.Reader(), template, template, pub, priv)
 	if err != nil {
 		return nil, err
 	}
@@ -196,10 +190,7 @@ func marshalPrivateKey(key any) ([]byte, error) {
 }
 
 func createSignedClientCert(pub, caPriv any, ca *x509.Certificate) ([]byte, error) {
-	serialNumber, err := randomX509SerialNumber()
-	if err != nil {
-		return nil, err
-	}
+	serialNumber := randomX509SerialNumber()
 	template := &x509.Certificate{
 		SerialNumber: serialNumber,
 		NotBefore:    time.Now().Add(-time.Hour * 24),
@@ -210,7 +201,7 @@ func createSignedClientCert(pub, caPriv any, ca *x509.Certificate) ([]byte, erro
 			OrganizationalUnit: []string{"dcrwallet client certificate"},
 		},
 	}
-	cert, err := x509.CreateCertificate(rand.Reader, template, ca, pub, caPriv)
+	cert, err := x509.CreateCertificate(rand.Reader(), template, ca, pub, caPriv)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +214,7 @@ func createSignedClientCert(pub, caPriv any, ca *x509.Certificate) ([]byte, erro
 }
 
 func generateClientKeyPair(caPriv any, ca *x509.Certificate) (cert, key []byte, err error) {
-	pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
+	pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader())
 	if err != nil {
 		return
 	}
@@ -282,7 +273,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 		}
 		if cfg.IssueClientCert {
-			pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader)
+			pub, priv, err := cfg.TLSCurve.GenerateKeyPair(rand.Reader())
 			if err != nil {
 				return nil, nil, err
 			}
