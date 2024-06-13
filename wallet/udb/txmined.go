@@ -2360,21 +2360,6 @@ func randUint32n(n uint32) uint32 {
 	}
 }
 
-func shuffle(n int, swap func(i, j int)) {
-	if n < 0 {
-		panic("shuffle: negative n")
-	}
-	if int64(n) >= 1<<32 {
-		panic("shuffle: large n")
-	}
-
-	// Fisher-Yates shuffle: https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-	for i := uint32(0); i < uint32(n); i++ {
-		j := randUint32n(uint32(n)-i) + i
-		swap(int(i), int(j))
-	}
-}
-
 // UnspentOutputCount returns the number of mined unspent Credits (including
 // those spent by unmined transactions).
 func (s *Store) UnspentOutputCount(dbtx walletdb.ReadTx) int {
@@ -3257,7 +3242,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 						return nil, err
 					}
 				}
-				shuffle(len(remainingKeys), func(i, j int) {
+				rand.Shuffle(len(remainingKeys), func(i, j int) {
 					remainingKeys[i], remainingKeys[j] = remainingKeys[j], remainingKeys[i]
 				})
 			}
