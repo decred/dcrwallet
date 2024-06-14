@@ -3221,9 +3221,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 						return nil, err
 					}
 				}
-				rand.Shuffle(len(remainingKeys), func(i, j int) {
-					remainingKeys[i], remainingKeys[j] = remainingKeys[j], remainingKeys[i]
-				})
+				rand.ShuffleSlice(remainingKeys)
 			}
 
 			var unmined bool
