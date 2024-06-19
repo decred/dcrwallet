@@ -13,7 +13,7 @@ require (
 	github.com/decred/dcrd/chaincfg/v3 v3.2.1
 	github.com/decred/dcrd/connmgr/v3 v3.1.2
 	github.com/decred/dcrd/crypto/blake256 v1.0.1
-	github.com/decred/dcrd/crypto/rand v0.0.0-20240614031620-f7dd7c89f0a6
+	github.com/decred/dcrd/crypto/rand v1.0.0
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
 	github.com/decred/dcrd/dcrec v1.0.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrd/dcrutil/v4 v4.0.2
 	github.com/decred/dcrd/gcs/v4 v4.1.0
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.2
-	github.com/decred/dcrd/mixing v0.3.0
+	github.com/decred/dcrd/mixing v0.4.0
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.3.0
 	github.com/decred/dcrd/rpcclient/v8 v8.0.1
 	github.com/decred/dcrd/txscript/v4 v4.1.1
@@ -49,6 +49,7 @@ require (
 	github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a // indirect
 	github.com/dchest/siphash v1.2.3 // indirect
 	github.com/decred/base58 v1.0.5 // indirect
+	github.com/decred/dcrd/container/lru v1.0.0 // indirect
 	github.com/decred/dcrd/database/v3 v3.0.2 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
