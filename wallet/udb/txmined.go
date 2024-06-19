@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/bits"
 	"time"
 
 	"decred.org/dcrwallet/v4/errors"
@@ -2340,26 +2339,6 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 	return c, nil
 }
 
-func randUint32() uint32 {
-	b := make([]byte, 4)
-	rand.Read(b[:])
-	return binary.LittleEndian.Uint32(b)
-}
-
-func randUint32n(n uint32) uint32 {
-	if n < 2 {
-		return 0
-	}
-	n--
-	mask := ^uint32(0) >> bits.LeadingZeros32(n)
-	for {
-		v := randUint32() & mask
-		if v <= n {
-			return v
-		}
-	}
-}
-
 // UnspentOutputCount returns the number of mined unspent Credits (including
 // those spent by unmined transactions).
 func (s *Store) UnspentOutputCount(dbtx walletdb.ReadTx) int {
@@ -2397,7 +2376,7 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	}
 	// Pick random output when at least one random transaction was found.
 	if len(keys) > 0 {
-		k, v = c.Seek(keys[randUint32n(uint32(len(keys)))])
+		k, v = c.Seek(keys[rand.IntN(len(keys))])
 		c.Close()
 		return k, v, nil
 	}
@@ -2421,7 +2400,7 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 		keys = append(keys, append(make([]byte, 0, 36), k...))
 	}
 	if len(keys) > 0 {
-		k, v = c.Seek(keys[randUint32n(uint32(len(keys)))])
+		k, v = c.Seek(keys[rand.IntN(len(keys))])
 		c.Close()
 		return k, v, err
 	}
