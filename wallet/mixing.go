@@ -14,7 +14,6 @@ import (
 	"decred.org/dcrwallet/v4/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -427,7 +426,7 @@ SplitPoints:
 		return errors.E(op, err)
 	}
 
-	err = w.mixClient.Dicemix(ctx, rand.Reader(), cj)
+	err = w.mixClient.Dicemix(ctx, cj)
 	if err != nil {
 		return errors.E(op, err)
 	}

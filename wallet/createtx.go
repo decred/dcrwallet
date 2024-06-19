@@ -1117,7 +1117,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 	}
 
-	err = w.mixClient.Dicemix(ctx, rand.Reader(), cj)
+	err = w.mixClient.Dicemix(ctx, cj)
 	if err != nil {
 		return
 	}
