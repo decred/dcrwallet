@@ -169,7 +169,14 @@ func createWallet(ctx context.Context, cfg *config) error {
 		// Ask for a birthday if the wallet was created from seed. If
 		// the wallet is new the birthday is now. Add a day buffer to be safe.
 		if imported {
-			birthday, birthblock, err := prompt.Birthday(r)
+			var (
+				birthday   *time.Time
+				birthblock *uint32
+			)
+			birthday, birthblock, err = prompt.Birthday(r)
+			if errors.Is(err, io.EOF) {
+				err = nil
+			}
 			if err != nil {
 				return
 			}
