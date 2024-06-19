@@ -1,4 +1,4 @@
-// Copyright (c) 2020 The Decred developers
+// Copyright (c) 2020-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,7 +10,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
@@ -20,6 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/decred/dcrd/crypto/rand"
 )
 
 type keygen func(t *testing.T) (pub, priv any, name string)
@@ -27,10 +28,7 @@ type keygen func(t *testing.T) (pub, priv any, name string)
 func ed25519Keygen() keygen {
 	return func(t *testing.T) (pub, priv any, name string) {
 		seed := make([]byte, ed25519.SeedSize)
-		_, err := io.ReadFull(rand.Reader, seed)
-		if err != nil {
-			t.Fatal(err)
-		}
+		rand.Read(seed)
 		key := ed25519.NewKeyFromSeed(seed)
 		return key.Public(), key, "ed25519"
 	}
@@ -39,7 +37,7 @@ func ed25519Keygen() keygen {
 func ecKeygen(curve elliptic.Curve) keygen {
 	return func(t *testing.T) (pub, priv any, name string) {
 		var key *ecdsa.PrivateKey
-		key, err := ecdsa.GenerateKey(curve, rand.Reader)
+		key, err := ecdsa.GenerateKey(curve, rand.Reader())
 		if err != nil {
 			t.Fatal(err)
 		}

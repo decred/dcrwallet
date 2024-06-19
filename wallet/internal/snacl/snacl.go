@@ -1,24 +1,19 @@
-// Copyright (c) 2014-2015 The btcsuite developers
+// Copyright (c) 2014-2024 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package snacl
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
-	"io"
 	"runtime/debug"
 
 	"decred.org/dcrwallet/v4/errors"
+	"github.com/decred/dcrd/crypto/rand"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/scrypt"
-)
-
-var (
-	prng = rand.Reader
 )
 
 // Various constants needed for encryption scheme.
@@ -40,10 +35,7 @@ type CryptoKey [KeySize]byte
 func (ck *CryptoKey) Encrypt(in []byte) ([]byte, error) {
 	const op errors.Op = "cryptokey.Encrypt"
 	var nonce [NonceSize]byte
-	_, err := io.ReadFull(prng, nonce[:])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
+	rand.Read(nonce[:])
 	sealed := make([]byte, NonceSize, NonceSize+len(in)+Overhead)
 	copy(sealed, nonce[:])
 	sealed = secretbox.Seal(sealed, in, &nonce, (*[KeySize]byte)(ck))
@@ -82,11 +74,7 @@ func (ck *CryptoKey) Zero() {
 func GenerateCryptoKey() (*CryptoKey, error) {
 	const op errors.Op = "snacl.GenerateCryptoKey"
 	var key CryptoKey
-	_, err := io.ReadFull(prng, key[:])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
-
+	rand.Read(key[:])
 	return &key, nil
 }
 
@@ -246,13 +234,10 @@ func NewSecretKey(password *[]byte, N, r, p int) (*SecretKey, error) {
 	sk.Parameters.N = N
 	sk.Parameters.R = r
 	sk.Parameters.P = p
-	_, err := io.ReadFull(prng, sk.Parameters.Salt[:])
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
+	rand.Read(sk.Parameters.Salt[:])
 
 	// derive key
-	err = sk.deriveKey(op, password)
+	err := sk.deriveKey(op, password)
 	if err != nil {
 		return nil, err
 	}

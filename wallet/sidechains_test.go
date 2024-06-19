@@ -1,10 +1,14 @@
+// Copyright (c) 2024 The Decred developers
+// Use of this source code is governed by an ISC
+// license that can be found in the LICENSE file.
+
 package wallet
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/wire"
 )
 
