@@ -25,6 +25,7 @@ import (
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/crypto/blake256"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/gcs/v4"
 	blockcf "github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/mixing"
@@ -49,6 +50,14 @@ const Pver = wire.BatchedCFiltersV2Version
 // stallTimeout is the amount of time allowed before a request to receive data
 // that is known to exist at the RemotePeer times out with no matching reply.
 const stallTimeout = 30 * time.Second
+
+// minInvTrickleSize and maxInvTrickleSize define the lower and upper
+// limits, respectively, of random delay waited while batching
+// inventory before it is trickled to a peer.
+const (
+	minInvTrickleTimeout = 100 * time.Millisecond
+	maxInvTrickleTimeout = 500 * time.Millisecond
+)
 
 const banThreshold = 100
 
@@ -120,6 +129,11 @@ type RemotePeer struct {
 	// Height of the last header received via getheaders or header ann.
 	lastHeight   int32
 	lastHeightMu sync.Mutex
+
+	// waitingInvs records new inventory that has not been sent to this
+	// peer yet.
+	waitingInvs   []*wire.InvVect
+	waitingInvsMu sync.Mutex
 
 	err  error         // Final error of disconnected peer
 	errc chan struct{} // Closed after err is set
@@ -497,6 +511,51 @@ func (mw *msgWriter) write(ctx context.Context, msg wire.Message, pver uint32) e
 	}
 }
 
+func (rp *RemotePeer) sendInventory(ctx context.Context) error {
+	timeout := func() time.Duration {
+		const d = maxInvTrickleTimeout - minInvTrickleTimeout
+		return minInvTrickleTimeout + rand.Duration(d)
+	}
+	timer := time.NewTimer(timeout())
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-timer.C:
+			timer.Reset(timeout())
+			if err := rp.sendWaitingInventory(ctx); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (rp *RemotePeer) sendWaitingInventory(ctx context.Context) error {
+	rp.waitingInvsMu.Lock()
+	defer rp.waitingInvsMu.Unlock()
+
+	sendInvMsg := func(invList []*wire.InvVect) error {
+		msg := new(wire.MsgInv)
+		msg.InvList = invList
+		return rp.sendMessageAck(ctx, msg)
+	}
+
+	s := rp.waitingInvs
+	for len(s) != 0 {
+		l := len(s)
+		if l > wire.MaxInvPerMsg {
+			l = wire.MaxInvPerMsg
+		}
+		if err := sendInvMsg(s[:l]); err != nil {
+			return err
+		}
+		s = s[l:]
+	}
+	rp.waitingInvs = rp.waitingInvs[:0]
+	return nil
+}
+
 func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAddress, c net.Conn) (*RemotePeer, error) {
 	const op errors.Op = "p2p.handshake"
 
@@ -633,10 +692,18 @@ func (lp *LocalPeer) serveUntilError(ctx context.Context, rp *RemotePeer) {
 	g.Go(func() (err error) {
 		defer func() {
 			if err != nil && gctx.Err() == nil {
-				log.Debugf("syncWriter(%v).write: %v", rp.raddr, err)
+				log.Debugf("remotepeer(%v).writeMessages: %v", rp.raddr, err)
 			}
 		}()
 		return rp.writeMessages(gctx)
+	})
+	g.Go(func() (err error) {
+		defer func() {
+			if err != nil && gctx.Err() == nil {
+				log.Debugf("remotepeer(%v).sendInventory: %v", rp.raddr, err)
+			}
+		}()
+		return rp.sendInventory(gctx)
 	})
 	g.Go(func() error {
 		for {
@@ -2002,21 +2069,19 @@ func (rp *RemotePeer) HeadersAsync(ctx context.Context, blockLocators []*chainha
 // PublishTransactions pushes an inventory message advertising transaction
 // hashes of txs.
 func (rp *RemotePeer) PublishTransactions(ctx context.Context, txs ...*wire.MsgTx) error {
-	const opf = "remotepeer(%v).PublishTransactions"
-	inv := wire.NewMsgInvSizeHint(uint(len(txs)))
+	// This would be better written to immediately send any vote
+	// transactions and sidestepping the inv batching, however SPV wallets
+	// cannot vote so the likelihood of them needing to ever send these
+	// messages with urgency is close to zero.
+
+	rp.waitingInvsMu.Lock()
+	defer rp.waitingInvsMu.Unlock()
+
 	for i := range txs {
 		txHash := txs[i].TxHash()
 		rp.invsSent.Add(txHash)
-		err := inv.AddInvVect(wire.NewInvVect(wire.InvTypeTx, &txHash))
-		if err != nil {
-			op := errors.Opf(opf, rp.raddr)
-			return errors.E(op, errors.Protocol, err)
-		}
-	}
-	err := rp.SendMessage(ctx, inv)
-	if err != nil {
-		op := errors.Opf(opf, rp.raddr)
-		return errors.E(op, err)
+		iv := wire.NewInvVect(wire.InvTypeTx, &txHash)
+		rp.waitingInvs = append(rp.waitingInvs, iv)
 	}
 	return nil
 }
@@ -2033,21 +2098,14 @@ func (rp *RemotePeer) PublishMixMessages(ctx context.Context, msgs ...mixing.Mes
 		return errors.E(op, errors.Protocol, err)
 	}
 
-	inv := wire.NewMsgInvSizeHint(uint(len(msgs)))
-	for _, msg := range msgs {
-		msgHash := msg.Hash() // Must be type chainhash.Hash
-		log.Debugf("Publishing inv for mix message %v", msgHash)
+	rp.waitingInvsMu.Lock()
+	defer rp.waitingInvsMu.Unlock()
+
+	for i := range msgs {
+		msgHash := msgs[i].Hash()
 		rp.invsSent.Add(msgHash)
-		err := inv.AddInvVect(wire.NewInvVect(wire.InvTypeMix, &msgHash))
-		if err != nil {
-			op := errors.Opf(opf, rp.raddr)
-			return errors.E(op, errors.Protocol, err)
-		}
-	}
-	err := rp.SendMessage(ctx, inv)
-	if err != nil {
-		op := errors.Opf(opf, rp.raddr)
-		return errors.E(op, err)
+		iv := wire.NewInvVect(wire.InvTypeMix, &msgHash)
+		rp.waitingInvs = append(rp.waitingInvs, iv)
 	}
 	return nil
 }
