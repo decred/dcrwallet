@@ -5,11 +5,16 @@
 package wallet
 
 import (
+	"context"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/udb"
+	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 
@@ -136,5 +141,92 @@ func TestVotingXprivFromSeed(t *testing.T) {
 		if got.String() != test.want {
 			t.Fatalf("wanted xpriv %v but got %v", test.want, got)
 		}
+	}
+}
+
+func TestSetBirthStateAndScan(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w, teardown := testWallet(ctx, t, &cfg, nil)
+	defer teardown()
+
+	before := time.Now().Add(-time.Minute)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+		t.Logf("Generated block %v name %q", b.Hash, name)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	tests := []struct {
+		name      string
+		bs        *udb.BirthdayState
+		wantBHash *chainhash.Hash
+		wantErr   bool
+	}{{
+		name: "ok middle",
+		bs: &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        6,
+		},
+		wantBHash: tg.blockHashByName("6a"),
+	}, {
+		name: "ok genesis",
+		bs: &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        0,
+		},
+		wantBHash: &cfg.Params.GenesisHash,
+	}, {
+		name: "ok from now",
+		bs: &udb.BirthdayState{
+			SetFromTime: true,
+			Time:        time.Now().Add(time.Minute),
+		},
+		wantBHash: b9aHash,
+	}, {
+		name: "ok from before",
+		bs: &udb.BirthdayState{
+			SetFromTime: true,
+			Time:        before,
+		},
+		wantBHash: &cfg.Params.GenesisHash, // genesis is timestamped 2014
+	}, {
+		name:    "nothing to set",
+		bs:      new(udb.BirthdayState),
+		wantErr: true,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := w.SetBirthStateAndScan(ctx, test.bs)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("expected error: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			bs, err := w.BirthState(ctx)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if bs.Hash != *test.wantBHash {
+				t.Fatalf("wanted birthday hash %v but got %v", test.wantBHash, bs.Hash)
+			}
+		})
 	}
 }

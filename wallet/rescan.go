@@ -497,7 +497,9 @@ func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
 	return &rescanPoint, nil
 }
 
-// SetBirthState sets the birthday state in the database.
+// SetBirthState sets the birthday state in the database. This should be called
+// before initial sync has happened. Birthday state must not be nil. If setting
+// from time, it's prudent to subtract one day from the actual birthday.
 func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error {
 	const op errors.Op = "wallet.SetBirthState"
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
@@ -509,7 +511,8 @@ func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error
 	return nil
 }
 
-// BirthState returns the birthday state.
+// BirthState returns the birthday state. Will return a nil state if none has
+// been set.
 func (w *Wallet) BirthState(ctx context.Context) (bs *udb.BirthdayState, err error) {
 	const op errors.Op = "wallet.BirthState"
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -520,4 +523,59 @@ func (w *Wallet) BirthState(ctx context.Context) (bs *udb.BirthdayState, err err
 		return nil, errors.E(op, err)
 	}
 	return bs, nil
+}
+
+// SetBirthStateAndScan sets the wallet birthstate. This version should be used
+// to change the birth state after initial sync has happened. It will find an
+// adequate block from time or height. Birthday state must not be nil. If setting
+// from time, it's prudent to subtract one day from the actual birthday.
+func (w *Wallet) SetBirthStateAndScan(ctx context.Context, bs *udb.BirthdayState) error {
+	const op errors.Op = "wallet.SetBirthStateAndScan"
+	if !(bs.SetFromTime || bs.SetFromHeight) {
+		return errors.E(op, errors.Invalid, "nothing to set")
+	}
+	tipHash, _ := w.MainChainTip(ctx)
+	if bs.SetFromHeight {
+		var bh chainhash.Hash
+		if err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+			txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
+			var err error
+			bh, err = w.txStore.GetMainChainBlockHashForHeight(txmgrNs, int32(bs.Height))
+			return err
+		}); err != nil {
+			return errors.E(op, err)
+		}
+		bs.Hash = bh
+		bs.SetFromTime = false
+		bs.SetFromHeight = false
+		if err := w.SetBirthState(ctx, bs); err != nil {
+			return errors.E(op, err)
+		}
+		log.Infof("Set wallet birthday to block %d (%v).", bs.Height, bh)
+		return nil
+	}
+
+	syncedHeader, err := w.BlockHeader(ctx, &tipHash)
+	if err != nil {
+		return err
+	}
+	h := syncedHeader
+	for {
+		if h.Height == 0 || h.Timestamp.Before(bs.Time) {
+			bh := h.BlockHash()
+			bs.Hash = bh
+			bs.Height = h.Height
+			bs.SetFromTime = false
+			bs.SetFromHeight = false
+			if err := w.SetBirthState(ctx, bs); err != nil {
+				return errors.E(op, err)
+			}
+			log.Infof("Set wallet birthday to block %d (%v).", h.Height, bh)
+			return nil
+		}
+		h, err = w.BlockHeader(ctx, &h.PrevBlock)
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
 }
