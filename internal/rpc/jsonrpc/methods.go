@@ -4304,12 +4304,8 @@ func (s *Server) spendOutputs(ctx context.Context, icmd any) (any, error) {
 		txOut.Version = scriptVersion
 		outputs = append(outputs, txOut)
 	}
-	rand.Shuffle(len(inputs), func(i, j int) {
-		inputs[i], inputs[j] = inputs[j], inputs[i]
-	})
-	rand.Shuffle(len(outputs), func(i, j int) {
-		outputs[i], outputs[j] = outputs[j], outputs[i]
-	})
+	rand.ShuffleSlice(inputs)
+	rand.ShuffleSlice(outputs)
 
 	inputSource, err := spendOutputsInputSource(ctx, w, cmd.Account,
 		inputs)

@@ -2163,9 +2163,7 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 	if err != nil {
 		return nil, err
 	}
-	rand.Shuffle(len(unspent), func(i, j int) {
-		unspent[i], unspent[j] = unspent[j], unspent[i]
-	})
+	rand.ShuffleSlice(unspent)
 
 	for i := range unspent {
 		output := unspent[i]
