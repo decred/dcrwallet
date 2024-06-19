@@ -1762,6 +1762,11 @@ func (s *Syncer) initialSyncRescan(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	if err := s.wallet.CheckBirthState(ctx, rescanPoint); err != nil {
+		return err
+	}
+
 	if rescanPoint == nil {
 		// The wallet is already up to date with transactions in all
 		// blocks. Load the data filters to check for transactions in
