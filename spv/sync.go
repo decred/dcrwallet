@@ -1820,11 +1820,6 @@ func (s *Syncer) initialSyncRescan(ctx context.Context) error {
 // peerStartup performs initial startup operations with a recently connected
 // peer.
 func (s *Syncer) peerStartup(ctx context.Context, rp *p2p.RemotePeer) error {
-	// If the initial sync process has already completed, then immediately
-	// request any new headers from the peer at the end of the peer setup
-	// process.
-	requestHeaders := s.atomicWalletSynced.Load() == 1
-
 	// Only continue with peer startup after the initial sync process
 	// has completed.
 	select {
@@ -1860,16 +1855,14 @@ func (s *Syncer) peerStartup(ctx context.Context, rp *p2p.RemotePeer) error {
 		return err
 	}
 
-	// If needed, request any updated headers from the peer.
-	if requestHeaders {
-		log.Debugf("Requesting updated headers from peer %v", rp)
-		locators, _, err := s.wallet.BlockLocators(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if err := rp.HeadersAsync(ctx, locators, &hashStop); err != nil {
-			return err
-		}
+	// Request any updated headers from the peer.
+	log.Debugf("Requesting updated headers from peer %v", rp)
+	locators, _, err := s.wallet.BlockLocators(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := rp.HeadersAsync(ctx, locators, &hashStop); err != nil {
+		return err
 	}
 
 	return nil
