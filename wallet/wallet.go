@@ -2901,8 +2901,8 @@ const (
 	TicketStatusRevoked // revoked
 )
 
-func makeTicketSummary(ctx context.Context, rpc *dcrd.RPC, dbtx walletdb.ReadTx,
-	w *Wallet, details *udb.TicketDetails) *TicketSummary {
+func makeTicketSummary(rpc *dcrd.RPC, dbtx walletdb.ReadTx, w *Wallet,
+	details *udb.TicketDetails) *TicketSummary {
 
 	ticketHeight := details.Ticket.Height()
 	_, tipHeight := w.txStore.MainChainTip(dbtx)
@@ -2974,7 +2974,7 @@ func (w *Wallet) GetTicketInfoPrecise(ctx context.Context, rpc *dcrd.RPC, hash *
 			return err
 		}
 
-		ticketSummary = makeTicketSummary(ctx, rpc, dbtx, w, ticketDetails)
+		ticketSummary = makeTicketSummary(rpc, dbtx, w, ticketDetails)
 		if ticketDetails.Ticket.Block.Height == -1 {
 			// unmined tickets do not have an associated block header
 			return nil
@@ -3022,7 +3022,7 @@ func (w *Wallet) GetTicketInfo(ctx context.Context, hash *chainhash.Hash) (*Tick
 			return err
 		}
 
-		ticketSummary = makeTicketSummary(ctx, nil, dbtx, w, ticketDetails)
+		ticketSummary = makeTicketSummary(nil, dbtx, w, ticketDetails)
 		if ticketDetails.Ticket.Block.Height == -1 {
 			// unmined tickets do not have an associated block header
 			return nil
@@ -3143,7 +3143,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpc *dcrd.RPC,
 				if ticketInfo == nil {
 					continue
 				}
-				summary := makeTicketSummary(ctx, rpc, dbtx, w, ticketInfo)
+				summary := makeTicketSummary(rpc, dbtx, w, ticketInfo)
 				tickets = append(tickets, summary)
 			}
 
@@ -3217,7 +3217,7 @@ func (w *Wallet) GetTickets(ctx context.Context,
 				if ticketInfo == nil {
 					continue
 				}
-				summary := makeTicketSummary(ctx, nil, dbtx, w, ticketInfo)
+				summary := makeTicketSummary(nil, dbtx, w, ticketInfo)
 				tickets = append(tickets, summary)
 			}
 
