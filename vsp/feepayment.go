@@ -20,7 +20,7 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/vspd/types/v2"
+	"github.com/decred/vspd/types/v3"
 )
 
 var (
