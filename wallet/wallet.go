@@ -5897,3 +5897,84 @@ func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*VSPTicket, error) {
 
 	return managedTickets, nil
 }
+
+// CheckBirthState sets the wallet birthstate if required and if we already have
+// enough info to do so.
+func (w *Wallet) CheckBirthState(ctx context.Context, rescanPoint *chainhash.Hash) error {
+	birthState, err := w.BirthState(ctx)
+	if err != nil {
+		return err
+	}
+
+	if birthState != nil && (birthState.SetFromTime || birthState.SetFromHeight) {
+		var syncedHeader *wire.BlockHeader
+		if rescanPoint != nil {
+			syncedHeader, err = w.BlockHeader(ctx, rescanPoint)
+			if err != nil {
+				return err
+			}
+		} else {
+			tipHash, _ := w.MainChainTip(ctx)
+			syncedHeader, err = w.BlockHeader(ctx, &tipHash)
+			if err != nil {
+				return err
+			}
+		}
+		if birthState.SetFromTime {
+			if syncedHeader.Timestamp.After(birthState.Time) {
+				h := syncedHeader
+				for {
+					if h.Height == 0 {
+						bh := h.BlockHash()
+						birthState.Hash = bh
+						birthState.Height = 0
+						birthState.SetFromTime = false
+						if err := w.SetBirthState(ctx, birthState); err != nil {
+							return err
+						}
+						log.Infof("Set wallet birthday to block 0 (%v).", bh)
+						break
+					}
+					h, err = w.BlockHeader(ctx, &h.PrevBlock)
+					if err != nil {
+						return err
+					}
+					if h.Timestamp.Before(birthState.Time) {
+						bh := h.PrevBlock
+						height := h.Height - 1
+						birthState.Hash = bh
+						birthState.Height = height
+						birthState.SetFromTime = false
+						if err := w.SetBirthState(ctx, birthState); err != nil {
+							return err
+						}
+						log.Infof("Set wallet birthday to block %d (%v).", height, bh)
+						break
+					}
+				}
+			}
+		}
+		if birthState.SetFromHeight {
+			if syncedHeader.Height >= birthState.Height {
+				h := syncedHeader
+				for {
+					if h.Height == birthState.Height {
+						bh := h.BlockHash()
+						birthState.Hash = bh
+						birthState.SetFromHeight = false
+						if err := w.SetBirthState(ctx, birthState); err != nil {
+							return err
+						}
+						log.Infof("Set wallet birthday to block %d (%v).", h.Height, bh)
+						break
+					}
+					h, err = w.BlockHeader(ctx, &h.PrevBlock)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
