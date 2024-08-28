@@ -22,7 +22,7 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/slog"
-	vspd "github.com/decred/vspd/client/v3"
+	vspd "github.com/decred/vspd/client/v4"
 )
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)

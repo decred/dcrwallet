@@ -28,8 +28,8 @@ require (
 	github.com/decred/dcrd/wire v1.7.0
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.2.0
-	github.com/decred/vspd/client/v3 v3.0.0
-	github.com/decred/vspd/types/v2 v2.1.0
+	github.com/decred/vspd/client/v4 v4.0.0
+	github.com/decred/vspd/types/v3 v3.0.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jrick/bitset v1.0.0
@@ -53,9 +53,9 @@ require (
 	github.com/decred/dcrd/database/v3 v3.0.2 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	golang.org/x/net v0.25.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
