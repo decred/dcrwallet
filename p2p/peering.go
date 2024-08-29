@@ -1122,6 +1122,15 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 	const opf = "remotepeer(%v).receivedHeaders"
 	rp.requestedHeadersMu.Lock()
 
+	// Ensure the wallet requested headers from this peer.
+	if !rp.sendheaders && rp.requestedHeaders == nil {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "received unrequested headers")
+		rp.Disconnect(err)
+		rp.requestedHeadersMu.Unlock()
+		return
+	}
+
 	// Ensure the remote peer sent as many headers as it could. It can only
 	// send fewer than 2k headers when the last one is >= their advertised
 	// height (their tip height). This handles cases where a peer might
@@ -1137,12 +1146,12 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		return
 	}
 
+	// Sanity check the headers connect to each other in sequence.
 	var prevHash chainhash.Hash
 	var prevHeight uint32
 	for i, h := range msg.Headers {
 		hash := h.BlockHash()
 
-		// Sanity check the headers connect to each other in sequence.
 		if i > 0 && (!prevHash.IsEqual(&h.PrevBlock) || h.Height != prevHeight+1) {
 			op := errors.Opf(opf, rp.raddr)
 			err := errors.E(op, errors.Protocol, "received out-of-sequence headers")
@@ -1155,6 +1164,7 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		prevHeight = h.Height
 	}
 
+	// Track the height of the last received header.
 	if prevHeight > 0 {
 		rp.lastHeightMu.Lock()
 		if int32(prevHeight) > rp.lastHeight {
@@ -1163,6 +1173,7 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		rp.lastHeightMu.Unlock()
 	}
 
+	// Async headers.
 	if rp.sendheaders {
 		rp.requestedHeadersMu.Unlock()
 		select {
@@ -1171,13 +1182,8 @@ func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders)
 		}
 		return
 	}
-	if rp.requestedHeaders == nil {
-		op := errors.Opf(opf, rp.raddr)
-		err := errors.E(op, errors.Protocol, "received unrequested headers")
-		rp.Disconnect(err)
-		rp.requestedHeadersMu.Unlock()
-		return
-	}
+
+	// Headers as a response to getheaders.
 	c := rp.requestedHeaders
 	rp.requestedHeaders = nil
 	rp.requestedHeadersMu.Unlock()
