@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 The Decred developers
+// Copyright (c) 2020-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -135,7 +135,7 @@ func GetVSPTicketsByFeeStatus(dbtx walletdb.ReadTx, feeStatus int) (map[chainhas
 	return tickets, nil
 }
 
-// deserializeUserTicket deserializes the passed serialized user
+// deserializeVSPTicket deserializes the passed serialized user
 // ticket information.
 func deserializeVSPTicket(serializedTicket []byte) *VSPTicket {
 	// ticket stores hash size and an uint32 representing the fee processment
@@ -151,7 +151,7 @@ func deserializeVSPTicket(serializedTicket []byte) *VSPTicket {
 	return vspTicket
 }
 
-// serializeUserTicket returns the serialization of a single stake pool
+// serializeVSPTicket returns the serialization of a single stake pool
 // user ticket.
 func serializeVSPTicket(record *VSPTicket) []byte {
 	// ticket hash size + fee processment status + host ID
