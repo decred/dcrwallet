@@ -65,7 +65,7 @@ func (w *Wallet) NewVSPTicket(ctx context.Context, hash *chainhash.Hash) (*VSPTi
 	case stdaddr.StakeAddress:
 		votingAddr = addr
 	default:
-		return nil, fmt.Errorf("address cannot be used for voting rights: %v", err)
+		return nil, fmt.Errorf("address cannot be used for voting rights: %v", addrs[0])
 	}
 
 	commitmentAddr, err := stake.AddrFromSStxPkScrCommitment(ticketTx.TxOut[1].PkScript, w.chainParams)
