@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2018 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -515,7 +515,7 @@ func putWatchingOnly(ns walletdb.ReadWriteBucket, watchingOnly bool) error {
 // deserializeAccountRow deserializes the passed serialized account information.
 // This is used as a common base for the various account types to deserialize
 // the common parts.
-func deserializeAccountRow(accountID []byte, serializedAccount []byte) (*dbAccountRow, error) {
+func deserializeAccountRow(serializedAccount []byte) (*dbAccountRow, error) {
 	// The serialized account format is:
 	//   <acctType><rdlen><rawdata>
 	//
@@ -771,7 +771,7 @@ func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 
 // fetchAccountRow loads the row serializing details regarding an account.
 // This function does not perform any further parsing based on the account type.
-func fetchAccountRow(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbAccountRow, error) {
+func fetchAccountRow(ns walletdb.ReadBucket, account uint32) (*dbAccountRow, error) {
 	bucket := ns.NestedReadBucket(acctBucketName)
 
 	accountID := uint32ToBytes(account)
@@ -780,13 +780,13 @@ func fetchAccountRow(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (
 		return nil, errors.E(errors.NotExist, errors.Errorf("no account %d", account))
 	}
 
-	return deserializeAccountRow(accountID, serializedRow)
+	return deserializeAccountRow(serializedRow)
 }
 
 // fetchAccountInfo loads information about the passed account from the
 // database.
 func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (*dbBIP0044AccountRow, error) {
-	row, err := fetchAccountRow(ns, account, dbVersion)
+	row, err := fetchAccountRow(ns, account)
 	if err != nil {
 		return nil, err
 	}
@@ -801,7 +801,7 @@ func fetchAccountInfo(ns walletdb.ReadBucket, account uint32, dbVersion uint32) 
 }
 
 func fetchDBAccount(ns walletdb.ReadBucket, account uint32, dbVersion uint32) (dbAccount, error) {
-	row, err := fetchAccountRow(ns, account, dbVersion)
+	row, err := fetchAccountRow(ns, account)
 	if err != nil {
 		return nil, err
 	}
@@ -1509,7 +1509,7 @@ func deletePrivateKeys(ns walletdb.ReadWriteBucket, dbVersion uint32) error {
 		}
 
 		// Deserialize the account row first to determine the type.
-		row, err := deserializeAccountRow(k, v)
+		row, err := deserializeAccountRow(v)
 		if err != nil {
 			c.Close()
 			return err

@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -662,7 +662,7 @@ func (s *Store) Spender(dbtx walletdb.ReadTx, out *wire.OutPoint) (*wire.MsgTx, 
 			spenderIndex = extractRawDebitInputIndex(k)
 			k = extractRawDebitTxRecordKey(k)
 			v = existsRawTxRecord(ns, k)
-			err = readRawTxRecordMsgTx(&spenderHash, v, &spender)
+			err = readRawTxRecordMsgTx(v, &spender)
 			if err != nil {
 				return nil, 0, err
 			}

@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -546,7 +546,7 @@ func putRawTxRecord(ns walletdb.ReadWriteBucket, k, v []byte) error {
 	return nil
 }
 
-func readRawTxRecordMsgTx(txHash *chainhash.Hash, v []byte, msgTx *wire.MsgTx) error {
+func readRawTxRecordMsgTx(v []byte, msgTx *wire.MsgTx) error {
 	if len(v) < 8 {
 		return errors.E(errors.IO, errors.Errorf("tx record len %d", len(v)))
 	}

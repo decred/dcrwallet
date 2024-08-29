@@ -1505,7 +1505,7 @@ func createTxRawResult(chainParams *chaincfg.Params, mtx *wire.MsgTx, blkIdx uin
 		LockTime:      mtx.LockTime,
 		Expiry:        mtx.Expiry,
 		Vin:           createVinList(mtx, isTreasuryEnabled),
-		Vout:          createVoutList(mtx, chainParams, nil, isTreasuryEnabled),
+		Vout:          createVoutList(mtx, chainParams, nil),
 		BlockHash:     blkHeader.BlockHash().String(),
 		BlockHeight:   int64(blkHeader.Height),
 		BlockIndex:    blkIdx,
@@ -1600,7 +1600,7 @@ func createVinList(mtx *wire.MsgTx, isTreasuryEnabled bool) []dcrdtypes.Vin {
 
 // createVoutList returns a slice of JSON objects for the outputs of the passed
 // transaction.
-func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap map[string]struct{}, isTreasuryEnabled bool) []dcrdtypes.Vout {
+func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap map[string]struct{}) []dcrdtypes.Vout {
 	txType := stake.DetermineTxType(mtx)
 	voutList := make([]dcrdtypes.Vout, 0, len(mtx.TxOut))
 	for i, v := range mtx.TxOut {
