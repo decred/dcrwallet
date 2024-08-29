@@ -50,7 +50,7 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 	}
 
 	// Notify interested clients of the connected block.
-	w.NtfnServer.notifyAttachedBlock(dbtx, n.Header, blockHash)
+	w.NtfnServer.notifyAttachedBlock(n.Header, blockHash)
 
 	blockMeta, err := w.txStore.GetBlockMetaForHash(txmgrNs, blockHash)
 	if err != nil {
@@ -288,7 +288,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 // evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
 // acceptable to the stake pool. The ticket must pay out to the stake
 // pool cold wallet, and must have a sufficient fee.
-func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32, poolUser stdaddr.Address) bool {
+func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32) bool {
 	tx := rec.MsgTx
 
 	// Check the first commitment output (txOuts[1])
@@ -510,7 +510,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				break
 			}
 
-			if w.evaluateStakePoolTicket(rec, height, addr) {
+			if w.evaluateStakePoolTicket(rec, height) {
 				// Be sure to insert this into the user's stake
 				// pool entry into the stake manager.
 				poolTicket := &udb.PoolTicket{

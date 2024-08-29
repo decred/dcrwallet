@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2021 The Decred developers
+// Copyright (c) 2016-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -211,7 +211,7 @@ func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
 	return s
 }
 
-func relevantAccounts(w *Wallet, m map[uint32]dcrutil.Amount, txs []TransactionSummary) {
+func relevantAccounts(m map[uint32]dcrutil.Amount, txs []TransactionSummary) {
 	for _, tx := range txs {
 		for _, d := range tx.MyInputs {
 			m[d.PreviousAccount] = 0
@@ -244,7 +244,7 @@ func (s *NotificationServer) notifyUnminedTransaction(dbtx walletdb.ReadTx, deta
 		return
 	}
 	bals := make(map[uint32]dcrutil.Amount)
-	relevantAccounts(s.wallet, bals, unminedTxs)
+	relevantAccounts(bals, unminedTxs)
 	err = totalBalances(dbtx, s.wallet, bals)
 	if err != nil {
 		log.Errorf("Cannot determine balances for relevant accounts: %v", err)
@@ -285,7 +285,7 @@ func (s *NotificationServer) notifyMinedTransaction(dbtx walletdb.ReadTx, detail
 	*txs = append(*txs, makeTxSummary(dbtx, s.wallet, details))
 }
 
-func (s *NotificationServer) notifyAttachedBlock(dbtx walletdb.ReadTx, block *wire.BlockHeader, blockHash *chainhash.Hash) {
+func (s *NotificationServer) notifyAttachedBlock(block *wire.BlockHeader, blockHash *chainhash.Hash) {
 	defer s.mu.Unlock()
 	s.mu.Lock()
 
@@ -335,7 +335,7 @@ func (s *NotificationServer) sendAttachedBlockNotification(ctx context.Context) 
 			return err
 		}
 		for _, b := range currentTxNtfn.AttachedBlocks {
-			relevantAccounts(w, bals, b.Transactions)
+			relevantAccounts(bals, b.Transactions)
 		}
 		return totalBalances(dbtx, w, bals)
 

@@ -785,7 +785,7 @@ func (m *Manager) UpgradeToSLIP0044CoinType(dbtx walletdb.ReadWriteTx) error {
 		return errors.E(errors.IO, "missing SLIP0044 coin type account row")
 	}
 	accountID := uint32ToBytes(0)
-	row, err := deserializeAccountRow(accountID, serializedRow)
+	row, err := deserializeAccountRow(serializedRow)
 	if err != nil {
 		return err
 	}
