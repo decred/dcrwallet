@@ -197,75 +197,7 @@ func deserializeSStxTicketHash160(serializedSStxRecord []byte) (hash160 []byte, 
 }
 
 // serializeSSTxRecord returns the serialization of the passed txrecord row.
-func serializeSStxRecord(record *sstxRecord, dbVersion uint32) ([]byte, error) {
-	switch {
-	case dbVersion < 3:
-		msgTx := record.tx.MsgTx()
-		msgTxSize := int64(msgTx.SerializeSize())
-
-		size := 0
-
-		// tx tree is implicit (stake)
-
-		// size of msgTx (recast to int64)
-		size += int64Size
-
-		// byte index of the ticket pk script
-		size += int32Size
-
-		// intended votebits length (uint8)
-		size += int8Size
-
-		// intended votebits (75 bytes)
-		size += stake.MaxSingleBytePushLength
-
-		// msgTx size is variable.
-		size += int(msgTxSize)
-
-		// timestamp (int64)
-		size += int64Size
-
-		buf := make([]byte, size)
-
-		curPos := 0
-
-		// Write msgTx size (as a uint64).
-		binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(msgTxSize))
-		curPos += int64Size
-
-		// Write the pkScript loc for the ticket output as a uint32.
-		pkScrLoc := msgTx.PkScriptLocs()
-		binary.LittleEndian.PutUint32(buf[curPos:curPos+int32Size], uint32(pkScrLoc[0]))
-		curPos += int32Size
-
-		// Write the intended votebits length (uint8). Hardcode the uint16
-		// size for now.
-		buf[curPos] = byte(int16Size + len(record.voteBitsExt))
-		curPos += int8Size
-
-		// Write the first two bytes for the intended votebits (75 bytes max),
-		// then write the extended vote bits.
-		binary.LittleEndian.PutUint16(buf[curPos:curPos+int16Size], record.voteBits)
-		curPos += int16Size
-		copy(buf[curPos:], record.voteBitsExt)
-		curPos += stake.MaxSingleBytePushLength - 2
-
-		// Serialize and write transaction.
-		var b bytes.Buffer
-		b.Grow(msgTx.SerializeSize())
-		err := msgTx.Serialize(&b)
-		if err != nil {
-			return buf, err
-		}
-		copy(buf[curPos:curPos+int(msgTxSize)], b.Bytes())
-		curPos += int(msgTxSize)
-
-		// Write received unix time (int64).
-		binary.LittleEndian.PutUint64(buf[curPos:curPos+int64Size], uint64(record.ts.Unix()))
-
-		return buf, nil
-
-	case dbVersion >= 3:
+func serializeSStxRecord(record *sstxRecord) ([]byte, error) {
 		tx := record.tx.MsgTx()
 		txSize := tx.SerializeSize()
 
@@ -279,9 +211,6 @@ func serializeSStxRecord(record *sstxRecord, dbVersion uint32) ([]byte, error) {
 		binary.LittleEndian.PutUint64(buf[4+txSize:], uint64(record.ts.Unix()))
 		return buf, nil
 
-	default:
-		panic("unreachable")
-	}
 }
 
 // stakeStoreExists returns whether or not the stake store has already
@@ -320,11 +249,11 @@ func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Ha
 }
 
 // putSStxRecord inserts a given SStx record to the SStxrecords bucket.
-func putSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord, dbVersion uint32) error {
+func putSStxRecord(ns walletdb.ReadWriteBucket, record *sstxRecord) error {
 	bucket := ns.NestedReadWriteBucket(sstxRecordsBucketName)
 
 	// Write the serialized txrecord keyed by the tx hash.
-	serializedSStxRecord, err := serializeSStxRecord(record, dbVersion)
+	serializedSStxRecord, err := serializeSStxRecord(record)
 	if err != nil {
 		return errors.E(errors.IO, err)
 	}
