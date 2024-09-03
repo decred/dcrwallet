@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -166,17 +166,9 @@ func deserializeSStxRecord(serializedSStxRecord []byte, dbVersion uint32) (*sstx
 
 // deserializeSStxTicketHash160 deserializes and returns a 20 byte script
 // hash for a ticket's 0th output.
-func deserializeSStxTicketHash160(serializedSStxRecord []byte, dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
-	var pkscriptLocOffset int
-	var txOffset int
-	switch {
-	case dbVersion < 3:
-		pkscriptLocOffset = 8 // After transaction size
-		txOffset = 8 + 4 + 1 + stake.MaxSingleBytePushLength
-	case dbVersion >= 3:
-		pkscriptLocOffset = 0
-		txOffset = 4
-	}
+func deserializeSStxTicketHash160(serializedSStxRecord []byte) (hash160 []byte, p2sh bool, err error) {
+	const pkscriptLocOffset = 0
+	const txOffset = 4
 
 	pkscriptLoc := int(binary.LittleEndian.Uint32(serializedSStxRecord[pkscriptLocOffset:])) + txOffset
 
@@ -315,7 +307,7 @@ func fetchSStxRecord(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uin
 
 // fetchSStxRecordSStxTicketHash160 retrieves a ticket 0th output script or
 // pubkeyhash from the sstx records bucket with the given hash.
-func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Hash, dbVersion uint32) (hash160 []byte, p2sh bool, err error) {
+func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Hash) (hash160 []byte, p2sh bool, err error) {
 	bucket := ns.NestedReadBucket(sstxRecordsBucketName)
 
 	key := hash[:]
@@ -324,7 +316,7 @@ func fetchSStxRecordSStxTicketHash160(ns walletdb.ReadBucket, hash *chainhash.Ha
 		return nil, false, errors.E(errors.NotExist, errors.Errorf("no ticket purchase %v", hash))
 	}
 
-	return deserializeSStxTicketHash160(val, dbVersion)
+	return deserializeSStxTicketHash160(val)
 }
 
 // putSStxRecord inserts a given SStx record to the SStxrecords bucket.

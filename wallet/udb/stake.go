@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -170,7 +170,7 @@ func (s *StakeStore) dumpSStxHashesForAddress(ns walletdb.ReadBucket, addr stdad
 
 	// Access the database and store the result locally.
 	for _, h := range allTickets {
-		thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, &h, DBVersion)
+		thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, &h)
 		if err != nil {
 			return nil, errors.E(errors.IO, err)
 		}
@@ -198,7 +198,7 @@ func (s *StakeStore) DumpSStxHashesForAddress(ns walletdb.ReadBucket, addr stdad
 // sstxAddress returns the address for a given ticket.
 func (s *StakeStore) sstxAddress(ns walletdb.ReadBucket, hash *chainhash.Hash) (stdaddr.Address, error) {
 	// Access the database and store the result locally.
-	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash, DBVersion)
+	thisHash160, p2sh, err := fetchSStxRecordSStxTicketHash160(ns, hash)
 	if err != nil {
 		return nil, err
 	}
