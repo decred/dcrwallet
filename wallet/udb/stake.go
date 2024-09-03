@@ -105,7 +105,7 @@ func (s *StakeStore) insertSStx(ns walletdb.ReadWriteBucket, sstx *dcrutil.Tx) e
 	}
 
 	// Add the SStx to the database.
-	err := putSStxRecord(ns, record, DBVersion)
+	err := putSStxRecord(ns, record)
 	if err != nil {
 		return err
 	}

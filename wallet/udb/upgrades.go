@@ -433,7 +433,7 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 		ticketPurchases[hash] = ticketPurchase
 	}
 	for _, ticketPurchase := range ticketPurchases {
-		err := putSStxRecord(stakemgrBucket, ticketPurchase, newVersion)
+		err := putSStxRecord(stakemgrBucket, ticketPurchase)
 		if err != nil {
 			return err
 		}
