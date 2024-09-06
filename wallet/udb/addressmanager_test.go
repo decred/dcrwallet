@@ -14,8 +14,8 @@ import (
 	"reflect"
 	"testing"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/wallet/walletdb"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"

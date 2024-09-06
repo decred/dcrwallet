@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"runtime/debug"
 
-	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v5/errors"
 	"github.com/decred/dcrd/crypto/rand"
 	"golang.org/x/crypto/nacl/secretbox"
 	"golang.org/x/crypto/scrypt"

@@ -7,7 +7,7 @@ package dcrd
 import (
 	"encoding/json"
 
-	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v5/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/mixing"
 	"github.com/decred/dcrd/wire"

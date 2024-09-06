@@ -10,8 +10,8 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/pgpwordlist"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/pgpwordlist"
 	"github.com/decred/dcrd/hdkeychain/v3"
 )
 

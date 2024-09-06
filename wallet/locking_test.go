@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v5/errors"
 )
 
 func TestLocking(t *testing.T) {

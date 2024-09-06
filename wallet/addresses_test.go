@@ -10,7 +10,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"decred.org/dcrwallet/v4/wallet/walletdb"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 

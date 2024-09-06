@@ -3,7 +3,7 @@ package txsizes_test
 import (
 	"testing"
 
-	. "decred.org/dcrwallet/v4/wallet/txsizes"
+	. "decred.org/dcrwallet/v5/wallet/txsizes"
 	"github.com/decred/dcrd/wire"
 )
 
