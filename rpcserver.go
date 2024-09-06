@@ -21,12 +21,12 @@ import (
 	"strings"
 	"time"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/internal/cfgutil"
-	"decred.org/dcrwallet/v4/internal/loader"
-	"decred.org/dcrwallet/v4/internal/loggers"
-	"decred.org/dcrwallet/v4/internal/rpc/jsonrpc"
-	"decred.org/dcrwallet/v4/internal/rpc/rpcserver"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/internal/cfgutil"
+	"decred.org/dcrwallet/v5/internal/loader"
+	"decred.org/dcrwallet/v5/internal/loggers"
+	"decred.org/dcrwallet/v5/internal/rpc/jsonrpc"
+	"decred.org/dcrwallet/v5/internal/rpc/rpcserver"
 	"github.com/decred/dcrd/crypto/rand"
 
 	"google.golang.org/grpc"

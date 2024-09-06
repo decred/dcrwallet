@@ -19,8 +19,8 @@ import (
 	"strings"
 	"testing"
 
-	"decred.org/dcrwallet/v4/internal/rpchelp"
-	"decred.org/dcrwallet/v4/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v5/internal/rpchelp"
+	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/dcrjson/v4"
 )
 

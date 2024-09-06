@@ -8,7 +8,7 @@ Package validate provides context-free consensus validation.
 package validate
 
 import (
-	"decred.org/dcrwallet/v4/errors"
+	"decred.org/dcrwallet/v5/errors"
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/gcs/v4"

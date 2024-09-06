@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package walletrpc;
 
-option go_package = "decred.org/dcrwallet/rpc/walletrpc";
+option go_package = "decred.org/dcrwallet/v5/rpc/walletrpc";
 
 service VersionService {
 	rpc Version (VersionRequest) returns (VersionResponse);

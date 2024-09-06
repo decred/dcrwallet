@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/walletseed"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/walletseed"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"golang.org/x/term"

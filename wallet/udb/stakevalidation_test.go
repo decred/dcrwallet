@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	_ "decred.org/dcrwallet/v4/wallet/internal/bdb"
-	"decred.org/dcrwallet/v4/wallet/walletdb"
+	_ "decred.org/dcrwallet/v5/wallet/internal/bdb"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v4"
 	gcs2 "github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/wire"

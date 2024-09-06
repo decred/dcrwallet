@@ -3,9 +3,9 @@ package loader
 import (
 	"sync"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/internal/loggers"
-	"decred.org/dcrwallet/v4/vsp"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/internal/loggers"
+	"decred.org/dcrwallet/v5/vsp"
 )
 
 var vspClients = struct {

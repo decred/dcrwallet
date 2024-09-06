@@ -27,7 +27,7 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 
 // PreRelease contains the prerelease name of the application.  It is a variable
 // so it can be modified at link time (e.g.
-// `-ldflags "-X decred.org/dcrwallet/v4/version.PreRelease=rc1"`).
+// `-ldflags "-X decred.org/dcrwallet/v5/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
 var PreRelease = "pre"
 

@@ -74,7 +74,7 @@ https://decred.org/downloads/
 
 ### Build from source (all platforms)
 
-- **Install Go 1.21 or 1.22**
+- **Install Go 1.22 or 1.23**
 
   Installation instructions can be found here: https://golang.org/doc/install.
   Ensure Go was installed properly and is a supported version:
@@ -91,13 +91,13 @@ https://decred.org/downloads/
   to download, build, and install without needing to clone the repo. Run:
 
   ```sh
-  $ go install decred.org/dcrwallet/v4@master
+  $ go install decred.org/dcrwallet/v5@master
   ```
 
   to build the latest master branch, or:
 
   ```sh
-  $ go install decred.org/dcrwallet/v3@latest
+  $ go install decred.org/dcrwallet/v4@latest
   ```
 
   for the latest released version.

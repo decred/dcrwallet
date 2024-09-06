@@ -5,8 +5,8 @@
 package udb
 
 import (
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/wallet/walletdb"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	gcs2 "github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"

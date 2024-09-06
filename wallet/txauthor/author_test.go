@@ -8,11 +8,11 @@ package txauthor_test
 import (
 	"testing"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/wallet/txauthor"
-	. "decred.org/dcrwallet/v4/wallet/txauthor"
-	"decred.org/dcrwallet/v4/wallet/txrules"
-	"decred.org/dcrwallet/v4/wallet/txsizes"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/txauthor"
+	. "decred.org/dcrwallet/v5/wallet/txauthor"
+	"decred.org/dcrwallet/v5/wallet/txrules"
+	"decred.org/dcrwallet/v5/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"

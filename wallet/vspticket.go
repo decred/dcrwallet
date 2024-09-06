@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"sync"
 
-	"decred.org/dcrwallet/v4/errors"
-	"decred.org/dcrwallet/v4/wallet/udb"
-	"decred.org/dcrwallet/v4/wallet/walletdb"
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/udb"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
