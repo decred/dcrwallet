@@ -97,7 +97,7 @@ https://decred.org/downloads/
   to build the latest master branch, or:
 
   ```sh
-  $ go install decred.org/dcrwallet/v3@latest
+  $ go install decred.org/dcrwallet/v4@latest
   ```
 
   for the latest released version.
