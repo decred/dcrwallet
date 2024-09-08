@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2017 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -64,27 +64,27 @@ func createEmptyDB(ctx context.Context) error {
 	return nil
 }
 
-// cloneDB makes a copy of an empty wallet db. It returns a wallet db, store, a
-// stake store and a teardown function.
-func cloneDB(ctx context.Context, cloneName string) (walletdb.DB, *Manager, *Store, *StakeStore, func(), error) {
+// cloneDB makes a copy of an empty wallet db. It returns a wallet db, store,
+// and a teardown function.
+func cloneDB(ctx context.Context, cloneName string) (walletdb.DB, *Manager, *Store, func(), error) {
 	file, err := os.ReadFile(emptyDbPath)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	err = os.WriteFile(cloneName, file, 0644)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	db, err := walletdb.Open("bdb", cloneName)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
-	mgr, txStore, stkStore, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, txStore, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	teardown := func() {
@@ -92,5 +92,5 @@ func cloneDB(ctx context.Context, cloneName string) (walletdb.DB, *Manager, *Sto
 		db.Close()
 	}
 
-	return db, mgr, txStore, stkStore, teardown, err
+	return db, mgr, txStore, teardown, err
 }

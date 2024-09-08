@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2019-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -19,7 +19,7 @@ import (
 
 func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, _, teardown, err := cloneDB(ctx, "inserts_credits_debits_rollbacks.kv")
+	db, _, s, teardown, err := cloneDB(ctx, "inserts_credits_debits_rollbacks.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -353,7 +353,7 @@ func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues .
 
 func TestCoinbases(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, _, teardown, err := cloneDB(ctx, "coinbases.kv")
+	db, _, s, teardown, err := cloneDB(ctx, "coinbases.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)

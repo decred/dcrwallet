@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -25,21 +25,13 @@ func Initialize(ctx context.Context, db walletdb.DB, params *chaincfg.Params, se
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
-		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
 
-		// Create the address manager, transaction store, and stake store.
+		// Create the address manager and transaction store.
 		err = createAddressManager(addrmgrNs, seed, pubPass, privPass, params)
 		if err != nil {
 			return err
 		}
 		err = createStore(txmgrNs, params)
-		if err != nil {
-			return err
-		}
-		err = initializeEmpty(stakemgrNs)
 		if err != nil {
 			return err
 		}
@@ -71,21 +63,13 @@ func InitializeWatchOnly(ctx context.Context, db walletdb.DB, params *chaincfg.P
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}
-		stakemgrNs, err := tx.CreateTopLevelBucket(wstakemgrBucketKey)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
 
-		// Create the address manager, transaction store, and stake store.
+		// Create the address manager and transaction store.
 		err = createWatchOnly(addrmgrNs, hdPubKey, pubPass, params)
 		if err != nil {
 			return err
 		}
 		err = createStore(txmgrNs, params)
-		if err != nil {
-			return err
-		}
-		err = initializeEmpty(stakemgrNs)
 		if err != nil {
 			return err
 		}

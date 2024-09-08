@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2018 The btcsuite developers
-// Copyright (c) 2017-2020 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -54,11 +54,10 @@ type Loader struct {
 
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
-	VotingEnabled       bool
-	VotingAddress       stdaddr.StakeAddress
-	PoolAddress         stdaddr.StakeAddress
-	PoolFees            float64
-	StakePoolColdExtKey string
+	VotingEnabled bool
+	VotingAddress stdaddr.StakeAddress
+	PoolAddress   stdaddr.StakeAddress
+	PoolFees      float64
 }
 
 // NewLoader constructs a Loader.
@@ -185,7 +184,6 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
 		DisableMixing:           l.disableMixing,
-		StakePoolColdExtKey:     so.StakePoolColdExtKey,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
@@ -277,7 +275,6 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
-		StakePoolColdExtKey:     so.StakePoolColdExtKey,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
@@ -338,7 +335,6 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
-		StakePoolColdExtKey:     so.StakePoolColdExtKey,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,

@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -18,7 +18,7 @@ import (
 // A NotExist error will be returned if the database has not been initialized.
 // The recorded database version must match exactly with DBVersion.  If the
 // version does not match, an Invalid error is returned.
-func Open(ctx context.Context, db walletdb.DB, params *chaincfg.Params, pubPass []byte) (addrMgr *Manager, txStore *Store, stakeStore *StakeStore, err error) {
+func Open(ctx context.Context, db walletdb.DB, params *chaincfg.Params, pubPass []byte) (addrMgr *Manager, txStore *Store, err error) {
 	err = walletdb.View(ctx, db, func(tx walletdb.ReadTx) error {
 		// Verify the database exists and the recorded version is supported by
 		// this software version.
@@ -38,7 +38,6 @@ func Open(ctx context.Context, db walletdb.DB, params *chaincfg.Params, pubPass 
 		}
 
 		addrmgrNs := tx.ReadBucket(waddrmgrBucketKey)
-		stakemgrNs := tx.ReadBucket(wstakemgrBucketKey)
 
 		addrMgr, err = loadManager(addrmgrNs, pubPass, params)
 		if err != nil {
@@ -49,7 +48,6 @@ func Open(ctx context.Context, db walletdb.DB, params *chaincfg.Params, pubPass 
 			acctLookupFunc: addrMgr.AddrAccount,
 			manager:        addrMgr,
 		}
-		stakeStore, err = openStakeStore(stakemgrNs, addrMgr, params)
 		return err
 	})
 	return

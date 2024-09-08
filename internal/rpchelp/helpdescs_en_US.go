@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -879,19 +879,6 @@ var helpDescsEnUS = map[string]string{
 	"addressamountpair-address":      "Address to pay",
 	"addressamountpair-amount":       "Amount to pay the address",
 
-	// StakePoolUserInfoCmd help.
-	"stakepooluserinfo--synopsis": "Get user info for stakepool",
-	"stakepooluserinfo-user":      "The id of the user to be looked up",
-
-	"stakepooluserinforesult-invalid": "A list of invalid tickets that the user has added",
-	"stakepooluserinforesult-tickets": "A list of valid tickets that the user has added",
-
-	"pooluserticket-spentbyheight": "The height in which the ticket was spent",
-	"pooluserticket-spentby":       "The vote in which the ticket was spent",
-	"pooluserticket-ticketheight":  "The height in which the ticket was added",
-	"pooluserticket-ticket":        "The hash of the added ticket",
-	"pooluserticket-status":        "The current status of the added ticket",
-
 	// SweepAccount help.
 	"sweepaccount--synopsis":             "Moves as much value as possible in a transaction from an account.\n",
 	"sweepaccount-sourceaccount":         "The account to be swept.",
@@ -919,11 +906,6 @@ var helpDescsEnUS = map[string]string{
 	"ticketinforesult-revocation":    "Transaction hash of revocation which spends the ticket",
 	"ticketinforesult-choices":       "Vote preferences set for the ticket",
 	"ticketinforesult-vsphost":       "VSP Host associated with the ticket (if any)",
-
-	// TicketsForAddressCmd help.
-	"ticketsforaddress--synopsis": "Request all the tickets for an address.",
-	"ticketsforaddress-address":   "Address to look for.",
-	"ticketsforaddress--result0":  "Tickets owned by the specified address.",
 
 	// TransactionInput help.
 	"transactioninput-amount": "The previous output amount",

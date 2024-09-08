@@ -16,6 +16,8 @@ var (
 	vspPubKeyBucketKey = []byte("vsppubkey")
 )
 
+const hashSize = 32
+
 // FeeStatus represents the current fee status of a ticket.
 type FeeStatus int
 

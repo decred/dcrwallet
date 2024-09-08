@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -15,9 +15,8 @@ import (
 // Old package namespace bucket keys.  These are still used as of the very first
 // unified database layout.
 var (
-	waddrmgrBucketKey  = []byte("waddrmgr")
-	wtxmgrBucketKey    = []byte("wtxmgr")
-	wstakemgrBucketKey = []byte("wstakemgr")
+	waddrmgrBucketKey = []byte("waddrmgr")
+	wtxmgrBucketKey   = []byte("wtxmgr")
 )
 
 // NeedsMigration checks whether the database needs to be converted to the
@@ -39,9 +38,6 @@ func Migrate(ctx context.Context, db walletdb.DB, params *chaincfg.Params) error
 	return walletdb.Update(ctx, db, func(tx walletdb.ReadWriteTx) error {
 		addrmgrNs := tx.ReadWriteBucket(waddrmgrBucketKey)
 		txmgrNs := tx.ReadWriteBucket(wtxmgrBucketKey)
-		stakemgrNs := tx.ReadWriteBucket(wstakemgrBucketKey)
-
-		stakeStoreVersionName := []byte("stakestorever")
 
 		// Perform any necessary upgrades for the old address manager.
 		err := upgradeManager(addrmgrNs)
@@ -65,10 +61,6 @@ func Migrate(ctx context.Context, db walletdb.DB, params *chaincfg.Params) error
 			return errors.E(errors.IO, err)
 		}
 		err = txmgrNs.Delete(rootVersion)
-		if err != nil {
-			return errors.E(errors.IO, err)
-		}
-		err = stakemgrNs.NestedReadWriteBucket(mainBucketName).Delete(stakeStoreVersionName)
 		if err != nil {
 			return errors.E(errors.IO, err)
 		}

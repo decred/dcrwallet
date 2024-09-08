@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -328,23 +328,6 @@ type SignedTransaction struct {
 // command.
 type SignRawTransactionsResult struct {
 	Results []SignedTransaction `json:"results"`
-}
-
-// PoolUserTicket is the JSON struct corresponding to a stake pool user ticket
-// object.
-type PoolUserTicket struct {
-	Status        string `json:"status"`
-	Ticket        string `json:"ticket"`
-	TicketHeight  uint32 `json:"ticketheight"`
-	SpentBy       string `json:"spentby"`
-	SpentByHeight uint32 `json:"spentbyheight"`
-}
-
-// StakePoolUserInfoResult models the data returned from the stakepooluserinfo
-// command.
-type StakePoolUserInfoResult struct {
-	Tickets        []PoolUserTicket `json:"tickets"`
-	InvalidTickets []string         `json:"invalid"`
 }
 
 // SweepAccountResult models the data returned from the sweepaccount

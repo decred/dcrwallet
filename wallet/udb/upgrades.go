@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -406,8 +406,6 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 	const newVersion = 3
 
 	metadataBucket := tx.ReadWriteBucket(unifiedDBMetadata{}.rootBucketKey())
-	stakemgrBucket := tx.ReadWriteBucket(wstakemgrBucketKey)
-	ticketPurchasesBucket := stakemgrBucket.NestedReadWriteBucket(sstxRecordsBucketName)
 
 	// Assert that this function is only called on version 2 databases.
 	dbVersion, err := unifiedDBMetadata{}.getVersion(metadataBucket)
@@ -418,26 +416,11 @@ func votingPreferencesUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byte, 
 		return errors.E(errors.Invalid, "votingPreferencesUpgrade inappropriately called")
 	}
 
-	// Update every ticket purchase with the new database version.  This removes
-	// all per-ticket vote bits.
-	ticketPurchases := make(map[chainhash.Hash]*sstxRecord)
-	c := ticketPurchasesBucket.ReadCursor()
-	defer c.Close()
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		var hash chainhash.Hash
-		copy(hash[:], k)
-		ticketPurchase, err := fetchSStxRecord(stakemgrBucket, &hash, oldVersion)
-		if err != nil {
-			return err
-		}
-		ticketPurchases[hash] = ticketPurchase
-	}
-	for _, ticketPurchase := range ticketPurchases {
-		err := putSStxRecord(stakemgrBucket, ticketPurchase)
-		if err != nil {
-			return err
-		}
-	}
+	// This upgrade originally updated every ticket in the "wstakemgr" bucket,
+	// however that bucket became redundant due to the removal of legacy
+	// stakepool functionality. Therefore, that part of the upgrade has been
+	// removed, and the only thing remaining is the creation of a new
+	// "ticketsagendaprefs" bucket.
 
 	// Create the top level bucket for agenda preferences.
 	_, err = tx.CreateTopLevelBucket(agendaPreferences.defaultBucketKey())

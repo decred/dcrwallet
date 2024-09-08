@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -747,16 +747,6 @@ func (c *Client) GetVoteChoices(ctx context.Context) (*types.GetVoteChoicesResul
 // SetVoteChoice sets a voting choice preference for an agenda.
 func (c *Client) SetVoteChoice(ctx context.Context, agendaID, choiceID string) error {
 	return c.Call(ctx, "setvotechoice", nil, agendaID, choiceID)
-}
-
-// TicketsForAddress returns a list of tickets paying to the passed address.
-// If the daemon server is queried, it returns a search of tickets in the
-// live ticket pool. If the wallet server is queried, it searches all tickets
-// owned by the wallet.
-func (c *Client) TicketsForAddress(ctx context.Context, addr stdaddr.Address) (*dcrdtypes.TicketsForAddressResult, error) {
-	res := new(dcrdtypes.TicketsForAddressResult)
-	err := c.Call(ctx, "ticketsforaddress", res, addr.String())
-	return res, err
 }
 
 // WalletInfo returns wallet global state info for a given wallet.

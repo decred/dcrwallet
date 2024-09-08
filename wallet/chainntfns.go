@@ -19,7 +19,6 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/rand"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -285,85 +284,6 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	return prevChain, nil
 }
 
-// evaluateStakePoolTicket evaluates a stake pool ticket to see if it's
-// acceptable to the stake pool. The ticket must pay out to the stake
-// pool cold wallet, and must have a sufficient fee.
-func (w *Wallet) evaluateStakePoolTicket(rec *udb.TxRecord, blockHeight int32) bool {
-	tx := rec.MsgTx
-
-	// Check the first commitment output (txOuts[1])
-	// and ensure that the address found there exists
-	// in the list of approved addresses. Also ensure
-	// that the fee exists and is of the amount
-	// requested by the pool.
-	commitmentOut := tx.TxOut[1]
-	commitAddr, err := stake.AddrFromSStxPkScrCommitment(
-		commitmentOut.PkScript, w.chainParams)
-	if err != nil {
-		log.Warnf("Cannot parse commitment address from ticket %v: %v",
-			&rec.Hash, err)
-		return false
-	}
-
-	// Extract the fee from the ticket.
-	in := dcrutil.Amount(0)
-	for i := range tx.TxOut {
-		if i%2 != 0 {
-			commitAmt, err := stake.AmountFromSStxPkScrCommitment(
-				tx.TxOut[i].PkScript)
-			if err != nil {
-				log.Warnf("Cannot parse commitment amount for output %i from ticket %v: %v",
-					i, &rec.Hash, err)
-				return false
-			}
-			in += commitAmt
-		}
-	}
-	out := dcrutil.Amount(0)
-	for i := range tx.TxOut {
-		out += dcrutil.Amount(tx.TxOut[i].Value)
-	}
-	fees := in - out
-
-	_, exists := w.stakePoolColdAddrs[commitAddr.String()]
-	if exists {
-		commitAmt, err := stake.AmountFromSStxPkScrCommitment(
-			commitmentOut.PkScript)
-		if err != nil {
-			log.Warnf("Cannot parse commitment amount from ticket %v: %v", &rec.Hash, err)
-			return false
-		}
-
-		// Calculate the fee required based on the current
-		// height and the required amount from the pool.
-		const dcp0010Active = false
-		const dcp0012Active = false
-		feeNeeded := txrules.StakePoolTicketFee(dcrutil.Amount(
-			tx.TxOut[0].Value), fees, blockHeight, w.poolFees,
-			w.chainParams, dcp0010Active, dcp0012Active)
-		if commitAmt < feeNeeded {
-			log.Warnf("User %s submitted ticket %v which "+
-				"has less fees than are required to use this "+
-				"stake pool and is being skipped (required: %v"+
-				", found %v)", commitAddr,
-				tx.TxHash(), feeNeeded, commitAmt)
-
-			// Reject the entire transaction if it didn't
-			// pay the pool server fees.
-			return false
-		}
-	} else {
-		log.Warnf("Unknown pool commitment address %s for ticket %v",
-			commitAddr, tx.TxHash())
-		return false
-	}
-
-	log.Debugf("Accepted valid stake pool ticket %v committing %v in fees",
-		tx.TxHash(), tx.TxOut[0].Value)
-
-	return true
-}
-
 // AddTransaction stores tx, marking it as mined in the block described by
 // blockHash, or recording it to the wallet's mempool when nil.
 //
@@ -456,13 +376,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	const op errors.Op = "wallet.processTransactionRecord"
 
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
-	stakemgrNs := dbtx.ReadWriteBucket(wstakemgrNamespaceKey)
 	txmgrNs := dbtx.ReadWriteBucket(wtxmgrNamespaceKey)
-
-	height := int32(-1)
-	if header != nil {
-		height = int32(header.Height)
-	}
 
 	// At the moment all notified transactions are assumed to actually be
 	// relevant.  This assumption will not hold true when SPV support is
@@ -480,136 +394,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 	}
 	if err != nil {
 		return nil, errors.E(op, err)
-	}
-
-	// Handle incoming SStx; store them in the stake manager if we own
-	// the OP_SSTX tagged out, except if we're operating as a stake pool
-	// server. In that case, additionally consider the first commitment
-	// output as well.
-	if w.stakePoolEnabled && header != nil && rec.TxType == stake.TxTypeSStx {
-		// Errors don't matter here.  If addrs is nil, the range below
-		// does nothing.
-		txOut := rec.MsgTx.TxOut[0]
-		_, addrs := stdscript.ExtractAddrs(txOut.Version, txOut.PkScript, w.chainParams)
-		insert := false
-		for _, addr := range addrs {
-			switch addr := addr.(type) {
-			case stdaddr.Hash160er:
-				if !w.manager.ExistsHash160(addrmgrNs, addr.Hash160()[:]) {
-					continue
-				}
-			default:
-				continue
-			}
-
-			// We are operating as a stake pool. The below
-			// function will ONLY add the ticket into the
-			// stake pool if it has been found within a
-			// block.
-			if header == nil {
-				break
-			}
-
-			if w.evaluateStakePoolTicket(rec, height) {
-				// Be sure to insert this into the user's stake
-				// pool entry into the stake manager.
-				poolTicket := &udb.PoolTicket{
-					Ticket:       rec.Hash,
-					HeightTicket: uint32(height),
-					Status:       udb.TSImmatureOrLive,
-				}
-				err := w.stakeMgr.UpdateStakePoolUserTickets(
-					stakemgrNs, addr, poolTicket)
-				if err != nil {
-					log.Warnf("Failed to insert stake pool "+
-						"user ticket: %v", err)
-				}
-				log.Debugf("Inserted stake pool ticket %v for user %v "+
-					"into the stake store database", &rec.Hash, addr)
-
-				insert = true
-				break
-			}
-
-			// At this point the ticket must be invalid, so insert it into the
-			// list of invalid user tickets.
-			err := w.stakeMgr.UpdateStakePoolUserInvalTickets(
-				stakemgrNs, addr, &rec.Hash)
-			if err != nil {
-				log.Warnf("Failed to update pool user %v with "+
-					"invalid ticket %v", addr, rec.Hash)
-			}
-		}
-
-		if insert {
-			err := w.stakeMgr.InsertSStx(stakemgrNs, dcrutil.NewTx(&rec.MsgTx))
-			if err != nil {
-				log.Errorf("Failed to insert SStx %v"+
-					"into the stake store.", &rec.Hash)
-			}
-		}
-	}
-
-	// Handle incoming mined votes (only in stakepool mode)
-	if w.stakePoolEnabled && rec.TxType == stake.TxTypeSSGen && header != nil {
-		ticketHash := &rec.MsgTx.TxIn[1].PreviousOutPoint.Hash
-		txInHeight := rec.MsgTx.TxIn[1].BlockHeight
-		poolTicket := &udb.PoolTicket{
-			Ticket:       *ticketHash,
-			HeightTicket: txInHeight,
-			Status:       udb.TSVoted,
-			SpentBy:      rec.Hash,
-			HeightSpent:  uint32(height),
-		}
-
-		poolUser, err := w.stakeMgr.SStxAddress(stakemgrNs, ticketHash)
-		if err != nil {
-			log.Warnf("Failed to fetch stake pool user for "+
-				"ticket %v (voted ticket): %v", ticketHash, err)
-		} else {
-			err = w.stakeMgr.UpdateStakePoolUserTickets(
-				stakemgrNs, poolUser, poolTicket)
-			if err != nil {
-				log.Warnf("Failed to update stake pool ticket for "+
-					"stake pool user %s after voting",
-					poolUser)
-			} else {
-				log.Debugf("Updated voted stake pool ticket %v "+
-					"for user %v into the stake store database ("+
-					"vote hash: %v)", ticketHash, poolUser, &rec.Hash)
-			}
-		}
-	}
-
-	// Handle incoming mined revocations (only in stakepool mode)
-	if w.stakePoolEnabled && rec.TxType == stake.TxTypeSSRtx && header != nil {
-		txInHash := &rec.MsgTx.TxIn[0].PreviousOutPoint.Hash
-		txInHeight := rec.MsgTx.TxIn[0].BlockHeight
-		poolTicket := &udb.PoolTicket{
-			Ticket:       *txInHash,
-			HeightTicket: txInHeight,
-			Status:       udb.TSMissed,
-			SpentBy:      rec.Hash,
-			HeightSpent:  uint32(height),
-		}
-
-		poolUser, err := w.stakeMgr.SStxAddress(stakemgrNs, txInHash)
-		if err != nil {
-			log.Warnf("failed to fetch stake pool user for "+
-				"ticket %v (missed ticket)", txInHash)
-		} else {
-			err = w.stakeMgr.UpdateStakePoolUserTickets(
-				stakemgrNs, poolUser, poolTicket)
-			if err != nil {
-				log.Warnf("failed to update stake pool ticket for "+
-					"stake pool user %s after revoking",
-					poolUser)
-			} else {
-				log.Debugf("Updated missed stake pool ticket %v "+
-					"for user %v into the stake store database ("+
-					"revocation hash: %v)", txInHash, poolUser, &rec.Hash)
-			}
-		}
 	}
 
 	// Skip unlocking outpoints if the transaction is a vote or revocation as the lock
@@ -836,7 +620,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 func selectOwnedTickets(w *Wallet, dbtx walletdb.ReadTx, tickets []*chainhash.Hash) []*chainhash.Hash {
 	var owned []*chainhash.Hash
 	for _, ticketHash := range tickets {
-		if w.txStore.OwnTicket(dbtx, ticketHash) || w.stakeMgr.OwnTicket(ticketHash) {
+		if w.txStore.OwnTicket(dbtx, ticketHash) {
 			owned = append(owned, ticketHash)
 		}
 	}
@@ -901,9 +685,6 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 
 		for i, ticketHash := range ticketHashes {
 			ticketPurchase, err := w.txStore.Tx(txmgrNs, ticketHash)
-			if err != nil && errors.Is(err, errors.NotExist) {
-				ticketPurchase, err = w.stakeMgr.TicketPurchase(dbtx, ticketHash)
-			}
 			if err != nil {
 				log.Errorf("Failed to read ticket purchase transaction for "+
 					"owned winning ticket %v: %v", ticketHash, err)

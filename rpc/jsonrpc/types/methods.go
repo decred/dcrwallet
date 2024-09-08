@@ -1051,19 +1051,6 @@ func NewSignRawTransactionsCmd(hexEncodedTxs []string,
 	}
 }
 
-// StakePoolUserInfoCmd defines the stakepooluserinfo JSON-RPC command.
-type StakePoolUserInfoCmd struct {
-	User string
-}
-
-// NewStakePoolUserInfoCmd returns a new instance which can be used to issue a
-// signrawtransactions JSON-RPC command.
-func NewStakePoolUserInfoCmd(user string) *StakePoolUserInfoCmd {
-	return &StakePoolUserInfoCmd{
-		User: user,
-	}
-}
-
 // SweepAccountCmd defines the sweep account JSON-RPC command.
 type SweepAccountCmd struct {
 	SourceAccount         string
@@ -1305,7 +1292,6 @@ func init() {
 		{"signrawtransaction", (*SignRawTransactionCmd)(nil)},
 		{"signrawtransactions", (*SignRawTransactionsCmd)(nil)},
 		{"spendoutputs", (*SpendOutputsCmd)(nil)},
-		{"stakepooluserinfo", (*StakePoolUserInfoCmd)(nil)},
 		{"sweepaccount", (*SweepAccountCmd)(nil)},
 		{"syncstatus", (*SyncStatusCmd)(nil)},
 		{"ticketinfo", (*TicketInfoCmd)(nil)},
@@ -1340,7 +1326,6 @@ func init() {
 		{"gettxout", (*GetTxOutCmd)(nil)},
 		{"help", (*HelpCmd)(nil)},
 		{"sendrawtransaction", (*SendRawTransactionCmd)(nil)},
-		{"ticketsforaddress", (*TicketsForAddressCmd)(nil)},
 		{"validateaddress", (*ValidateAddressCmd)(nil)},
 		{"verifymessage", (*VerifyMessageCmd)(nil)},
 		{"version", (*VersionCmd)(nil)},
@@ -1376,7 +1361,6 @@ type (
 	GetTxOutCmd             dcrdtypes.GetTxOutCmd
 	HelpCmd                 dcrdtypes.HelpCmd
 	SendRawTransactionCmd   dcrdtypes.SendRawTransactionCmd
-	TicketsForAddressCmd    dcrdtypes.TicketsForAddressCmd
 	ValidateAddressCmd      dcrdtypes.ValidateAddressCmd
 	VerifyMessageCmd        dcrdtypes.VerifyMessageCmd
 	VersionCmd              dcrdtypes.VersionCmd

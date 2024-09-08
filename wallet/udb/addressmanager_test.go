@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2019 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -432,7 +432,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 
 func TestManagerImports(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "imports.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "imports.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -474,7 +474,7 @@ func TestManagerImports(t *testing.T) {
 // with the manager locked.
 func TestImportVotingAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "import_voting_account.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "import_voting_account.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -607,7 +607,7 @@ func TestImportVotingAccount(t *testing.T) {
 // with the manager locked.
 func TestImportAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "import_account.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "import_account.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1073,7 +1073,7 @@ func testEncryptDecrypt(ctx context.Context, tc *testContext) {
 func TestManagerEncryptDecrypt(t *testing.T) {
 	ctx := context.Background()
 
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "encrypt_decrypt.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "encrypt_decrypt.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1095,7 +1095,7 @@ func TestManagerEncryptDecrypt(t *testing.T) {
 
 func TestChangePassphrase(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "change_passphrase.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "change_passphrase.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1150,7 +1150,7 @@ func testManagerAPI(ctx context.Context, tc *testContext) {
 // copy as well as when it is opened from an existing namespace.
 func TestManagerWatchingOnly(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1167,7 +1167,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 	mgr.Close()
 
-	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1195,7 +1195,7 @@ func TestManagerWatchingOnly(t *testing.T) {
 	})
 
 	// Open the watching-only manager and run all the tests again.
-	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1220,7 +1220,7 @@ func TestManager(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	db, mgr, _, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
+	db, mgr, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)
@@ -1238,7 +1238,7 @@ func TestManager(t *testing.T) {
 
 	// Open the manager and run all the tests again in open mode which
 	// avoids reinserting new addresses like the create mode tests do.
-	mgr, _, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
+	mgr, _, err = Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -41,7 +41,7 @@ func insertMainChainHeaders(s *Store, dbtx walletdb.ReadWriteTx,
 
 func TestStakeInvalidationOfTip(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, _, teardown, err := cloneDB(ctx, "stake_inv_of_tip.kv")
+	db, _, s, teardown, err := cloneDB(ctx, "stake_inv_of_tip.kv")
 	defer teardown()
 	if err != nil {
 		t.Fatal(err)

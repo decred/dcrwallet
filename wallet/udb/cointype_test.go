@@ -1,4 +1,4 @@
-// Copyright (c) 2017 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -70,7 +70,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, _, _, err := Open(ctx, db, params, pubPass)
+	m, _, err := Open(ctx, db, params, pubPass)
 	if err != nil {
 		t.Fatal(err)
 	}
