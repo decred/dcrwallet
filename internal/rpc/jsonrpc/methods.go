@@ -3351,6 +3351,8 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
+	// Use purchasing account as change account by default (overridden below if
+	// mixing is enabled).
 	var changeAccount = account
 
 	if s.cfg.Mixing {
@@ -3370,7 +3372,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on mixedSplitAccount: %v", err)
 		}
-		_, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
+		changeAccount, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"CSPP Server set, but error on changeAccount: %v", err)
