@@ -110,21 +110,6 @@ service TicketBuyerV2Service {
 	rpc RunTicketBuyer (RunTicketBuyerRequest) returns (stream RunTicketBuyerResponse);
 }
 
-service TicketBuyerService {
-    rpc StartAutoBuyer (StartAutoBuyerRequest) returns (StartAutoBuyerResponse);
-    rpc StopAutoBuyer (StopAutoBuyerRequest) returns (StopAutoBuyerResponse);
-    rpc TicketBuyerConfig (TicketBuyerConfigRequest) returns (TicketBuyerConfigResponse);
-    rpc SetAccount (SetAccountRequest) returns (SetAccountResponse);
-    rpc SetBalanceToMaintain (SetBalanceToMaintainRequest) returns (SetBalanceToMaintainResponse);
-    rpc SetMaxFee (SetMaxFeeRequest) returns (SetMaxFeeResponse);
-    rpc SetMaxPriceRelative (SetMaxPriceRelativeRequest) returns (SetMaxPriceRelativeResponse);
-    rpc SetMaxPriceAbsolute (SetMaxPriceAbsoluteRequest) returns (SetMaxPriceAbsoluteResponse);
-    rpc SetVotingAddress (SetVotingAddressRequest) returns (SetVotingAddressResponse);
-    rpc SetPoolAddress (SetPoolAddressRequest) returns (SetPoolAddressResponse);
-    rpc SetPoolFees (SetPoolFeesRequest) returns (SetPoolFeesResponse);
-    rpc SetMaxPerBlock (SetMaxPerBlockRequest) returns (SetMaxPerBlockResponse);
-}
-
 service SeedService {
 	rpc GenerateRandomSeed (GenerateRandomSeedRequest) returns (GenerateRandomSeedResponse);
 	rpc DecodeSeed (DecodeSeedRequest) returns (DecodeSeedResponse);
@@ -932,93 +917,6 @@ message RunAccountMixerRequest {
 }
 
 message RunAccountMixerResponse {}
-
-message StartAutoBuyerRequest {
-	bytes passphrase = 1;
-	uint32 account = 2;
-	int64 balance_to_maintain = 3;
-	int64 max_fee_per_kb = 4;
-	double max_price_relative = 5;
-	int64 max_price_absolute = 6;
-	string voting_address = 7;
-	string pool_address = 8;
-	double pool_fees = 9;
-	int64 max_per_block = 10;
-}
-message StartAutoBuyerResponse {}
-
-message StopAutoBuyerRequest {}
-message StopAutoBuyerResponse {}
-message TicketBuyerConfigRequest{
-}
-
-message TicketBuyerConfigResponse{
-    uint32 account = 1;
-    string avg_price_mode = 2;
-    int64 avg_priceVWAP_delta = 3;
-    int64 balance_to_maintain = 4;
-    int64 blocks_to_avg = 5;
-    bool dont_wait_for_tickets = 6;
-    int64 expiry_delta = 7;
-    string fee_source = 8;
-    double fee_target_scaling = 9;
-    int64 min_fee = 10;
-    int64 max_fee = 12;
-    int64 max_per_block = 13;
-    int64 max_price_absolute = 14;
-    double max_price_relative = 15;
-    int64 max_in_mempool = 17;
-    string pool_address = 18;
-    double pool_fees = 19;
-    bool spread_ticket_purchases = 20;
-    string voting_address = 21;
-    int64 tx_fee = 22;
-}
-
-message SetAccountRequest{
-    uint32 account = 1;
-}
-message SetAccountResponse{}
-
-message SetBalanceToMaintainRequest{
-    int64 balance_to_maintain = 1;
-}
-message SetBalanceToMaintainResponse{}
-
-message SetMaxFeeRequest{
-    int64 max_fee_per_kb = 1;
-}
-message SetMaxFeeResponse{}
-
-message SetMaxPriceRelativeRequest{
-    double max_price_relative = 1;
-}
-message SetMaxPriceRelativeResponse{}
-
-message SetMaxPriceAbsoluteRequest{
-    int64 max_price_absolute = 1;
-}
-message SetMaxPriceAbsoluteResponse{}
-
-message SetVotingAddressRequest{
-    string voting_address = 1;
-}
-message SetVotingAddressResponse{}
-
-message SetPoolAddressRequest{
-    string pool_address = 1;
-}
-message SetPoolAddressResponse{}
-
-message SetPoolFeesRequest{
-    double pool_fees = 1;
-}
-message SetPoolFeesResponse{}
-
-message SetMaxPerBlockRequest{
-    int64 max_per_block = 1;
-}
-message SetMaxPerBlockResponse{}
 
 message AgendasRequest {}
 message AgendasResponse {
