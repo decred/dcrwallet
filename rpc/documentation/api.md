@@ -3129,7 +3129,7 @@ launch the V2 ticket buyer.
 
 **Methods:**
 
-- [`RunTicketBuyer`](#runautobuyer)
+- [`RunTicketBuyer`](#runticketbuyer)
 
 ### Methods
 
@@ -3173,7 +3173,7 @@ launch the V2 ticket buyer.
 
 **Methods:**
 
-- [`RunAccountMixer`](#runautobuyer)
+- [`RunAccountMixer`](#runaccountmixer)
 
 ### Methods
 
