@@ -1077,16 +1077,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		return loadConfigError(err)
 	}
 
-	// Warn if user still has an old ticket buyer configuration file.
-	oldTBConfigFile := filepath.Join(cfg.AppDataDir.Value, "ticketbuyer.conf")
-	if _, err := os.Stat(oldTBConfigFile); err == nil {
-		log.Warnf("%s is no longer used and should be removed. "+
-			"Please prepend 'ticketbuyer.' to each option and "+
-			"move it under the [Ticket Buyer Options] section "+
-			"of %s\n",
-			oldTBConfigFile, configFilePath)
-	}
-
 	// Make list of old versions of testnet directories.
 	var oldTestNets []string
 	oldTestNets = append(oldTestNets, filepath.Join(cfg.AppDataDir.Value, "testnet"))
