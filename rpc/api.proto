@@ -106,7 +106,7 @@ service WalletLoaderService {
 service AccountMixerService {
 	rpc RunAccountMixer (RunAccountMixerRequest) returns (stream RunAccountMixerResponse);
 }
-service TicketBuyerV2Service {
+service TicketBuyerService {
 	rpc RunTicketBuyer (RunTicketBuyerRequest) returns (stream RunTicketBuyerResponse);
 }
 

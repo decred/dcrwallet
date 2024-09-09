@@ -3300,27 +3300,27 @@ var AccountMixerService_ServiceDesc = grpc.ServiceDesc{
 	Metadata: "api.proto",
 }
 
-// TicketBuyerV2ServiceClient is the client API for TicketBuyerV2Service service.
+// TicketBuyerServiceClient is the client API for TicketBuyerService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type TicketBuyerV2ServiceClient interface {
-	RunTicketBuyer(ctx context.Context, in *RunTicketBuyerRequest, opts ...grpc.CallOption) (TicketBuyerV2Service_RunTicketBuyerClient, error)
+type TicketBuyerServiceClient interface {
+	RunTicketBuyer(ctx context.Context, in *RunTicketBuyerRequest, opts ...grpc.CallOption) (TicketBuyerService_RunTicketBuyerClient, error)
 }
 
-type ticketBuyerV2ServiceClient struct {
+type ticketBuyerServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewTicketBuyerV2ServiceClient(cc grpc.ClientConnInterface) TicketBuyerV2ServiceClient {
-	return &ticketBuyerV2ServiceClient{cc}
+func NewTicketBuyerServiceClient(cc grpc.ClientConnInterface) TicketBuyerServiceClient {
+	return &ticketBuyerServiceClient{cc}
 }
 
-func (c *ticketBuyerV2ServiceClient) RunTicketBuyer(ctx context.Context, in *RunTicketBuyerRequest, opts ...grpc.CallOption) (TicketBuyerV2Service_RunTicketBuyerClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TicketBuyerV2Service_ServiceDesc.Streams[0], "/walletrpc.TicketBuyerV2Service/RunTicketBuyer", opts...)
+func (c *ticketBuyerServiceClient) RunTicketBuyer(ctx context.Context, in *RunTicketBuyerRequest, opts ...grpc.CallOption) (TicketBuyerService_RunTicketBuyerClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TicketBuyerService_ServiceDesc.Streams[0], "/walletrpc.TicketBuyerService/RunTicketBuyer", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &ticketBuyerV2ServiceRunTicketBuyerClient{stream}
+	x := &ticketBuyerServiceRunTicketBuyerClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -3330,16 +3330,16 @@ func (c *ticketBuyerV2ServiceClient) RunTicketBuyer(ctx context.Context, in *Run
 	return x, nil
 }
 
-type TicketBuyerV2Service_RunTicketBuyerClient interface {
+type TicketBuyerService_RunTicketBuyerClient interface {
 	Recv() (*RunTicketBuyerResponse, error)
 	grpc.ClientStream
 }
 
-type ticketBuyerV2ServiceRunTicketBuyerClient struct {
+type ticketBuyerServiceRunTicketBuyerClient struct {
 	grpc.ClientStream
 }
 
-func (x *ticketBuyerV2ServiceRunTicketBuyerClient) Recv() (*RunTicketBuyerResponse, error) {
+func (x *ticketBuyerServiceRunTicketBuyerClient) Recv() (*RunTicketBuyerResponse, error) {
 	m := new(RunTicketBuyerResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -3347,66 +3347,66 @@ func (x *ticketBuyerV2ServiceRunTicketBuyerClient) Recv() (*RunTicketBuyerRespon
 	return m, nil
 }
 
-// TicketBuyerV2ServiceServer is the server API for TicketBuyerV2Service service.
-// All implementations must embed UnimplementedTicketBuyerV2ServiceServer
+// TicketBuyerServiceServer is the server API for TicketBuyerService service.
+// All implementations must embed UnimplementedTicketBuyerServiceServer
 // for forward compatibility
-type TicketBuyerV2ServiceServer interface {
-	RunTicketBuyer(*RunTicketBuyerRequest, TicketBuyerV2Service_RunTicketBuyerServer) error
-	mustEmbedUnimplementedTicketBuyerV2ServiceServer()
+type TicketBuyerServiceServer interface {
+	RunTicketBuyer(*RunTicketBuyerRequest, TicketBuyerService_RunTicketBuyerServer) error
+	mustEmbedUnimplementedTicketBuyerServiceServer()
 }
 
-// UnimplementedTicketBuyerV2ServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedTicketBuyerV2ServiceServer struct {
+// UnimplementedTicketBuyerServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedTicketBuyerServiceServer struct {
 }
 
-func (UnimplementedTicketBuyerV2ServiceServer) RunTicketBuyer(*RunTicketBuyerRequest, TicketBuyerV2Service_RunTicketBuyerServer) error {
+func (UnimplementedTicketBuyerServiceServer) RunTicketBuyer(*RunTicketBuyerRequest, TicketBuyerService_RunTicketBuyerServer) error {
 	return status.Errorf(codes.Unimplemented, "method RunTicketBuyer not implemented")
 }
-func (UnimplementedTicketBuyerV2ServiceServer) mustEmbedUnimplementedTicketBuyerV2ServiceServer() {}
+func (UnimplementedTicketBuyerServiceServer) mustEmbedUnimplementedTicketBuyerServiceServer() {}
 
-// UnsafeTicketBuyerV2ServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to TicketBuyerV2ServiceServer will
+// UnsafeTicketBuyerServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TicketBuyerServiceServer will
 // result in compilation errors.
-type UnsafeTicketBuyerV2ServiceServer interface {
-	mustEmbedUnimplementedTicketBuyerV2ServiceServer()
+type UnsafeTicketBuyerServiceServer interface {
+	mustEmbedUnimplementedTicketBuyerServiceServer()
 }
 
-func RegisterTicketBuyerV2ServiceServer(s grpc.ServiceRegistrar, srv TicketBuyerV2ServiceServer) {
-	s.RegisterService(&TicketBuyerV2Service_ServiceDesc, srv)
+func RegisterTicketBuyerServiceServer(s grpc.ServiceRegistrar, srv TicketBuyerServiceServer) {
+	s.RegisterService(&TicketBuyerService_ServiceDesc, srv)
 }
 
-func _TicketBuyerV2Service_RunTicketBuyer_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _TicketBuyerService_RunTicketBuyer_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(RunTicketBuyerRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(TicketBuyerV2ServiceServer).RunTicketBuyer(m, &ticketBuyerV2ServiceRunTicketBuyerServer{stream})
+	return srv.(TicketBuyerServiceServer).RunTicketBuyer(m, &ticketBuyerServiceRunTicketBuyerServer{stream})
 }
 
-type TicketBuyerV2Service_RunTicketBuyerServer interface {
+type TicketBuyerService_RunTicketBuyerServer interface {
 	Send(*RunTicketBuyerResponse) error
 	grpc.ServerStream
 }
 
-type ticketBuyerV2ServiceRunTicketBuyerServer struct {
+type ticketBuyerServiceRunTicketBuyerServer struct {
 	grpc.ServerStream
 }
 
-func (x *ticketBuyerV2ServiceRunTicketBuyerServer) Send(m *RunTicketBuyerResponse) error {
+func (x *ticketBuyerServiceRunTicketBuyerServer) Send(m *RunTicketBuyerResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-// TicketBuyerV2Service_ServiceDesc is the grpc.ServiceDesc for TicketBuyerV2Service service.
+// TicketBuyerService_ServiceDesc is the grpc.ServiceDesc for TicketBuyerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var TicketBuyerV2Service_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "walletrpc.TicketBuyerV2Service",
-	HandlerType: (*TicketBuyerV2ServiceServer)(nil),
+var TicketBuyerService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "walletrpc.TicketBuyerService",
+	HandlerType: (*TicketBuyerServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "RunTicketBuyer",
-			Handler:       _TicketBuyerV2Service_RunTicketBuyer_Handler,
+			Handler:       _TicketBuyerService_RunTicketBuyer_Handler,
 			ServerStreams: true,
 		},
 	},
