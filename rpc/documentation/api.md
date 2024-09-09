@@ -35,7 +35,7 @@ existing wallet.
 - [`WalletLoaderService`](#walletloaderservice)
 - [`WalletService`](#walletservice)
 - [`SeedService`](#seedservice)
-- [`TicketBuyerV2Service`](#ticketbuyerv2service)
+- [`TicketBuyerService`](#ticketbuyerservice)
 - [`AgendaService`](#agendaservice)
 - [`VotingService`](#votingservice)
 - [`MessageVerificationService`](#messageverificationservice)
@@ -2781,10 +2781,10 @@ The user input can be either a hexadecimal string or a mnemonic word list.
 
 - `InvalidArgument`: The input is invalid.
 
-## `TicketBuyerV2Service`
+## `TicketBuyerService`
 
-The `TicketBuyerV2Service` service provides RPC clients with the ability to
-launch the V2 ticket buyer.  
+The `TicketBuyerService` service provides RPC clients with the ability to
+launch the ticket buyer.  
 
 **Methods:**
 
@@ -2794,7 +2794,7 @@ launch the V2 ticket buyer.
 
 #### `RunTicketBuyer`
 
-The `RunTicketBuyer` starts a new V2 ticket buyer for the specified account.
+The `RunTicketBuyer` starts a new ticket buyer for the specified account.
 The users may specify a balance to maintain.
 
 **Request:** `RunTicketBuyerRequest`
@@ -2824,7 +2824,7 @@ The users may specify a balance to maintain.
 ## `AccountMixerService`
 
 The `AccountMixerService` service provides RPC clients with the ability to
-launch the V2 ticket buyer.  
+launch the ticket buyer.  
 
 **Methods:**
 

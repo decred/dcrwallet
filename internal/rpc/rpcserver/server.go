@@ -209,10 +209,10 @@ type accountMixerServer struct {
 
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
-type ticketbuyerV2Server struct {
+type ticketbuyerServer struct {
 	ready  atomic.Uint32
 	loader *loader.Loader
-	pb.UnimplementedTicketBuyerV2ServiceServer
+	pb.UnimplementedTicketBuyerServiceServer
 }
 
 type agendaServer struct {
@@ -255,7 +255,7 @@ var (
 	loaderService              loaderServer
 	seedService                seedServer
 	accountMixerService        accountMixerServer
-	ticketBuyerV2Service       ticketbuyerV2Server
+	ticketBuyerService         ticketbuyerServer
 	agendaService              agendaServer
 	votingService              votingServer
 	messageVerificationService messageVerificationServer
@@ -271,7 +271,7 @@ func RegisterServices(server *grpc.Server) {
 	pb.RegisterWalletLoaderServiceServer(server, &loaderService)
 	pb.RegisterSeedServiceServer(server, &seedService)
 	pb.RegisterAccountMixerServiceServer(server, &accountMixerService)
-	pb.RegisterTicketBuyerV2ServiceServer(server, &ticketBuyerV2Service)
+	pb.RegisterTicketBuyerServiceServer(server, &ticketBuyerService)
 	pb.RegisterAgendaServiceServer(server, &agendaService)
 	pb.RegisterVotingServiceServer(server, &votingService)
 	pb.RegisterMessageVerificationServiceServer(server, &messageVerificationService)
@@ -285,7 +285,7 @@ var serviceMap = map[string]any{
 	"walletrpc.WalletLoaderService":        &loaderService,
 	"walletrpc.SeedService":                &seedService,
 	"walletrpc.AccountMixerService":        &accountMixerService,
-	"walletrpc.TicketBuyerV2Service":       &ticketBuyerV2Service,
+	"walletrpc.TicketBuyerService":         &ticketBuyerService,
 	"walletrpc.AgendaService":              &agendaService,
 	"walletrpc.VotingService":              &votingService,
 	"walletrpc.MessageVerificationService": &messageVerificationService,
@@ -2573,7 +2573,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 
 	tb := ticketbuyer.New(wallet)
 
-	// Set ticketbuyerV2 config
+	// Set ticketbuyer config
 	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.Mixing = req.CsppServer != ""
 		c.MixedAccountBranch = req.MixedAccountBranch
@@ -2613,16 +2613,16 @@ func (t *accountMixerServer) checkReady() bool {
 	return t.ready.Load() != 0
 }
 
-// StartTicketBuyerV2Service starts the TicketBuyerV2Service.
-func StartTicketBuyerV2Service(server *grpc.Server, loader *loader.Loader) {
-	ticketBuyerV2Service.loader = loader
-	if ticketBuyerV2Service.ready.Swap(1) != 0 {
+// StartTicketBuyerService starts the TicketBuyerService.
+func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader) {
+	ticketBuyerService.loader = loader
+	if ticketBuyerService.ready.Swap(1) != 0 {
 		panic("service already started")
 	}
 }
 
-// StartTicketBuyer starts the automatic ticket buyer for the v2 service.
-func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerV2Service_RunTicketBuyerServer) error {
+// RunTicketBuyer starts the automatic ticket buyer.
+func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerService_RunTicketBuyerServer) error {
 	wallet, ok := t.loader.LoadedWallet()
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
@@ -2668,7 +2668,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		}
 		vspClient, err = loader.VSP(cfg)
 		if err != nil {
-			return status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+			return status.Errorf(codes.Unknown, "TicketBuyer instance failed to start. Error: %v", err)
 		}
 	}
 	if req.BalanceToMaintain < 0 {
@@ -2714,7 +2714,7 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	limit := int(req.Limit)
 
 	tb := ticketbuyer.New(wallet)
-	// Set ticketbuyerV2 config
+	// Set ticketbuyer config
 	tb.AccessConfig(func(c *ticketbuyer.Config) {
 		c.BuyTickets = true
 		c.Account = req.Account
@@ -2749,15 +2749,15 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 	err = tb.Run(svr.Context(), req.Passphrase)
 	if err != nil {
 		if svr.Context().Err() != nil {
-			return status.Errorf(codes.Canceled, "TicketBuyerV2 instance canceled, account number: %v", req.Account)
+			return status.Errorf(codes.Canceled, "TicketBuyer instance canceled, account number: %v", req.Account)
 		}
-		return status.Errorf(codes.Unknown, "TicketBuyerV2 instance errored: %v", err)
+		return status.Errorf(codes.Unknown, "TicketBuyer instance errored: %v", err)
 	}
 
 	return nil
 }
 
-func (t *ticketbuyerV2Server) checkReady() bool {
+func (t *ticketbuyerServer) checkReady() bool {
 	return t.ready.Load() != 0
 }
 
@@ -4157,7 +4157,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	}
 	vspClient, err := loader.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "TicketBuyerV3 instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.Unknown, "TicketBuyer instance failed to start. Error: %v", err)
 	}
 
 	// Process tickets fee if needed.
