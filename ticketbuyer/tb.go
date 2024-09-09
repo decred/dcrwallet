@@ -60,9 +60,9 @@ type TB struct {
 	mu  sync.Mutex
 }
 
-// New returns a new TB to buy tickets from a wallet using the default config.
-func New(w *wallet.Wallet) *TB {
-	return &TB{wallet: w}
+// New returns a new TB to buy tickets from a wallet.
+func New(w *wallet.Wallet, cfg Config) *TB {
+	return &TB{wallet: w, cfg: cfg}
 }
 
 // Run executes the ticket buyer.  If the private passphrase is incorrect, or

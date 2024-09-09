@@ -293,71 +293,70 @@ func run(ctx context.Context) error {
 			}
 		}
 
-		var tb *ticketbuyer.TB
 		if cfg.MixChange || cfg.EnableTicketBuyer {
-			tb = ticketbuyer.New(w)
-		}
-
-		var lastFlag, lastLookup string
-		lookup := func(flag, name string) (account uint32) {
-			if tb != nil && err == nil {
-				lastFlag = flag
-				lastLookup = name
-				account, err = w.AccountNumber(ctx, name)
+			var err error
+			var lastFlag, lastLookup string
+			lookup := func(flag, name string) (account uint32) {
+				if err == nil {
+					lastFlag = flag
+					lastLookup = name
+					account, err = w.AccountNumber(ctx, name)
+				}
+				return
 			}
-			return
-		}
-		var (
-			purchaseAccount    uint32 // enableticketbuyer
-			votingAccount      uint32 // enableticketbuyer
-			mixedAccount       uint32 // (enableticketbuyer && mixing) || mixchange
-			changeAccount      uint32 // (enableticketbuyer && mixing) || mixchange
-			ticketSplitAccount uint32 // enableticketbuyer && mixing
+			var (
+				purchaseAccount    uint32 // enableticketbuyer
+				votingAccount      uint32 // enableticketbuyer
+				mixedAccount       uint32 // (enableticketbuyer && mixing) || mixchange
+				changeAccount      uint32 // (enableticketbuyer && mixing) || mixchange
+				ticketSplitAccount uint32 // enableticketbuyer && mixing
 
-			votingAddr = cfg.TBOpts.votingAddress
-		)
-		if cfg.EnableTicketBuyer {
-			purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
+				votingAddr = cfg.TBOpts.votingAddress
+			)
+			if cfg.EnableTicketBuyer {
+				purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
 
-			if cfg.Mixing && cfg.TBOpts.VotingAccount == "" {
-				err := errors.New("cannot run mixed ticketbuyer without --votingaccount")
-				log.Error(err)
+				if cfg.Mixing && cfg.TBOpts.VotingAccount == "" {
+					err := errors.New("cannot run mixed ticketbuyer without --votingaccount")
+					log.Error(err)
+					return err
+				}
+				if cfg.TBOpts.VotingAccount != "" {
+					votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
+					votingAddr = nil
+				}
+			}
+			if (cfg.EnableTicketBuyer && cfg.Mixing) || cfg.MixChange {
+				mixedAccount = lookup("mixedaccount", cfg.mixedAccount)
+				changeAccount = lookup("changeaccount", cfg.ChangeAccount)
+			}
+			if cfg.EnableTicketBuyer && cfg.Mixing {
+				ticketSplitAccount = lookup("ticketsplitaccount", cfg.TicketSplitAccount)
+			}
+
+			// Check if any of the above calls to lookup() have failed.
+			if err != nil {
+				log.Errorf("%s: account %q does not exist", lastFlag, lastLookup)
 				return err
 			}
-			if cfg.TBOpts.VotingAccount != "" {
-				votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
-				votingAddr = nil
-			}
-		}
-		if (cfg.EnableTicketBuyer && cfg.Mixing) || cfg.MixChange {
-			mixedAccount = lookup("mixedaccount", cfg.mixedAccount)
-			changeAccount = lookup("changeaccount", cfg.ChangeAccount)
-		}
-		if cfg.EnableTicketBuyer && cfg.Mixing {
-			ticketSplitAccount = lookup("ticketsplitaccount", cfg.TicketSplitAccount)
-		}
-		if err != nil {
-			log.Errorf("%s: account %q does not exist", lastFlag, lastLookup)
-			return err
-		}
 
-		if tb != nil {
 			// Start a ticket buyer.
-			tb.AccessConfig(func(c *ticketbuyer.Config) {
-				c.BuyTickets = cfg.EnableTicketBuyer
-				c.Account = purchaseAccount
-				c.Maintain = cfg.TBOpts.BalanceToMaintainAbsolute.Amount
-				c.VotingAddr = votingAddr
-				c.Limit = int(cfg.TBOpts.Limit)
-				c.VotingAccount = votingAccount
-				c.Mixing = cfg.Mixing
-				c.MixChange = cfg.MixChange
-				c.MixedAccount = mixedAccount
-				c.MixedAccountBranch = cfg.mixedBranch
-				c.TicketSplitAccount = ticketSplitAccount
-				c.ChangeAccount = changeAccount
-				c.VSP = vspClient
+			tb := ticketbuyer.New(w, ticketbuyer.Config{
+				BuyTickets:         cfg.EnableTicketBuyer,
+				Account:            purchaseAccount,
+				Maintain:           cfg.TBOpts.BalanceToMaintainAbsolute.Amount,
+				VotingAddr:         votingAddr,
+				Limit:              int(cfg.TBOpts.Limit),
+				VotingAccount:      votingAccount,
+				Mixing:             cfg.Mixing,
+				MixChange:          cfg.MixChange,
+				MixedAccount:       mixedAccount,
+				MixedAccountBranch: cfg.mixedBranch,
+				TicketSplitAccount: ticketSplitAccount,
+				ChangeAccount:      changeAccount,
+				VSP:                vspClient,
 			})
+
 			log.Infof("Starting auto transaction creator")
 			tbdone := make(chan struct{})
 			go func() {

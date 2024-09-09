@@ -2571,16 +2571,13 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
 
-	tb := ticketbuyer.New(wallet)
-
-	// Set ticketbuyer config
-	tb.AccessConfig(func(c *ticketbuyer.Config) {
-		c.Mixing = req.CsppServer != ""
-		c.MixedAccountBranch = req.MixedAccountBranch
-		c.MixedAccount = req.MixedAccount
-		c.ChangeAccount = req.ChangeAccount
-		c.BuyTickets = false
-		c.MixChange = true
+	tb := ticketbuyer.New(wallet, ticketbuyer.Config{
+		Mixing:             req.CsppServer != "",
+		MixedAccountBranch: req.MixedAccountBranch,
+		MixedAccount:       req.MixedAccount,
+		ChangeAccount:      req.ChangeAccount,
+		BuyTickets:         false,
+		MixChange:          true,
 	})
 
 	if len(req.Passphrase) > 0 {
@@ -2713,22 +2710,20 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 	// is defaulted to 20.
 	limit := int(req.Limit)
 
-	tb := ticketbuyer.New(wallet)
-	// Set ticketbuyer config
-	tb.AccessConfig(func(c *ticketbuyer.Config) {
-		c.BuyTickets = true
-		c.Account = req.Account
-		c.VotingAccount = req.VotingAccount
-		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
-		c.VotingAddr = votingAddress
-		c.VSP = vspClient
-		c.Mixing = csppServer != ""
-		c.MixedAccount = mixedAccount
-		c.MixChange = mixedChange
-		c.ChangeAccount = changeAccount
-		c.MixedAccountBranch = mixedAccountBranch
-		c.TicketSplitAccount = mixedSplitAccount
-		c.Limit = limit
+	tb := ticketbuyer.New(wallet, ticketbuyer.Config{
+		BuyTickets:         true,
+		Account:            req.Account,
+		VotingAccount:      req.VotingAccount,
+		Maintain:           dcrutil.Amount(req.BalanceToMaintain),
+		VotingAddr:         votingAddress,
+		VSP:                vspClient,
+		Mixing:             csppServer != "",
+		MixedAccount:       mixedAccount,
+		MixChange:          mixedChange,
+		ChangeAccount:      changeAccount,
+		MixedAccountBranch: mixedAccountBranch,
+		TicketSplitAccount: mixedSplitAccount,
+		Limit:              limit,
 	})
 
 	if len(req.Passphrase) > 0 {
