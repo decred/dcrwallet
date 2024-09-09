@@ -102,16 +102,13 @@ type config struct {
 	CPUProfile         string                  `long:"cpuprofile" description:"Write cpu profile to the specified file"`
 
 	// Wallet options
-	WalletPass              string               `long:"walletpass" default-mask:"-" description:"Public wallet password; required when created with one"`
-	PromptPass              bool                 `long:"promptpass" description:"Prompt for private passphase from terminal and unlock without timeout"`
-	Pass                    string               `long:"pass" description:"Unlock with private passphrase"`
-	PromptPublicPass        bool                 `long:"promptpublicpass" description:"Prompt for public passphrase from terminal"`
-	EnableTicketBuyer       bool                 `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
-	EnableVoting            bool                 `long:"enablevoting" description:"Automatically vote on winning tickets"`
-	PurchaseAccount         string               `long:"purchaseaccount" description:"Account to autobuy tickets from"`
-	PoolAddress             *cfgutil.AddressFlag `long:"pooladdress" description:"VSP fee address"`
-	poolAddress             stdaddr.StakeAddress
-	PoolFees                float64             `long:"poolfees" description:"VSP fee percentage (1.00 equals 1.00% fee)"`
+	WalletPass              string              `long:"walletpass" default-mask:"-" description:"Public wallet password; required when created with one"`
+	PromptPass              bool                `long:"promptpass" description:"Prompt for private passphase from terminal and unlock without timeout"`
+	Pass                    string              `long:"pass" description:"Unlock with private passphrase"`
+	PromptPublicPass        bool                `long:"promptpublicpass" description:"Prompt for public passphrase from terminal"`
+	EnableTicketBuyer       bool                `long:"enableticketbuyer" description:"Enable the automatic ticket buyer"`
+	EnableVoting            bool                `long:"enablevoting" description:"Automatically vote on winning tickets"`
+	PurchaseAccount         string              `long:"purchaseaccount" description:"Account to autobuy tickets from"`
 	GapLimit                uint32              `long:"gaplimit" description:"Allowed unused address gap between used addresses of accounts"`
 	WatchLast               uint32              `long:"watchlast" description:"Limit watched previous addresses of each HD account branch"`
 	ManualTickets           bool                `long:"manualtickets" description:"Do not discover new tickets through network synchronization"`
@@ -380,7 +377,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		GapLimit:                defaultGapLimit,
 		AllowHighFees:           defaultAllowHighFees,
 		RelayFee:                cfgutil.NewAmountFlag(txrules.DefaultRelayFeePerKb),
-		PoolAddress:             cfgutil.NewAddressFlag(),
 		AccountGapLimit:         defaultAccountGapLimit,
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 		CircuitLimit:            defaultCircuitLimit,
@@ -556,7 +552,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		flag *cfgutil.AddressFlag
 		addr *stdaddr.StakeAddress
 	}{
-		{cfg.PoolAddress, &cfg.poolAddress},
 		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},
 	} {
 		addr, err := a.flag.StakeAddress(activeNet.Params)
@@ -690,15 +685,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			"--create option to initialize and create it.")
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
-	}
-
-	if cfg.PoolFees != 0.0 {
-		if !txrules.ValidPoolFeeRate(cfg.PoolFees) {
-			err := errors.E(errors.Invalid, errors.Errorf("pool fee rate %v", cfg.PoolFees))
-			fmt.Fprintln(os.Stderr, err.Error())
-			fmt.Fprintln(os.Stderr, usageMessage)
-			return loadConfigError(err)
-		}
 	}
 
 	ipNet := func(cidr string) net.IPNet {

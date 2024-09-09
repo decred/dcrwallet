@@ -56,8 +56,6 @@ type Loader struct {
 type StakeOptions struct {
 	VotingEnabled bool
 	VotingAddress stdaddr.StakeAddress
-	PoolAddress   stdaddr.StakeAddress
-	PoolFees      float64
 }
 
 // NewLoader constructs a Loader.
@@ -177,8 +175,6 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		PubPassphrase:           pubPass,
 		VotingEnabled:           so.VotingEnabled,
 		VotingAddress:           so.VotingAddress,
-		PoolAddress:             so.PoolAddress,
-		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -269,8 +265,6 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
 		VotingAddress:           so.VotingAddress,
-		PoolAddress:             so.PoolAddress,
-		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -329,8 +323,6 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
 		VotingAddress:           so.VotingAddress,
-		PoolAddress:             so.PoolAddress,
-		PoolFees:                so.PoolFees,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,

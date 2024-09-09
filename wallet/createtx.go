@@ -910,18 +910,11 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 	return &txHash, nil
 }
 
-// makeTicket creates a ticket from a split transaction output. It can optionally
-// create a ticket that pays a fee to a pool if a pool input and pool address are
-// passed.
-func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVote stdaddr.StakeAddress,
-	addrSubsidy stdaddr.StakeAddress, ticketCost int64, addrPool stdaddr.StakeAddress) (*wire.MsgTx, error) {
+// makeTicket creates a ticket from a split transaction output.
+func makeTicket(params *chaincfg.Params, input *Input, addrVote stdaddr.StakeAddress,
+	addrSubsidy stdaddr.StakeAddress, ticketCost int64) (*wire.MsgTx, error) {
 
 	mtx := wire.NewMsgTx()
-
-	if addrPool != nil && inputPool != nil {
-		txIn := wire.NewTxIn(&inputPool.OutPoint, inputPool.PrevOut.Value, []byte{})
-		mtx.AddTxIn(txIn)
-	}
 
 	txIn := wire.NewTxIn(&input.OutPoint, input.PrevOut.Value, []byte{})
 	mtx.AddTxIn(txIn)
@@ -942,22 +935,12 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 
 	// Obtain the commitment amounts.
 	var amountsCommitted []int64
-	userSubsidyNullIdx := 0
+	const userSubsidyNullIdx = 0
 	var err error
-	if addrPool == nil {
-		_, amountsCommitted, err = stake.SStxNullOutputAmounts(
-			[]int64{input.PrevOut.Value}, []int64{0}, ticketCost)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-		_, amountsCommitted, err = stake.SStxNullOutputAmounts(
-			[]int64{inputPool.PrevOut.Value, input.PrevOut.Value}, []int64{0, 0}, ticketCost)
-		if err != nil {
-			return nil, err
-		}
-		userSubsidyNullIdx = 1
+	_, amountsCommitted, err = stake.SStxNullOutputAmounts(
+		[]int64{input.PrevOut.Value}, []int64{0}, ticketCost)
+	if err != nil {
+		return nil, err
 	}
 
 	// Zero value P2PKH addr.
@@ -967,31 +950,7 @@ func makeTicket(params *chaincfg.Params, inputPool *Input, input *Input, addrVot
 		return nil, err
 	}
 
-	// 2. (Optional) If we're passed a pool address, make an extra
-	// commitment to the pool.
-	if addrPool != nil {
-		vers, pkScript := addrPool.RewardCommitmentScript(
-			amountsCommitted[0], 0, revocationFeeLimit)
-		txout := &wire.TxOut{
-			Value:    0,
-			PkScript: pkScript,
-			Version:  vers,
-		}
-		mtx.AddTxOut(txout)
-
-		// Create a new script which pays to the provided address with an
-		// SStx change tagged output.
-		vers, pkScript = addrZeroed.StakeChangeScript()
-
-		txOut = &wire.TxOut{
-			Value:    0,
-			PkScript: pkScript,
-			Version:  vers,
-		}
-		mtx.AddTxOut(txOut)
-	}
-
-	// 3. Create the commitment and change output paying to the user.
+	// 2. Create the commitment and change output paying to the user.
 	//
 	// Create an OP_RETURN push containing the pubkeyhash to send rewards to.
 	// Apply limits to revocations for fees while not allowing
@@ -1184,69 +1143,6 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 	return
 }
 
-func (w *Wallet) vspSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket, vspFee dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
-	// Fetch the single use split address to break tickets into, to
-	// immediately be consumed as tickets.
-	//
-	// This opens a write transaction.
-	splitTxAddr, err := w.NewInternalAddress(ctx, req.SourceAccount, WithGapPolicyWrap())
-	if err != nil {
-		return
-	}
-
-	vers, splitPkScript := splitTxAddr.PaymentScript()
-
-	// Create the split transaction by using authorTx. This varies
-	// based upon whether or not the user is using a stake pool or not.
-	// For the default stake pool implementation, the user pays out the
-	// first ticket commitment of a smaller amount to the pool, while
-	// paying themselves with the larger ticket commitment.
-	var splitOuts []*wire.TxOut
-	for i := 0; i < req.Count; i++ {
-		userAmt := neededPerTicket - vspFee
-		splitOuts = append(splitOuts, &wire.TxOut{
-			Value:    int64(vspFee),
-			PkScript: splitPkScript,
-			Version:  vers,
-		})
-		splitOuts = append(splitOuts, &wire.TxOut{
-			Value:    int64(userAmt),
-			PkScript: splitPkScript,
-			Version:  vers,
-		})
-		outIndexes = append(outIndexes, i*2)
-	}
-
-	const op errors.Op = "vspSplit"
-	a := &authorTx{
-		outputs:            splitOuts,
-		account:            req.SourceAccount,
-		changeAccount:      req.ChangeAccount,
-		minconf:            req.MinConf,
-		randomizeChangeIdx: false,
-		txFee:              w.RelayFee(),
-		dontSignTx:         req.DontSignTx,
-		isTreasury:         false,
-	}
-	err = w.authorTx(ctx, op, a)
-	if err != nil {
-		return
-	}
-	if !req.DontSignTx {
-		err = w.recordAuthoredTx(ctx, op, a)
-		if err != nil {
-			return
-		}
-		err = w.publishAndWatch(ctx, op, nil, a.atx.Tx, a.watch)
-		if err != nil {
-			return
-		}
-	}
-
-	tx = a.atx.Tx
-	return
-}
-
 var errVSPFeeRequiresUTXOSplit = errors.New("paying VSP fee requires UTXO split")
 
 // purchaseTickets indicates to the wallet that a ticket should be purchased
@@ -1310,21 +1206,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, err
 	}
 
-	// Try to get the pool address from the request. If none exists
-	// in the request, try to get the global pool address. Then do
-	// the same for pool fees, but check sanity too.
-	poolAddress := req.VSPAddress
-	if poolAddress == nil {
-		poolAddress = w.poolAddress
-	}
-	poolFees := req.VSPFees
-	if poolFees == 0.0 {
-		poolFees = w.poolFees
-	}
-	if poolAddress != nil && poolFees == 0.0 {
-		return nil, errors.E(op, errors.Invalid, "stakepool fee percent unset")
-	}
-
 	var stakeSubmissionPkScriptSize int
 
 	// The stake submission pkScript is tagged by an OP_SSTX.
@@ -1346,51 +1227,22 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	var estSize int
 	ticketRelayFee := w.RelayFee()
 
-	if poolAddress == nil {
-		// A solo ticket has:
-		//   - a single input redeeming a P2PKH for the worst case size
-		//   - a P2PKH or P2SH stake submission output
-		//   - a ticket commitment output
-		//   - an OP_SSTXCHANGE tagged P2PKH or P2SH change output
-		//
-		//   NB: The wallet currently only supports P2PKH change addresses.
-		//   The network supports both P2PKH and P2SH change addresses however.
-		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-		outSizes := []int{stakeSubmissionPkScriptSize,
-			txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
-		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
-			outSizes, 0)
-	} else {
-		// A pool ticket has:
-		//   - two inputs redeeming a P2PKH for the worst case size
-		//   - a P2PKH or P2SH stake submission output
-		//   - two ticket commitment outputs
-		//   - two OP_SSTXCHANGE tagged P2PKH or P2SH change outputs
-		//
-		//   NB: The wallet currently only supports P2PKH change addresses.
-		//   The network supports both P2PKH and P2SH change addresses however.
-		inSizes := []int{txsizes.RedeemP2PKHSigScriptSize,
-			txsizes.RedeemP2PKHSigScriptSize}
-		outSizes := []int{stakeSubmissionPkScriptSize,
-			txsizes.TicketCommitmentScriptSize, txsizes.TicketCommitmentScriptSize,
-			txsizes.P2PKHPkScriptSize + 1, txsizes.P2PKHPkScriptSize + 1}
-		estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
-			outSizes, 0)
-	}
+	// A solo ticket has:
+	//   - a single input redeeming a P2PKH for the worst case size
+	//   - a P2PKH or P2SH stake submission output
+	//   - a ticket commitment output
+	//   - an OP_SSTXCHANGE tagged P2PKH or P2SH change output
+	//
+	//   NB: The wallet currently only supports P2PKH change addresses.
+	//   The network supports both P2PKH and P2SH change addresses however.
+	inSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+	outSizes := []int{stakeSubmissionPkScriptSize,
+		txsizes.TicketCommitmentScriptSize, txsizes.P2PKHPkScriptSize + 1}
+	estSize = txsizes.EstimateSerializeSizeFromScriptSizes(inSizes,
+		outSizes, 0)
 
 	ticketFee := txrules.FeeForSerializeSize(ticketRelayFee, estSize)
 	neededPerTicket = ticketFee + ticketPrice
-
-	// If we need to calculate the amount for a pool fee percentage,
-	// do so now.
-	var vspFee dcrutil.Amount
-	if poolAddress != nil {
-		// poolAddress is only used with the legacy stakepool
-		const dcp0010Active = false
-		const dcp0012Active = false
-		vspFee = txrules.StakePoolTicketFee(ticketPrice, ticketFee,
-			tipHeight, poolFees, w.ChainParams(), dcp0010Active, dcp0012Active)
-	}
 
 	// After tickets are created and published, watch for future
 	// relevant transactions
@@ -1590,8 +1442,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		switch {
 		case req.Mixing:
 			splitTx, splitOutputIndexes, err = w.mixedSplit(ctx, req, neededPerTicket)
-		case req.VSPAddress != nil:
-			splitTx, splitOutputIndexes, err = w.vspSplit(ctx, req, neededPerTicket, vspFee)
 		default:
 			splitTx, splitOutputIndexes, err = w.individualSplit(ctx, req, neededPerTicket)
 		}
@@ -1660,35 +1510,15 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	tickets := make([]*wire.MsgTx, 0, req.Count)
 	outpoint := wire.OutPoint{Hash: splitTx.TxHash()}
 	for _, index := range splitOutputIndexes {
-		// Generate the extended outpoints that we need to use for ticket
-		// inputs. There are two inputs for pool tickets corresponding to the
-		// fees and the user subsidy, while user-handled tickets have only one
+		// Generate the extended outpoint that we need to use for ticket
 		// input.
-		var eopPool, eop *Input
-		if poolAddress == nil {
-			op := outpoint
-			op.Index = uint32(index)
-			log.Infof("Split output is %v", &op)
-			txOut := splitTx.TxOut[index]
-			eop = &Input{
-				OutPoint: op,
-				PrevOut:  *txOut,
-			}
-		} else {
-			vspOutPoint := outpoint
-			vspOutPoint.Index = uint32(index)
-			vspOutput := splitTx.TxOut[vspOutPoint.Index]
-			eopPool = &Input{
-				OutPoint: vspOutPoint,
-				PrevOut:  *vspOutput,
-			}
-			myOutPoint := outpoint
-			myOutPoint.Index = uint32(index + 1)
-			myOutput := splitTx.TxOut[myOutPoint.Index]
-			eop = &Input{
-				OutPoint: myOutPoint,
-				PrevOut:  *myOutput,
-			}
+		var eop *Input
+		outpoint.Index = uint32(index)
+		log.Infof("Split output is %v", &outpoint)
+		txOut := splitTx.TxOut[index]
+		eop = &Input{
+			OutPoint: outpoint,
+			PrevOut:  *txOut,
 		}
 
 		// If the user hasn't specified a voting address
@@ -1742,8 +1572,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		w.lockedOutpointMu.Lock()
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			// Generate the ticket msgTx and sign it if DontSignTx is false.
-			ticket, err := makeTicket(w.chainParams, eopPool, eop, addrVote,
-				addrSubsidy, int64(ticketPrice), poolAddress)
+			ticket, err := makeTicket(w.chainParams, eop, addrVote,
+				addrSubsidy, int64(ticketPrice))
 			if err != nil {
 				return err
 			}
@@ -1761,11 +1591,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return nil
 			}
 			// Sign and publish tx if DontSignTx is false
-			var forSigning []Input
-			if eopPool != nil {
-				forSigning = append(forSigning, *eopPool)
-			}
-			forSigning = append(forSigning, *eop)
+			forSigning := []Input{*eop}
 
 			ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
 			err = w.signP2PKHMsgTx(ticket, forSigning, ns)

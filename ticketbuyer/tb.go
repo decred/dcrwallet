@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2023 The Decred developers
+// Copyright (c) 2018-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -34,12 +34,6 @@ type Config struct {
 
 	// Address to assign voting rights; overrides VotingAccount
 	VotingAddr stdaddr.StakeAddress
-
-	// Commitment address for stakepool fees
-	PoolFeeAddr stdaddr.StakeAddress
-
-	// Stakepool fee percentage (between 0-100)
-	PoolFees float64
 
 	// Limit maximum number of purchased tickets per block
 	Limit int
@@ -241,8 +235,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	account := cfg.Account
 	maintain := cfg.Maintain
 	votingAddr := cfg.VotingAddr
-	poolFeeAddr := cfg.PoolFeeAddr
-	poolFees := cfg.PoolFees
 	limit := cfg.Limit
 	mixing := cfg.Mixing
 	votingAccount := cfg.VotingAccount
@@ -306,10 +298,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		MixedAccountBranch: mixedBranch,
 		MixedSplitAccount:  splitAccount,
 		ChangeAccount:      changeAccount,
-
-		// VSPs
-		VSPAddress: poolFeeAddr,
-		VSPFees:    poolFees,
 	}
 	// If VSP is configured, we need to set the methods for vsp fee processment.
 	if tb.cfg.VSP != nil {

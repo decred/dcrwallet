@@ -1733,10 +1733,10 @@ ___
 
 The `PurchaseTickets` method is used to purchase tickets. It can use a specified
 address for voting rights, and can additionally be used in conjunction with a
-stake pool. An expiration value can be set for the tickets. Expired tickets are
+VSP. An expiration value can be set for the tickets. Expired tickets are
 pruned from the wallet and funds and then restored to the user. The following
 fields can be left unset, and unset (empty or zero) behavior is given below:
-ticker_address, pool_address, expiry, tx_fee, ticket_fee.
+ticket_address, expiry, tx_fee, ticket_fee.
 
 **Request:** `PurchaseTicketsRequest`
 
@@ -1756,13 +1756,6 @@ ticker_address, pool_address, expiry, tx_fee, ticket_fee.
 
 - `uint32 num_tickets`: The number of tickets to purchase. It must be set and
   at least 1.
-
-- `string pool_address`: The address of the stake pool used. Pool mode will
-  be disabled if an empty string is passed.
-
-- `double pool_fees`: The stake pool fees amount. This must be set to a positive
-  value in the allowed range of 0.01 to 100.00 to be valid. It must be set when
-  the pool_address is also set.
 
 - `uint32 expiry`: The height at which the tickets expire and can no longer enter
   the blockchain. It defaults to 0 (no expiry).
@@ -3136,7 +3129,7 @@ launch the V2 ticket buyer.
 #### `RunTicketBuyer`
 
 The `RunTicketBuyer` starts a new V2 ticket buyer for the specified account.
-The users may specify a balance to maintain as well as various settings for purchasing tickets for stakepools.
+The users may specify a balance to maintain.
 
 **Request:** `RunTicketBuyerRequest`
 
@@ -3149,10 +3142,6 @@ The users may specify a balance to maintain as well as various settings for purc
 - `int64 balance_to_maintain`: When set, the account will purchase as many tickets as possible without going under this amount.
 
 - `string voting_address`: The address to give the tickets purchased voting rights.
-
-- `string pool_address`: The address that will be used in any stakepool fee commitment utxos.
-
-- `double pool_fees`: The percentage used to calculate the proper fee in the stakepool fee commitment utxos.
 
 **Response:** `stream RunTicketBuyerResponse`
 
