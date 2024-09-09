@@ -3313,29 +3313,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		}
 	}
 
-	// Set pool address if specified.
-	var poolAddr stdaddr.StakeAddress
-	var poolFee float64
-	if cmd.PoolAddress != nil && *cmd.PoolAddress != "" {
-		addr, err := decodeStakeAddress(*cmd.PoolAddress, w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-		poolAddr = addr
-
-		// Attempt to get the amount to send to
-		// the pool after.
-		if cmd.PoolFees == nil {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"pool address set without pool fee")
-		}
-		poolFee = *cmd.PoolFees
-		if !txrules.ValidPoolFeeRate(poolFee) {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"pool fee percentage %v", poolFee)
-		}
-	}
-
 	// Set the expiry if specified.
 	expiry := int32(0)
 	if cmd.Expiry != nil {
@@ -3407,8 +3384,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		MinConf:       minConf,
 		Expiry:        expiry,
 		DontSignTx:    dontSignTx,
-		VSPAddress:    poolAddr,
-		VSPFees:       poolFee,
 
 		// CSPP
 		Mixing:             mixing,

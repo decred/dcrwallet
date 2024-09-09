@@ -1811,19 +1811,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		}
 	}
 
-	var poolAddr stdaddr.StakeAddress
-	var poolFees float64
-	if req.PoolAddress != "" {
-		if req.VspHost != "" || req.VspPubkey != "" {
-			return nil, status.Errorf(codes.InvalidArgument,
-				"request contains both legacy stakepoold and vspd options.")
-		}
-		poolAddr, err = decodeStakeAddress(req.PoolAddress, params)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// new vspd request
 	var vspHost string
 	var vspPubKey string
@@ -1853,23 +1840,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		if err != nil {
 			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start: %v", err)
 		}
-	}
-
-	if req.PoolFees > 0 {
-		poolFees = req.PoolFees
-		if !txrules.ValidPoolFeeRate(req.PoolFees) {
-			return nil, status.Errorf(codes.InvalidArgument, "Invalid pool fees percentage")
-		}
-	}
-
-	if poolFees > 0 && poolAddr == nil {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Pool fees set but no pool address given")
-	}
-
-	if poolFees <= 0 && poolAddr != nil {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Pool fees negative or unset but pool address given")
 	}
 
 	numTickets := int(req.NumTickets)
@@ -1927,8 +1897,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		MinConf:          minConf,
 		Expiry:           expiry,
 		DontSignTx:       dontSignTx,
-		VSPAddress:       poolAddr,
-		VSPFees:          poolFees,
 		UseVotingAccount: req.UseVotingAccount,
 		VotingAccount:    req.VotingAccount,
 
@@ -2673,18 +2641,6 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 			return err
 		}
 	}
-	var poolAddress stdaddr.StakeAddress
-	if req.PoolAddress != "" {
-		if req.VspHost != "" || req.VspPubkey != "" {
-			return status.Errorf(codes.InvalidArgument,
-				"request contains both legacy stakepoold and vspd options.")
-		}
-		poolAddress, err = decodeStakeAddress(req.PoolAddress, params)
-		if err != nil {
-			return err
-		}
-	}
-
 	// new vspd request
 	var vspHost string
 	var vspPubKey string
@@ -2765,8 +2721,6 @@ func (t *ticketbuyerV2Server) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr 
 		c.VotingAccount = req.VotingAccount
 		c.Maintain = dcrutil.Amount(req.BalanceToMaintain)
 		c.VotingAddr = votingAddress
-		c.PoolFeeAddr = poolAddress
-		c.PoolFees = req.PoolFees
 		c.VSP = vspClient
 		c.Mixing = csppServer != ""
 		c.MixedAccount = mixedAccount

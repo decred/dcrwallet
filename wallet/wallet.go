@@ -112,8 +112,6 @@ type Wallet struct {
 	stakeSettingsLock  sync.Mutex
 	defaultVoteBits    stake.VoteBits
 	votingEnabled      bool
-	poolAddress        stdaddr.StakeAddress
-	poolFees           float64
 	manualTickets      bool
 	subsidyCache       *blockchain.SubsidyCache
 	tspends            map[chainhash.Hash]wire.MsgTx
@@ -183,8 +181,6 @@ type Config struct {
 
 	VotingEnabled bool
 	VotingAddress stdaddr.StakeAddress
-	PoolAddress   stdaddr.StakeAddress
-	PoolFees      float64
 
 	GapLimit                uint32
 	WatchLast               uint32
@@ -1562,10 +1558,6 @@ type PurchaseTicketsRequest struct {
 	MixedAccountBranch uint32
 	MixedSplitAccount  uint32
 	ChangeAccount      uint32
-
-	// VSP ticket buying; not currently usable with CoinShuffle++.
-	VSPAddress stdaddr.StakeAddress
-	VSPFees    float64
 
 	// VSPServer methods
 	// XXX this should be an interface
@@ -5392,8 +5384,6 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		// StakeOptions
 		votingEnabled:      cfg.VotingEnabled,
 		ticketAddress:      cfg.VotingAddress,
-		poolAddress:        cfg.PoolAddress,
-		poolFees:           cfg.PoolFees,
 		tspends:            make(map[chainhash.Hash]wire.MsgTx),
 		tspendPolicy:       make(map[chainhash.Hash]stake.TreasuryVoteT),
 		tspendKeyPolicy:    make(map[string]stake.TreasuryVoteT),

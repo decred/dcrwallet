@@ -648,21 +648,19 @@ message PurchaseTicketsRequest {
 	uint32 required_confirmations = 4;
 	string ticket_address = 5;
 	uint32 num_tickets = 6;
-	string pool_address = 7;
-	double pool_fees = 8;
-	uint32 expiry = 9;
-	int64 tx_fee = 10;
-	int64 ticket_fee = 11;
-	bool dont_sign_tx = 12;
-	string cspp_server = 13;
-	uint32 mixed_account = 14;
-	uint32 mixed_account_branch = 15;
-	uint32 mixed_split_account = 16;
-	uint32 change_account = 17;
-	string vsp_host = 18;
-	string vsp_pubkey = 19;
-	bool use_voting_account = 20;
-	uint32 voting_account = 21;
+	uint32 expiry = 7;
+	int64 tx_fee = 8;
+	int64 ticket_fee = 9;
+	bool dont_sign_tx = 10;
+	string cspp_server = 11;
+	uint32 mixed_account = 12;
+	uint32 mixed_account_branch = 13;
+	uint32 mixed_split_account = 14;
+	uint32 change_account = 15;
+	string vsp_host = 16;
+	string vsp_pubkey = 17;
+	bool use_voting_account = 18;
+	uint32 voting_account = 19;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;
@@ -913,16 +911,14 @@ message RunTicketBuyerRequest {
 	uint32 voting_account = 3;
 	int64 balance_to_maintain = 4;
 	string voting_address = 5;
-	string pool_address = 6;
-	double pool_fees = 7;
-	string vsp_host = 8;
-	string vsp_pubkey = 9;
-	int32 limit = 10;
-	string cspp_server = 11;
-	uint32 mixed_account = 12;
-	uint32 mixed_account_branch = 13;
-	uint32 mixed_split_account = 14;
-	uint32 change_account = 15;
+	string vsp_host = 6;
+	string vsp_pubkey = 7;
+	int32 limit = 8;
+	string cspp_server = 9;
+	uint32 mixed_account = 10;
+	uint32 mixed_account_branch = 11;
+	uint32 mixed_split_account = 12;
+	uint32 change_account = 13;
 }
 
 message RunTicketBuyerResponse {}

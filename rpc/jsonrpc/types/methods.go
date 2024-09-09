@@ -682,8 +682,6 @@ type PurchaseTicketCmd struct {
 	MinConf       *int    `jsonrpcdefault:"1"`
 	TicketAddress *string
 	NumTickets    *int `jsonrpcdefault:"1"`
-	PoolAddress   *string
-	PoolFees      *float64
 	Expiry        *int
 	Comment       *string
 	DontSignTx    *bool
@@ -691,7 +689,7 @@ type PurchaseTicketCmd struct {
 
 // NewPurchaseTicketCmd creates a new PurchaseTicketCmd.
 func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
-	ticketAddress *string, numTickets *int, poolAddress *string, poolFees *float64,
+	ticketAddress *string, numTickets *int,
 	expiry *int, comment *string) *PurchaseTicketCmd {
 	return &PurchaseTicketCmd{
 		FromAccount:   fromAccount,
@@ -699,8 +697,6 @@ func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
 		MinConf:       minConf,
 		TicketAddress: ticketAddress,
 		NumTickets:    numTickets,
-		PoolAddress:   poolAddress,
-		PoolFees:      poolFees,
 		Expiry:        expiry,
 		Comment:       comment,
 	}

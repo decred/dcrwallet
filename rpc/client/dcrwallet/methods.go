@@ -245,8 +245,8 @@ func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string, amount
 // parameter.
 func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
 	spendLimit dcrutil.Amount, minConf *int, ticketAddress stdaddr.Address,
-	numTickets *int, poolAddress stdaddr.Address, poolFees *dcrutil.Amount,
-	expiry *int, ticketChange *bool, ticketFee *dcrutil.Amount) ([]*chainhash.Hash, error) {
+	numTickets *int, expiry *int, ticketChange *bool,
+	ticketFee *dcrutil.Amount) ([]*chainhash.Hash, error) {
 
 	params := make([]any, 2, 10)
 	params[0] = fromAccount
@@ -268,8 +268,6 @@ func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
 	addParam(minConf != nil, func() any { return *minConf })
 	addParam(ticketAddress != nil, func() any { return ticketAddress.String() })
 	addParam(numTickets != nil, func() any { return *numTickets })
-	addParam(poolAddress != nil, func() any { return poolAddress.String() })
-	addParam(poolFees != nil, func() any { return poolFees.ToCoin() })
 	addParam(expiry != nil, func() any { return *expiry })
 	addParam(ticketChange != nil, func() any { return *ticketChange })
 	addParam(ticketFee != nil, func() any { return ticketFee.ToCoin() })
