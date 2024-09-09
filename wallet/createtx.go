@@ -1552,7 +1552,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				addrVote = w.ticketAddress
 			}
 			if addrVote == nil {
-				addrVote, _, err = stakeAddrFunc(op, req.VotingAccount, 1)
+				addrVote, _, err = stakeAddrFunc(op, req.SourceAccount, 1)
 				if err != nil {
 					return nil, err
 				}
