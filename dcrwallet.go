@@ -364,12 +364,12 @@ func run(ctx context.Context) error {
 				c.ChangeAccount = changeAccount
 				c.VSP = vspClient
 			})
-			log.Infof("Starting auto transaction creator")
+			log.Infof("Starting auto ticker buyer (mixing=%t)", cfg.Mixing)
 			tbdone := make(chan struct{})
 			go func() {
 				err := tb.Run(ctx, passphrase)
 				if err != nil && !errors.Is(err, context.Canceled) {
-					log.Errorf("Transaction creator ended: %v", err)
+					log.Errorf("Auto ticker buyer ended: %v", err)
 				}
 				tbdone <- struct{}{}
 			}()
