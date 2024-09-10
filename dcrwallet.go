@@ -166,10 +166,8 @@ func run(ctx context.Context) error {
 	// --noinitialload is not set, this function is responsible for loading the
 	// wallet.  Otherwise, loading is deferred so it can be performed over RPC.
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
-	stakeOptions := &ldr.StakeOptions{
-		VotingEnabled: cfg.EnableVoting,
-	}
-	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
+
+	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
 		cfg.ManualTickets, cfg.MixSplitLimit)
