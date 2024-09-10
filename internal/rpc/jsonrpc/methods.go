@@ -5525,7 +5525,7 @@ func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 }
 
 func (s *Server) mixAccount(ctx context.Context, icmd any) (any, error) {
-	if s.cfg.Mixing {
+	if !s.cfg.Mixing {
 		return nil, errors.E("Mixing is not configured")
 	}
 	w, ok := s.walletLoader.LoadedWallet()
