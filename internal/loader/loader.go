@@ -37,7 +37,7 @@ type Loader struct {
 	wallet      *wallet.Wallet
 	db          wallet.DB
 
-	stakeOptions            *StakeOptions
+	votingEnabled           bool
 	gapLimit                uint32
 	watchLast               uint32
 	accountGapLimit         int
@@ -51,20 +51,15 @@ type Loader struct {
 	mu sync.Mutex
 }
 
-// StakeOptions contains the various options necessary for stake mining.
-type StakeOptions struct {
-	VotingEnabled bool
-}
-
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, stakeOptions *StakeOptions, gapLimit uint32,
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int,
 	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
 		dbDirPath:               dbDirPath,
-		stakeOptions:            stakeOptions,
+		votingEnabled:           votingEnabled,
 		gapLimit:                gapLimit,
 		watchLast:               watchLast,
 		accountGapLimit:         accountGapLimit,
@@ -167,11 +162,10 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 	}
 
 	// Open the watch-only wallet.
-	so := l.stakeOptions
 	cfg := &wallet.Config{
 		DB:                      db,
 		PubPassphrase:           pubPass,
-		VotingEnabled:           so.VotingEnabled,
+		VotingEnabled:           l.votingEnabled,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -256,11 +250,10 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 	}
 
 	// Open the newly-created wallet.
-	so := l.stakeOptions
 	cfg := &wallet.Config{
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
-		VotingEnabled:           so.VotingEnabled,
+		VotingEnabled:           l.votingEnabled,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -313,11 +306,10 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		}
 	}()
 
-	so := l.stakeOptions
 	cfg := &wallet.Config{
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
-		VotingEnabled:           so.VotingEnabled,
+		VotingEnabled:           l.votingEnabled,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,

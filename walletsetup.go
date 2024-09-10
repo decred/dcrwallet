@@ -112,10 +112,7 @@ func displaySimnetMiningAddrs(seed []byte, imported bool) error {
 // to do the initial sync.
 func createWallet(ctx context.Context, cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
-	stakeOptions := &loader.StakeOptions{
-		VotingEnabled: cfg.EnableVoting,
-	}
-	loader := loader.NewLoader(activeNet.Params, dbDir, stakeOptions,
+	loader := loader.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
 		cfg.ManualTickets, cfg.MixSplitLimit)
