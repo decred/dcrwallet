@@ -168,8 +168,6 @@ type config struct {
 	IssueClientCert   bool  `long:"issueclientcert" description:"Notify a client cert and key over the TX pipe for RPC authentication"`
 
 	// CSPP
-	CSPPServer         string                  `long:"csppserver" description:"(deprecated) Network address of CoinShuffle++ server"`
-	CSPPServerCA       string                  `long:"csppserver.ca" description:"(deprecated) CoinShuffle++ TLS Certificate Authority"`
 	Mixing             bool                    `long:"mixing" description:"Enable mixing support"`
 	CSPPSolver         *cfgutil.ExplicitString `long:"csppsolver" description:"Path to CSPP solver executable (if not in PATH)"`
 	MixedAccount       string                  `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
@@ -736,14 +734,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				return nil, errors.Errorf("proxy lookup for %v: %w", host, err)
 			}
 			return ip, nil
-		}
-	}
-
-	if cfg.CSPPServer != "" {
-		log.Warnf("--csppserver option is deprecated; set --mixing instead")
-		if !cfg.Mixing {
-			log.Warnf("Enabling --mixing option due to --csppserver being configured")
-			cfg.Mixing = true
 		}
 	}
 

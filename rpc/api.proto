@@ -636,7 +636,7 @@ message PurchaseTicketsRequest {
 	int64 tx_fee = 7;
 	int64 ticket_fee = 8;
 	bool dont_sign_tx = 9;
-	string cspp_server = 10;
+	bool enable_mixing = 10;
 	uint32 mixed_account = 11;
 	uint32 mixed_account_branch = 12;
 	uint32 mixed_split_account = 13;
@@ -897,7 +897,7 @@ message RunTicketBuyerRequest {
 	string vsp_host = 5;
 	string vsp_pubkey = 6;
 	int32 limit = 7;
-	string cspp_server = 8;
+	bool enable_mixing = 8;
 	uint32 mixed_account = 9;
 	uint32 mixed_account_branch = 10;
 	uint32 mixed_split_account = 11;
@@ -911,7 +911,6 @@ message RunAccountMixerRequest {
 	uint32 mixed_account = 2;
 	uint32 mixed_account_branch = 3;
 	uint32 change_account = 4;
-	string cspp_server = 5;
 }
 
 message RunAccountMixerResponse {}
