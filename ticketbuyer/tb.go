@@ -13,7 +13,6 @@ import (
 	"decred.org/dcrwallet/v5/vsp"
 	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -26,14 +25,11 @@ type Config struct {
 	// Account to buy tickets from
 	Account uint32
 
-	// Account to derive voting addresses from; overridden by VotingAddr
+	// Account to derive voting addresses from
 	VotingAccount uint32
 
 	// Minimum amount to maintain in purchasing account
 	Maintain dcrutil.Amount
-
-	// Address to assign voting rights; overrides VotingAccount
-	VotingAddr stdaddr.StakeAddress
 
 	// Limit maximum number of purchased tickets per block
 	Limit int
@@ -51,8 +47,8 @@ type Config struct {
 }
 
 // TB is an automated ticket buyer, buying as many tickets as possible given an
-// account's available balance.  TB may be configured to buy tickets for any
-// arbitrary voting address or (optional) stakepool.
+// account's available balance. TB may optionally be configured to register
+// purchased tickets with a VSP.
 type TB struct {
 	wallet *wallet.Wallet
 
@@ -234,7 +230,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	// Read config
 	account := cfg.Account
 	maintain := cfg.Maintain
-	votingAddr := cfg.VotingAddr
 	limit := cfg.Limit
 	mixing := cfg.Mixing
 	votingAccount := cfg.VotingAccount
@@ -287,7 +282,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
 		Count:         buy,
 		SourceAccount: account,
-		VotingAddress: votingAddr,
 		MinConf:       minconf,
 		Expiry:        expiry,
 

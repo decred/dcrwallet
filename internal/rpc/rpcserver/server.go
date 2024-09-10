@@ -1794,21 +1794,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	minConf := int32(req.RequiredConfirmations)
-	params := s.wallet.ChainParams()
 
-	var ticketAddr stdaddr.StakeAddress
 	var err error
 
 	n, err := s.wallet.NetworkBackend()
 	if err != nil {
 		return nil, err
-	}
-
-	if req.TicketAddress != "" {
-		ticketAddr, err = decodeStakeAddress(req.TicketAddress, params)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// new vspd request
@@ -1893,7 +1884,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	request := &wallet.PurchaseTicketsRequest{
 		Count:            numTickets,
 		SourceAccount:    req.Account,
-		VotingAddress:    ticketAddr,
 		MinConf:          minConf,
 		Expiry:           expiry,
 		DontSignTx:       dontSignTx,
@@ -2624,21 +2614,11 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 	if !ok {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
 	}
-	params := wallet.ChainParams()
 
 	ctx := svr.Context()
-	// Legacy vsp request. After stopping supporting the old vsp version, this
-	// code can be removed.
-	// Confirm validity of provided voting addresses and pool addresses.
-	var votingAddress stdaddr.StakeAddress
-	var err error
-	if req.VotingAddress != "" {
-		votingAddress, err = decodeStakeAddress(req.VotingAddress, params)
-		if err != nil {
-			return err
-		}
-	}
+
 	// new vspd request
+	var err error
 	var vspHost string
 	var vspPubKey string
 	var vspClient *vsp.Client
@@ -2715,7 +2695,6 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		Account:            req.Account,
 		VotingAccount:      req.VotingAccount,
 		Maintain:           dcrutil.Amount(req.BalanceToMaintain),
-		VotingAddr:         votingAddress,
 		VSP:                vspClient,
 		Mixing:             csppServer != "",
 		MixedAccount:       mixedAccount,

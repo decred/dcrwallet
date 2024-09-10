@@ -16,7 +16,6 @@ import (
 	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb" // driver loaded during init
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
 const (
@@ -55,7 +54,6 @@ type Loader struct {
 // StakeOptions contains the various options necessary for stake mining.
 type StakeOptions struct {
 	VotingEnabled bool
-	VotingAddress stdaddr.StakeAddress
 }
 
 // NewLoader constructs a Loader.
@@ -174,7 +172,6 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		DB:                      db,
 		PubPassphrase:           pubPass,
 		VotingEnabled:           so.VotingEnabled,
-		VotingAddress:           so.VotingAddress,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -264,7 +261,6 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
-		VotingAddress:           so.VotingAddress,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
@@ -322,7 +318,6 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		DB:                      db,
 		PubPassphrase:           pubPassphrase,
 		VotingEnabled:           so.VotingEnabled,
-		VotingAddress:           so.VotingAddress,
 		GapLimit:                l.gapLimit,
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,

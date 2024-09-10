@@ -1146,11 +1146,9 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 var errVSPFeeRequiresUTXOSplit = errors.New("paying VSP fee requires UTXO split")
 
 // purchaseTickets indicates to the wallet that a ticket should be purchased
-// using all currently available funds.  The ticket address parameter in the
-// request can be nil in which case the ticket address associated with the
-// wallet instance will be used.  Also, when the spend limit in the request is
-// greater than or equal to 0, tickets that cost more than that limit will
-// return an error that not enough funds are available.
+// using all currently available funds.   Also, when the spend limit in the
+// request is greater than or equal to 0, tickets that cost more than that limit
+// will return an error that not enough funds are available.
 func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	n NetworkBackend, req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	// Ensure the minimum number of required confirmations is positive.
@@ -1206,18 +1204,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, err
 	}
 
-	var stakeSubmissionPkScriptSize int
-
-	// The stake submission pkScript is tagged by an OP_SSTX.
-	switch req.VotingAddress.(type) {
-	case *stdaddr.AddressScriptHashV0:
-		stakeSubmissionPkScriptSize = txsizes.P2SHPkScriptSize + 1
-	case *stdaddr.AddressPubKeyHashEcdsaSecp256k1V0, PubKeyHashAddress, nil:
-		stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
-	default:
-		return nil, errors.E(op, errors.Invalid,
-			"ticket address must either be P2SH or P2PKH")
-	}
+	const stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 
 	// Make sure that we have enough funds. Calculate different
 	// ticket required amounts depending on whether or not a
@@ -1521,15 +1508,9 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			PrevOut:  *txOut,
 		}
 
-		// If the user hasn't specified a voting address
-		// to delegate voting to, just use an address from
-		// this wallet. Check the passed address from the
-		// request first, then check the ticket address
-		// stored from the configuation. Finally, generate
-		// an address.
 		var addrVote stdaddr.StakeAddress
 
-		// If req.UseVotingAccount is true, always take the submission
+		// If req.UseVotingAccount is true, derive the submission
 		// script's address from the voting account. This is intended
 		// to be used with a special account type. The signing address
 		// for the same index is saved to the database. That address is
@@ -1547,15 +1528,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 				return nil, err
 			}
 		} else {
-			addrVote = req.VotingAddress
-			if addrVote == nil && req.Mixing {
-				addrVote = w.ticketAddress
-			}
-			if addrVote == nil {
-				addrVote, _, err = stakeAddrFunc(op, req.SourceAccount, 1)
-				if err != nil {
-					return nil, err
-				}
+			// If the user hasn't specified a voting account, derive a voting
+			// address from the purchasing account.
+			addrVote, _, err = stakeAddrFunc(op, req.SourceAccount, 1)
+			if err != nil {
+				return nil, err
 			}
 		}
 		subsidyAccount := req.SourceAccount

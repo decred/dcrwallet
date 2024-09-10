@@ -146,7 +146,6 @@ type Wallet struct {
 	logRescannedTransactionsMu sync.Mutex
 
 	// Internal address handling.
-	ticketAddress    stdaddr.StakeAddress
 	addressBuffers   map[uint32]*bip0044AccountData
 	addressBuffersMu sync.Mutex
 
@@ -180,7 +179,6 @@ type Config struct {
 	PubPassphrase []byte
 
 	VotingEnabled bool
-	VotingAddress stdaddr.StakeAddress
 
 	GapLimit                uint32
 	WatchLast               uint32
@@ -1545,10 +1543,9 @@ func (w *Wallet) CreateMultisigTx(ctx context.Context, account uint32, amount dc
 type PurchaseTicketsRequest struct {
 	Count            int
 	SourceAccount    uint32
-	VotingAddress    stdaddr.StakeAddress
 	MinConf          int32
 	Expiry           int32
-	VotingAccount    uint32 // Used when VotingAddress == nil, or Mixing == true
+	VotingAccount    uint32 // Used when Mixing == true
 	UseVotingAccount bool   // Forces use of supplied voting account.
 	DontSignTx       bool
 
@@ -5383,7 +5380,6 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		// StakeOptions
 		votingEnabled:      cfg.VotingEnabled,
-		ticketAddress:      cfg.VotingAddress,
 		tspends:            make(map[chainhash.Hash]wire.MsgTx),
 		tspendPolicy:       make(map[chainhash.Hash]stake.TreasuryVoteT),
 		tspendKeyPolicy:    make(map[string]stake.TreasuryVoteT),

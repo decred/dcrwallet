@@ -27,7 +27,6 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/go-socks/socks"
 	"github.com/decred/slog"
 	flags "github.com/jessevdk/go-flags"
@@ -187,11 +186,9 @@ type config struct {
 }
 
 type ticketBuyerOptions struct {
-	BalanceToMaintainAbsolute *cfgutil.AmountFlag  `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
-	VotingAddress             *cfgutil.AddressFlag `long:"votingaddress" description:"Purchase tickets with voting rights assigned to this address"`
-	votingAddress             stdaddr.StakeAddress
-	Limit                     uint   `long:"limit" description:"Buy no more than specified number of tickets per block"`
-	VotingAccount             string `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
+	BalanceToMaintainAbsolute *cfgutil.AmountFlag `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
+	Limit                     uint                `long:"limit" description:"Buy no more than specified number of tickets per block"`
+	VotingAccount             string              `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
 }
 
 type vspOptions struct {
@@ -386,7 +383,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
 			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
-			VotingAddress:             cfgutil.NewAddressFlag(),
 			Limit:                     defaultTicketbuyerLimit,
 		},
 
@@ -545,21 +541,6 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	if cfg.DebugLevel == "show" {
 		fmt.Println("Supported subsystems", supportedSubsystems())
 		os.Exit(0)
-	}
-
-	// Check that no addresses were created for the wrong network
-	for _, a := range []struct {
-		flag *cfgutil.AddressFlag
-		addr *stdaddr.StakeAddress
-	}{
-		{cfg.TBOpts.VotingAddress, &cfg.TBOpts.votingAddress},
-	} {
-		addr, err := a.flag.StakeAddress(activeNet.Params)
-		if err != nil {
-			log.Error(err)
-			return loadConfigError(err)
-		}
-		*a.addr = addr
 	}
 
 	// Parse, validate, and set debug log level(s).

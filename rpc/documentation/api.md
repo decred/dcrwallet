@@ -1735,7 +1735,7 @@ address for voting rights, and can additionally be used in conjunction with a
 VSP. An expiration value can be set for the tickets. Expired tickets are
 pruned from the wallet and funds and then restored to the user. The following
 fields can be left unset, and unset (empty or zero) behavior is given below:
-ticket_address, expiry, tx_fee, ticket_fee.
+expiry, tx_fee, ticket_fee.
 
 **Request:** `PurchaseTicketsRequest`
 
@@ -1749,9 +1749,6 @@ ticket_address, expiry, tx_fee, ticket_fee.
 - `uint32 required_confirmations`: The number of required confirmations for
   funds used to purchase a ticket. If set to zero, it will use unconfirmed and
   confirmed outputs to purchase tickets.
-
-- `string ticket_address`: The address to give voting rights to. If it is set
-  to an empty string, an internal address will be used from the wallet.
 
 - `uint32 num_tickets`: The number of tickets to purchase. It must be set and
   at least 1.
@@ -1805,8 +1802,6 @@ ___
 - `InvalidArgument`: The spent limit was negative.
 
 - `InvalidArgument`: An invalid number of tickets was specified.
-
-- `InvalidArgument`: An invalid ticket address was specified.
 
 - `InvalidArgument`: An invalid pool address was specified.
 
@@ -2803,19 +2798,15 @@ The users may specify a balance to maintain.
 
 - `uint32 account`: The account number from which to purchase the tickets.
 
-- `uint32 voting_account`: The account that will be used for the voting address (if no voting address is specified.) 
+- `uint32 voting_account`: The account that will be used to derive voting addresses.
 
 - `int64 balance_to_maintain`: When set, the account will purchase as many tickets as possible without going under this amount.
-
-- `string voting_address`: The address to give the tickets purchased voting rights.
 
 **Response:** `stream RunTicketBuyerResponse`
 
 **Expected errors:**
 
 - `FailedPrecondition`: Wallet has not been loaded.
-
-- `InvalidArgument`: An invalid voting address was used.
 
 - `InvalidArgument`: An invalid pool address was used.
 
