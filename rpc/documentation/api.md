@@ -1766,7 +1766,7 @@ expiry, tx_fee, ticket_fee.
 
 - `bool dont_sign_tx`: If the tickets tx should be signed or not.
 
-- `string cspp_server`: The cspp server to use.
+- `bool mixing_enabled`: Enable mixed ticket purchasing.
 
 - `uint32 mixed_account`: The mixed account.
 
@@ -2836,8 +2836,6 @@ The `RunAccountMixer` starts a new account mixer for the specified account (and 
 - `uint32 mixed_account_branch`: The branch number to which the mixing funds should end up.
 
 - `uint32 change_account`: The account that will be used for any unmixed change that is waiting to be mixed.
-
-- `string cspp_server`: The CSPP mixing server URL and port.
 
 **Response:** `stream RunAccountMixerResponse`
 

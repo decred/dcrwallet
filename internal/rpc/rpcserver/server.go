@@ -1849,19 +1849,17 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 
 	dontSignTx := req.DontSignTx
 
-	var csppServer string
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
 	var changeAccount = req.ChangeAccount
 
-	if req.CsppServer != "" {
-		csppServer = req.CsppServer
+	if req.EnableMixing {
 		mixedAccount = req.MixedAccount
 		_, err = s.wallet.AccountName(ctx, mixedAccount)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on mixed account: %v", err)
+				"Mixing requested, but error on mixed account: %v", err)
 		}
 		mixedAccountBranch = req.MixedAccountBranch
 		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
@@ -1872,12 +1870,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		_, err = s.wallet.AccountName(ctx, mixedSplitAccount)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+				"Mixing requested, but error on mixedSplitAccount: %v", err)
 		}
 		_, err = s.wallet.AccountName(ctx, changeAccount)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on changeAccount: %v", err)
+				"Mixing requested, but error on changeAccount: %v", err)
 		}
 	}
 
@@ -1891,7 +1889,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		VotingAccount:    req.VotingAccount,
 
 		// CSPP
-		Mixing:             csppServer != "",
+		Mixing:             req.EnableMixing,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
@@ -2562,7 +2560,7 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 	}
 
 	tb := ticketbuyer.New(wallet, ticketbuyer.Config{
-		Mixing:             req.CsppServer != "",
+		Mixing:             true,
 		MixedAccountBranch: req.MixedAccountBranch,
 		MixedAccount:       req.MixedAccount,
 		ChangeAccount:      req.ChangeAccount,
@@ -2652,21 +2650,19 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		return status.Errorf(codes.InvalidArgument, "Negative balance to maintain given")
 	}
 
-	var csppServer string
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
 	var changeAccount = req.ChangeAccount
 	var mixedChange = false
 
-	if req.CsppServer != "" {
+	if req.EnableMixing {
 		mixedChange = true
-		csppServer = req.CsppServer
 		mixedAccount = req.MixedAccount
 		_, err = wallet.AccountName(ctx, mixedAccount)
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on mixed account: %v", err)
+				"Mixing requested, but error on mixed account: %v", err)
 		}
 		mixedAccountBranch = req.MixedAccountBranch
 		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
@@ -2677,12 +2673,12 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		_, err = wallet.AccountName(ctx, mixedSplitAccount)
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+				"Mixing requested, but error on mixedSplitAccount: %v", err)
 		}
 		_, err = wallet.AccountName(ctx, changeAccount)
 		if err != nil {
 			return status.Errorf(codes.InvalidArgument,
-				"CSPP Server set, but error on changeAccount: %v", err)
+				"Mixing requested, but error on changeAccount: %v", err)
 		}
 	}
 
@@ -2696,7 +2692,7 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		VotingAccount:      req.VotingAccount,
 		Maintain:           dcrutil.Amount(req.BalanceToMaintain),
 		VSP:                vspClient,
-		Mixing:             csppServer != "",
+		Mixing:             req.EnableMixing,
 		MixedAccount:       mixedAccount,
 		MixChange:          mixedChange,
 		ChangeAccount:      changeAccount,

@@ -3314,7 +3314,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		dontSignTx = *cmd.DontSignTx
 	}
 
-	var mixing bool
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
@@ -3323,11 +3322,10 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	var changeAccount = account
 
 	if s.cfg.Mixing {
-		mixing = true
 		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"CSPP Server set, but error on mixed account: %v", err)
+				"Mixing enabled, but error on mixed account: %v", err)
 		}
 		mixedAccountBranch = s.cfg.MixBranch
 		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
@@ -3337,12 +3335,12 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		mixedSplitAccount, err = w.AccountNumber(ctx, s.cfg.TicketSplitAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"CSPP Server set, but error on mixedSplitAccount: %v", err)
+				"Mixing enabled, but error on mixedSplitAccount: %v", err)
 		}
 		changeAccount, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-				"CSPP Server set, but error on changeAccount: %v", err)
+				"Mixing enabled, but error on changeAccount: %v", err)
 		}
 	}
 
@@ -3375,7 +3373,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		DontSignTx:    dontSignTx,
 
 		// CSPP
-		Mixing:             mixing,
+		Mixing:             s.cfg.Mixing,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
