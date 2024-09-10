@@ -675,7 +675,6 @@ var helpDescsEnUS = map[string]string{
 	"purchaseticket-spendlimit":         "Limit on the amount to spend on ticket",
 	"purchaseticket-fromaccount":        "The account to use for purchase (default=\"default\")",
 	"purchaseticket-minconf":            "Minimum number of block confirmations required",
-	"purchaseticket-ticketaddress":      "Override the ticket address to which voting rights are given",
 	"purchaseticket-numtickets":         "The number of tickets to purchase",
 	"purchaseticket-expiry":             "Height at which the purchase tickets expire",
 	"purchaseticket-nosplittransaction": "Use ticket purchase change outputs instead of a split transaction",

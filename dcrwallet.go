@@ -168,7 +168,6 @@ func run(ctx context.Context) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	stakeOptions := &ldr.StakeOptions{
 		VotingEnabled: cfg.EnableVoting,
-		VotingAddress: cfg.TBOpts.votingAddress,
 	}
 	loader := ldr.NewLoader(activeNet.Params, dbDir, stakeOptions,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
@@ -310,8 +309,6 @@ func run(ctx context.Context) error {
 				mixedAccount       uint32 // (enableticketbuyer && mixing) || mixchange
 				changeAccount      uint32 // (enableticketbuyer && mixing) || mixchange
 				ticketSplitAccount uint32 // enableticketbuyer && mixing
-
-				votingAddr = cfg.TBOpts.votingAddress
 			)
 			if cfg.EnableTicketBuyer {
 				purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
@@ -323,7 +320,6 @@ func run(ctx context.Context) error {
 				}
 				if cfg.TBOpts.VotingAccount != "" {
 					votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
-					votingAddr = nil
 				}
 			}
 			if (cfg.EnableTicketBuyer && cfg.Mixing) || cfg.MixChange {
@@ -345,7 +341,6 @@ func run(ctx context.Context) error {
 				BuyTickets:         cfg.EnableTicketBuyer,
 				Account:            purchaseAccount,
 				Maintain:           cfg.TBOpts.BalanceToMaintainAbsolute.Amount,
-				VotingAddr:         votingAddr,
 				Limit:              int(cfg.TBOpts.Limit),
 				VotingAccount:      votingAccount,
 				Mixing:             cfg.Mixing,

@@ -3296,16 +3296,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		}
 	}
 
-	// Set ticket address if specified.
-	var ticketAddr stdaddr.StakeAddress
-	if cmd.TicketAddress != nil && *cmd.TicketAddress != "" {
-		addr, err := decodeStakeAddress(*cmd.TicketAddress, w.ChainParams())
-		if err != nil {
-			return nil, err
-		}
-		ticketAddr = addr
-	}
-
 	numTickets := 1
 	if cmd.NumTickets != nil {
 		if *cmd.NumTickets > 1 {
@@ -3380,7 +3370,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	request := &wallet.PurchaseTicketsRequest{
 		Count:         numTickets,
 		SourceAccount: account,
-		VotingAddress: ticketAddr,
 		MinConf:       minConf,
 		Expiry:        expiry,
 		DontSignTx:    dontSignTx,

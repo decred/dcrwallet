@@ -677,28 +677,25 @@ func NewLockUnspentCmd(unlock bool, transactions []dcrdtypes.TransactionInput) *
 // PurchaseTicketCmd is a type handling custom marshaling and
 // unmarshaling of purchaseticket JSON RPC commands.
 type PurchaseTicketCmd struct {
-	FromAccount   string
-	SpendLimit    float64 // In Coins
-	MinConf       *int    `jsonrpcdefault:"1"`
-	TicketAddress *string
-	NumTickets    *int `jsonrpcdefault:"1"`
-	Expiry        *int
-	Comment       *string
-	DontSignTx    *bool
+	FromAccount string
+	SpendLimit  float64 // In Coins
+	MinConf     *int    `jsonrpcdefault:"1"`
+	NumTickets  *int    `jsonrpcdefault:"1"`
+	Expiry      *int
+	Comment     *string
+	DontSignTx  *bool
 }
 
 // NewPurchaseTicketCmd creates a new PurchaseTicketCmd.
 func NewPurchaseTicketCmd(fromAccount string, spendLimit float64, minConf *int,
-	ticketAddress *string, numTickets *int,
-	expiry *int, comment *string) *PurchaseTicketCmd {
+	numTickets *int, expiry *int, comment *string) *PurchaseTicketCmd {
 	return &PurchaseTicketCmd{
-		FromAccount:   fromAccount,
-		SpendLimit:    spendLimit,
-		MinConf:       minConf,
-		TicketAddress: ticketAddress,
-		NumTickets:    numTickets,
-		Expiry:        expiry,
-		Comment:       comment,
+		FromAccount: fromAccount,
+		SpendLimit:  spendLimit,
+		MinConf:     minConf,
+		NumTickets:  numTickets,
+		Expiry:      expiry,
+		Comment:     comment,
 	}
 }
 
