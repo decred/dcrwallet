@@ -105,7 +105,8 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			// the tip block.
 			rp, err := w.RescanPoint(ctx)
 			if err != nil {
-				return err
+				log.Debugf("Skipping autobuyer actions: RescanPoint err: %v", err)
+				continue
 			}
 			if rp != nil {
 				log.Debugf("Skipping autobuyer actions: transactions are not synced")
