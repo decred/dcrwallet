@@ -331,7 +331,8 @@ type BirthdayState struct {
 	SetFromHeight, SetFromTime bool
 }
 
-// SetBirthState sets the birthday state in the database.
+// SetBirthState sets the birthday state in the database. *BirthdayState must
+// not be nil.
 //
 // [0:1] Options (1 byte)
 // [1:33]  Birthblock block header hash (32 bytes)
@@ -361,7 +362,8 @@ func SetBirthState(dbtx walletdb.ReadWriteTx, bs *BirthdayState) error {
 	return ns.Put(rootBirthState, v)
 }
 
-// BirthState returns the current birthday state.
+// BirthState returns the current birthday state. Will return nil if none has
+// been set.
 func BirthState(dbtx walletdb.ReadTx) *BirthdayState {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	const (

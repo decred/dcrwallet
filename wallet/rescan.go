@@ -494,9 +494,13 @@ func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
 	return &rescanPoint, nil
 }
 
-// SetBirthState sets the birthday state in the database.
+// SetBirthState sets the birthday state in the database. This should be called
+// before syncing is started.
 func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error {
 	const op errors.Op = "wallet.SetBirthState"
+	if bs == nil {
+		return errors.E(op, errors.Invalid, "nil birthday state")
+	}
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		return udb.SetBirthState(dbtx, bs)
 	})
@@ -506,7 +510,8 @@ func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error
 	return nil
 }
 
-// BirthState returns the birthday state.
+// BirthState returns the birthday state. Will return a nil state if none has
+// been set.
 func (w *Wallet) BirthState(ctx context.Context) (bs *udb.BirthdayState, err error) {
 	const op errors.Op = "wallet.BirthState"
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {

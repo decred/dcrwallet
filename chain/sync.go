@@ -627,6 +627,10 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		log.Infof("Transactions synced through block %v height %d", &tipHash, tipHeight)
 	}
 
+	if err := s.wallet.CheckBirthState(ctx, rescanPoint); err != nil {
+		return err
+	}
+
 	err = s.waitRPCSync(ctx, int64(tipHeight))
 	if err != nil {
 		return err
