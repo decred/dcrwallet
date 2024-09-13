@@ -1065,7 +1065,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	if change != nil && dcrutil.Amount(change.Value) < smallestMixChange(relayFee) {
 		change = nil
 	}
-	gen := w.makeGen(ctx, req.MixedAccount, req.MixedAccountBranch)
+	gen := w.makeGen(ctx, req.MixedSplitAccount, req.MixedAccountBranch)
 	expires := w.dicemixExpiry(ctx)
 	cj := mixclient.NewCoinJoin(gen, change, int64(neededPerTicket), expires, uint32(req.Count))
 	for i, in := range atx.Tx.TxIn {
