@@ -1510,13 +1510,13 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 
 		var addrVote stdaddr.StakeAddress
 
-		// If req.UseVotingAccount is true, derive the submission
-		// script's address from the voting account. This is intended
-		// to be used with a special account type. The signing address
-		// for the same index is saved to the database. That address is
-		// later used to sign messages sent to a vspd related to this
-		// ticket.
-		if req.UseVotingAccount {
+		// If req.Mixing or req.UseVotingAccount is true, derive the
+		// submission script's address from the voting account. This
+		// is intended to be used with a special account type. The
+		// signing address for the same index is saved to the
+		// database. That address is later used to sign messages sent
+		// to a vspd related to this ticket.
+		if req.Mixing || req.UseVotingAccount {
 			var idx uint32
 			addrVote, idx, err = stakeAddrFunc(op, req.VotingAccount, 1)
 			if err != nil {
