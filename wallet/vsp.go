@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package vsp
+package wallet
 
 import (
 	"context"
@@ -14,10 +14,8 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/wallet"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
-	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
@@ -27,25 +25,24 @@ import (
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
-type Policy struct {
+type VSPPolicy struct {
 	MaxFee     dcrutil.Amount
 	ChangeAcct uint32 // to derive fee addresses
 	FeeAcct    uint32 // to pay fees from, if inputs are not provided to Process
 }
 
-type Client struct {
-	wallet *wallet.Wallet
-	policy *Policy
+type VSPClient struct {
+	wallet *Wallet
+	policy *VSPPolicy
 	*vspd.Client
 
 	mu   sync.Mutex
-	jobs map[chainhash.Hash]*feePayment
+	jobs map[chainhash.Hash]*vspFeePayment
 
-	log    slog.Logger
-	params *chaincfg.Params
+	log slog.Logger
 }
 
-type Config struct {
+type VSPClientConfig struct {
 	// URL specifies the base URL of the VSP
 	URL string
 
@@ -55,17 +52,12 @@ type Config struct {
 	// Dialer specifies an optional dialer when connecting to the VSP.
 	Dialer DialFunc
 
-	// Wallet specifies a loaded wallet.
-	Wallet *wallet.Wallet
-
 	// Default policy for fee payments unless another is provided by the
 	// caller.
-	Policy *Policy
-
-	Params *chaincfg.Params
+	Policy *VSPPolicy
 }
 
-func New(cfg Config, log slog.Logger) (*Client, error) {
+func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger) (*VSPClient, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -74,36 +66,28 @@ func New(cfg Config, log slog.Logger) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Wallet == nil {
-		return nil, fmt.Errorf("wallet option not set")
-	}
-
-	if cfg.Params == nil {
-		return nil, fmt.Errorf("params option not set")
-	}
 
 	client := &vspd.Client{
 		URL:    u.String(),
 		PubKey: pubKey,
-		Sign:   cfg.Wallet.SignMessage,
+		Sign:   w.SignMessage,
 		Log:    log,
 	}
 	client.Transport = &http.Transport{
 		DialContext: cfg.Dialer,
 	}
 
-	v := &Client{
-		wallet: cfg.Wallet,
+	v := &VSPClient{
+		wallet: w,
 		policy: cfg.Policy,
 		Client: client,
-		jobs:   make(map[chainhash.Hash]*feePayment),
+		jobs:   make(map[chainhash.Hash]*vspFeePayment),
 		log:    log,
-		params: cfg.Params,
 	}
 	return v, nil
 }
 
-func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
+func (c *VSPClient) FeePercentage(ctx context.Context) (float64, error) {
 	resp, err := c.Client.VspInfo(ctx)
 	if err != nil {
 		return -1, err
@@ -113,7 +97,7 @@ func (c *Client) FeePercentage(ctx context.Context) (float64, error) {
 
 // ProcessUnprocessedTickets adds the provided tickets to the client. Noop if
 // a given ticket is already added.
-func (c *Client) ProcessUnprocessedTickets(ctx context.Context, tickets []*wallet.VSPTicket) {
+func (c *VSPClient) ProcessUnprocessedTickets(ctx context.Context, tickets []*VSPTicket) {
 	var wg sync.WaitGroup
 
 	for _, ticket := range tickets {
@@ -127,7 +111,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, tickets []*walle
 
 		// Start processing in the background.
 		wg.Add(1)
-		go func(t *wallet.VSPTicket) {
+		go func(t *VSPTicket) {
 			defer wg.Done()
 			err := c.Process(ctx, t, nil)
 			if err != nil {
@@ -143,7 +127,7 @@ func (c *Client) ProcessUnprocessedTickets(ctx context.Context, tickets []*walle
 // their fee payment process. Noop if a given ticket is already added, or if the
 // ticket is not registered with the VSP. This is used to recover VSP tracking
 // after seed restores.
-func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*wallet.VSPTicket) error {
+func (c *VSPClient) ProcessManagedTickets(ctx context.Context, tickets []*VSPTicket) error {
 	for _, ticket := range tickets {
 		hash := ticket.Hash()
 		c.mu.Lock()
@@ -203,7 +187,7 @@ func (c *Client) ProcessManagedTickets(ctx context.Context, tickets []*wallet.VS
 // the inputs and the fee and change outputs before returning without an error.
 // The fee transaction is also recorded as unpublised in the wallet, and the fee
 // hash is associated with the ticket.
-func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *wire.MsgTx) error {
+func (c *VSPClient) Process(ctx context.Context, ticket *VSPTicket, feeTx *wire.MsgTx) error {
 	vspTicket, err := ticket.VSPTicketInfo(ctx)
 	if err != nil && !errors.Is(err, errors.NotExist) {
 		return err
@@ -275,7 +259,7 @@ func (c *Client) Process(ctx context.Context, ticket *wallet.VSPTicket, feeTx *w
 // preferences, and checks if they match the status of the specified ticket from
 // the connected VSP. The status provides the current voting preferences so we
 // can just update from there if need be.
-func (c *Client) SetVoteChoice(ctx context.Context, ticket *wallet.VSPTicket,
+func (c *VSPClient) SetVoteChoice(ctx context.Context, ticket *VSPTicket,
 	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
 	// Retrieve current voting preferences from VSP.
@@ -344,8 +328,8 @@ func (c *Client) SetVoteChoice(ctx context.Context, ticket *wallet.VSPTicket,
 	return nil
 }
 
-// TicketInfo stores per-ticket info tracked by a VSP Client instance.
-type TicketInfo struct {
+// VSPTicketInfo stores per-ticket info tracked by a VSP Client instance.
+type VSPTicketInfo struct {
 	TicketHash     chainhash.Hash
 	CommitmentAddr stdaddr.StakeAddress
 	VotingAddr     stdaddr.StakeAddress
@@ -361,19 +345,19 @@ type TicketInfo struct {
 //
 // Currently this returns only info about tickets which fee hasn't been paid or
 // confirmed at enough depth to be considered committed to.
-func (c *Client) TrackedTickets() []*TicketInfo {
+func (c *VSPClient) TrackedTickets() []*VSPTicketInfo {
 	// Collect all jobs first, to avoid working under two different locks.
 	c.mu.Lock()
-	jobs := make([]*feePayment, 0, len(c.jobs))
+	jobs := make([]*vspFeePayment, 0, len(c.jobs))
 	for _, job := range c.jobs {
 		jobs = append(jobs, job)
 	}
 	c.mu.Unlock()
 
-	tickets := make([]*TicketInfo, 0, len(jobs))
+	tickets := make([]*VSPTicketInfo, 0, len(jobs))
 	for _, job := range jobs {
 		job.mu.Lock()
-		tickets = append(tickets, &TicketInfo{
+		tickets = append(tickets, &VSPTicketInfo{
 			TicketHash:     *job.ticket.Hash(),
 			CommitmentAddr: job.ticket.CommitmentAddr(),
 			VotingAddr:     job.ticket.VotingAddr(),

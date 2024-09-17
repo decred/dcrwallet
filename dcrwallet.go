@@ -28,7 +28,6 @@ import (
 	"decred.org/dcrwallet/v5/spv"
 	"decred.org/dcrwallet/v5/ticketbuyer"
 	"decred.org/dcrwallet/v5/version"
-	"decred.org/dcrwallet/v5/vsp"
 	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/wire"
@@ -190,7 +189,7 @@ func run(ctx context.Context) error {
 	}()
 
 	// Open the wallet when --noinitialload was not set.
-	var vspClient *vsp.Client
+	var vspClient *wallet.VSPClient
 	passphrase := []byte{}
 	if !cfg.NoInitialLoad {
 		walletPass := []byte(cfg.WalletPass)
@@ -271,19 +270,17 @@ func run(ctx context.Context) error {
 					cfg.PurchaseAccount, err)
 				return err
 			}
-			vspCfg := vsp.Config{
+			vspCfg := wallet.VSPClientConfig{
 				URL:    cfg.VSPOpts.URL,
 				PubKey: cfg.VSPOpts.PubKey,
 				Dialer: cfg.dial,
-				Wallet: w,
-				Policy: &vsp.Policy{
+				Policy: &wallet.VSPPolicy{
 					MaxFee:     cfg.VSPOpts.MaxFee.Amount,
 					FeeAcct:    purchaseAcct,
 					ChangeAcct: changeAcct,
 				},
-				Params: w.ChainParams(),
 			}
-			vspClient, err = ldr.VSP(vspCfg)
+			vspClient, err = w.VSP(vspCfg)
 			if err != nil {
 				log.Errorf("vsp: %v", err)
 				return err

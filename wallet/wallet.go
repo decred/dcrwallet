@@ -170,6 +170,9 @@ type Wallet struct {
 	deploymentsByID    map[string]*chaincfg.ConsensusDeployment
 	minTestNetTarget   *big.Int
 	minTestNetDiffBits uint32
+
+	vspClientsMu sync.Mutex
+	vspClients   map[string]*VSPClient
 }
 
 // Config represents the configuration options needed to initialize a wallet.
@@ -1556,15 +1559,7 @@ type PurchaseTicketsRequest struct {
 	MixedSplitAccount  uint32
 	ChangeAccount      uint32
 
-	// VSPServer methods
-	// XXX this should be an interface
-
-	// VSPFeePercent returns the VSPs fee as a percentage of the vote reward.
-	VSPFeePercent func(context.Context) (float64, error)
-	// VSPFeePaymentProcess checks the fee payment status for the specified
-	// ticket and, if necessary, starts a long-lived handler to process the fee
-	// payment.
-	VSPFeePaymentProcess func(context.Context, *VSPTicket, *wire.MsgTx) error
+	VSPClient *VSPClient
 
 	// extraSplitOutput is an additional transaction output created during
 	// UTXO contention, to be used as the input to pay a VSP fee
@@ -1605,7 +1600,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		return nil, errors.E(op, errors.InsufficientBalance)
 	}
 
-	feePercent, err := req.VSPFeePercent(ctx)
+	feePercent, err := req.VSPClient.FeePercentage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -5409,6 +5404,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		mixSems: newMixSemaphores(cfg.MixSplitLimit),
 		mixing:  !cfg.DisableMixing,
+
+		vspClients: make(map[string]*VSPClient),
 	}
 
 	// Open database managers

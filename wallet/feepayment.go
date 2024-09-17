@@ -2,7 +2,7 @@
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
-package vsp
+package wallet
 
 import (
 	"bytes"
@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/crypto/rand"
@@ -36,13 +35,13 @@ const (
 	unminedJitter  = 2 * time.Minute
 )
 
-type feePayment struct {
-	client *Client
+type vspFeePayment struct {
+	client *VSPClient
 	ctx    context.Context
 
 	// Set at feePayment creation and never changes
-	ticket *wallet.VSPTicket
-	policy *Policy
+	ticket *VSPTicket
+	policy *VSPPolicy
 
 	// Requires locking for all access outside of Client.feePayment
 	mu      sync.Mutex
@@ -69,7 +68,7 @@ const (
 	TicketSpent
 )
 
-func (fp *feePayment) removedExpiredOrSpent() bool {
+func (fp *vspFeePayment) removedExpiredOrSpent() bool {
 	var reason string
 	switch {
 	case fp.ticket.Expired(fp.ctx):
@@ -85,7 +84,7 @@ func (fp *feePayment) removedExpiredOrSpent() bool {
 	return false
 }
 
-func (fp *feePayment) remove(reason string) {
+func (fp *vspFeePayment) remove(reason string) {
 	fp.stop()
 	fp.client.log.Infof("Ticket %v is %s; removing from VSP client", fp.ticket, reason)
 	fp.client.mu.Lock()
@@ -95,7 +94,7 @@ func (fp *feePayment) remove(reason string) {
 
 // feePayment returns an existing managed fee payment, or creates and begins
 // processing a fee payment for a ticket.
-func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidConfirmed bool) (fp *feePayment) {
+func (c *VSPClient) feePayment(ctx context.Context, ticket *VSPTicket, paidConfirmed bool) (fp *vspFeePayment) {
 	ticketHash := ticket.Hash()
 	c.mu.Lock()
 	fp = c.jobs[*ticketHash]
@@ -124,12 +123,12 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 		}
 	}()
 
-	fp = &feePayment{
+	fp = &vspFeePayment{
 		client: c,
 		ctx:    context.Background(),
 		ticket: ticket,
 		policy: c.policy,
-		params: c.params,
+		params: c.wallet.chainParams,
 	}
 
 	// No VSP interaction is required for spent tickets.
@@ -176,7 +175,7 @@ func (c *Client) feePayment(ctx context.Context, ticket *wallet.VSPTicket, paidC
 
 // Schedule a method to be executed.
 // Any currently-scheduled method is replaced.
-func (fp *feePayment) schedule(name string, method func() error) {
+func (fp *vspFeePayment) schedule(name string, method func() error) {
 	var delay time.Duration
 	if method != nil {
 		delay = fp.next()
@@ -194,7 +193,7 @@ func (fp *feePayment) schedule(name string, method func() error) {
 	}
 }
 
-func (fp *feePayment) next() time.Duration {
+func (fp *vspFeePayment) next() time.Duration {
 	w := fp.client.wallet
 	_, tipHeight := w.MainChainTip(fp.ctx)
 
@@ -221,7 +220,7 @@ func (fp *feePayment) next() time.Duration {
 // task returns a function running a feePayment method.
 // If the method errors, the error is logged, and the payment is put
 // in an errored state and may require manual processing.
-func (fp *feePayment) task(name string, method func() error) func() {
+func (fp *vspFeePayment) task(name string, method func() error) func() {
 	return func() {
 		err := method()
 		fp.mu.Lock()
@@ -233,11 +232,11 @@ func (fp *feePayment) task(name string, method func() error) func() {
 	}
 }
 
-func (fp *feePayment) stop() {
+func (fp *vspFeePayment) stop() {
 	fp.schedule("", nil)
 }
 
-func (fp *feePayment) receiveFeeAddress() error {
+func (fp *vspFeePayment) receiveFeeAddress() error {
 	ctx := fp.ctx
 
 	// stop processing if ticket is expired or spent
@@ -297,7 +296,7 @@ func (fp *feePayment) receiveFeeAddress() error {
 //
 // If tx is nil, fp.feeTx may be assigned or modified, but the pointer will not
 // be dereferenced.
-func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
+func (fp *vspFeePayment) makeFeeTx(tx *wire.MsgTx) error {
 	ctx := fp.ctx
 	w := fp.client.wallet
 
@@ -360,7 +359,7 @@ func (fp *feePayment) makeFeeTx(tx *wire.MsgTx) error {
 	return nil
 }
 
-func (c *Client) status(ctx context.Context, ticket *wallet.VSPTicket) (*types.TicketStatusResponse, error) {
+func (c *VSPClient) status(ctx context.Context, ticket *VSPTicket) (*types.TicketStatusResponse, error) {
 
 	req := types.TicketStatusRequest{
 		TicketHash: ticket.Hash().String(),
@@ -376,7 +375,7 @@ func (c *Client) status(ctx context.Context, ticket *wallet.VSPTicket) (*types.T
 	return resp, nil
 }
 
-func (c *Client) setVoteChoices(ctx context.Context, ticket *wallet.VSPTicket,
+func (c *VSPClient) setVoteChoices(ctx context.Context, ticket *VSPTicket,
 	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
 	req := types.SetVoteChoicesRequest{
@@ -397,7 +396,7 @@ func (c *Client) setVoteChoices(ctx context.Context, ticket *wallet.VSPTicket,
 	return nil
 }
 
-func (fp *feePayment) reconcilePayment() error {
+func (fp *vspFeePayment) reconcilePayment() error {
 	ctx := fp.ctx
 	w := fp.client.wallet
 
@@ -490,7 +489,7 @@ func (fp *feePayment) reconcilePayment() error {
 	*/
 }
 
-func (fp *feePayment) submitPayment() (err error) {
+func (fp *vspFeePayment) submitPayment() (err error) {
 	ctx := fp.ctx
 	w := fp.client.wallet
 
@@ -563,7 +562,7 @@ func (fp *feePayment) submitPayment() (err error) {
 // reached sufficient confirmations, and reschedule itself if the fee is not
 // confirmed yet.  If the fee tx is ever removed from the wallet, this will
 // schedule another reconcile.
-func (fp *feePayment) confirmPayment() (err error) {
+func (fp *vspFeePayment) confirmPayment() (err error) {
 	ctx := fp.ctx
 
 	// stop processing if ticket is expired or spent

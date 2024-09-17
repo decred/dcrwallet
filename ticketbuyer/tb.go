@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/vsp"
 	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
@@ -43,7 +42,7 @@ type Config struct {
 	MixChange          bool
 
 	// VSP client
-	VSP *vsp.Client
+	VSP *wallet.VSPClient
 }
 
 // TB is an automated ticket buyer, buying as many tickets as possible given an
@@ -293,12 +292,10 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 		MixedAccountBranch: mixedBranch,
 		MixedSplitAccount:  splitAccount,
 		ChangeAccount:      changeAccount,
+
+		VSPClient: tb.cfg.VSP,
 	}
-	// If VSP is configured, we need to set the methods for vsp fee processment.
-	if tb.cfg.VSP != nil {
-		purchaseTicketReq.VSPFeePaymentProcess = tb.cfg.VSP.Process
-		purchaseTicketReq.VSPFeePercent = tb.cfg.VSP.FeePercentage
-	}
+
 	tix, err := w.PurchaseTickets(ctx, n, purchaseTicketReq)
 	if tix != nil {
 		for _, hash := range tix.TicketHashes {

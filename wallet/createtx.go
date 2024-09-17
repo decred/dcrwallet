@@ -1261,12 +1261,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		return
 	}
-	if req.VSPFeePaymentProcess != nil {
-		if req.VSPFeePercent == nil {
-			return nil, errors.E(op, errors.Bug, "VSPFeeProcess "+
-				"may not be nil if VSPServerProcess is non-nil")
-		}
-		feePrice, err := req.VSPFeePercent(ctx)
+	if req.VSPClient != nil {
+		feePrice, err := req.VSPClient.FeePercentage(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1639,7 +1635,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		log.Infof("Published ticket purchase %v", ticket.TxHash())
 
 		// Pay VSP fee when configured to do so.
-		if req.VSPFeePaymentProcess == nil {
+		if req.VSPClient == nil {
 			continue
 		}
 		unlockCredits = false
@@ -1664,7 +1660,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			continue
 		}
 
-		err = req.VSPFeePaymentProcess(ctx, ticket, feeTx)
+		err = req.VSPClient.Process(ctx, ticket, feeTx)
 		if err != nil {
 			unlock()
 			continue
