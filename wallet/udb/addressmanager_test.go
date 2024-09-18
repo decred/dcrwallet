@@ -1029,7 +1029,7 @@ func testEncryptDecryptErrors(ctx context.Context, tc *testContext) {
 	}
 }
 
-// testEncryptDecrypt ensures that encrypting and decrypting data with the
+// testEncryptDecrypt ensures that encrypting and decrypting data with
 // the various crypto key types works as expected.
 func testEncryptDecrypt(ctx context.Context, tc *testContext) {
 	plainText := []byte("this is a plaintext")

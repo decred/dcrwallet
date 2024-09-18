@@ -170,7 +170,7 @@ const (
 	tspendPolicyVersion = 19
 
 	// vspBucketVersion is the 20th version of the database. It adds a
-	// a top-level bucket for recording vsp ticket hashes as key and its
+	// top-level bucket for recording vsp ticket hashes as key and its
 	// related fee txs hash.
 	vspBucketVersion = 20
 

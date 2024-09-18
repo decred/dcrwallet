@@ -4737,7 +4737,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 		if err != nil {
 			return err
 		}
-		return fmt.Errorf(sigErrStr)
+		return fmt.Errorf("%s", sigErrStr)
 	}
 
 	err = w.SetPublished(ctx, &feeHash, false)

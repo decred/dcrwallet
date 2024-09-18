@@ -3291,7 +3291,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 				}
 
 				// Only include this output if it meets the required number of
-				// confirmations.  Coinbase transactions must have have reached
+				// confirmations.  Coinbase transactions must have reached
 				// maturity before their outputs may be spent.
 				txHeight := extractRawCreditHeight(cKey)
 				if !confirmed(minConf, txHeight, syncHeight) {

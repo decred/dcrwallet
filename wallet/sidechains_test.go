@@ -110,7 +110,7 @@ func TestPruneChainFromSRT(t *testing.T) {
 	}
 
 	// Prune chain0. chain1 and chain2 are new rooted trees and chain3 is a
-	// a tip in chain2.
+	// tip in chain2.
 	//    b1 -> c1 -> d1 -> e1
 	//    b2 -> c2 -> d2 -> e2
 	//            \-> d3 -> e3

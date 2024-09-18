@@ -85,7 +85,7 @@ func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 //
 // If successful, the transaction, total input value spent, and all previous
 // output scripts are returned.  If the input source was unable to provide
-// enough input value to pay for every output any any necessary fees, an
+// enough input value to pay for every output any necessary fees, an
 // InputSourceError is returned.
 func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	fetchInputs InputSource, fetchChange ChangeSource, maxTxSize int) (*AuthoredTx, error) {

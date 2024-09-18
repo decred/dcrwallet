@@ -1764,7 +1764,7 @@ func (w *Wallet) findEligibleOutputs(dbtx walletdb.ReadTx, account uint32, minco
 		}
 
 		// Only include this output if it meets the required number of
-		// confirmations.  Coinbase transactions must have have reached
+		// confirmations.  Coinbase transactions must have reached
 		// maturity before their outputs may be spent.
 		if !confirmed(minconf, output.Height, currentHeight) {
 			continue
@@ -1853,13 +1853,13 @@ func (w *Wallet) findEligibleOutputsAmount(dbtx walletdb.ReadTx, account uint32,
 		}
 
 		// Only include this output if it meets the required number of
-		// confirmations.  Coinbase transactions must have have reached
+		// confirmations.  Coinbase transactions must have reached
 		// maturity before their outputs may be spent.
 		if !confirmed(minconf, output.Height, currentHeight) {
 			return true
 		}
 
-		// When a minumum amount is required, skip when it is less.
+		// When a minimum amount is required, skip when it is less.
 		if minAmount != 0 && output.Amount < minAmount {
 			return true
 		}

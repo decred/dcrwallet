@@ -1876,7 +1876,7 @@ func (rp *RemotePeer) CFiltersV2(ctx context.Context, blockHashes []*chainhash.H
 				if !stalled.Stop() {
 					<-stalled.C
 				}
-				stalled.Reset(stallTimeout - time.Now().Sub(req.t))
+				stalled.Reset(stallTimeout - time.Since(req.t))
 			case m := <-req.c:
 				var f *gcs.FilterV2
 				var err error

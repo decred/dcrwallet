@@ -1395,7 +1395,7 @@ func extractRawUnminedTx(v []byte) []byte {
 
 // Unmined transactions which have been saved in an unpublished state are
 // recorded as such in the unpublished bucket keyed by the transaction hash.
-// The value is is a single non-zero byte if the transaction is unpublished, or
+// The value is a single non-zero byte if the transaction is unpublished, or
 // zero or missing from the bucket when published.
 
 func putUnpublished(ns walletdb.ReadWriteBucket, k []byte) error {

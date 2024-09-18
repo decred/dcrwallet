@@ -894,11 +894,8 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 	// Verify that the signature is valid and corresponds to the
 	// provided public key.
 	err = s.verifyTSpendSignature(tx, signature, pubKey)
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 // GetInitState requests the init state, then using the tspend hashes requests
@@ -1138,8 +1135,8 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 }
 
 // receiveHeaderAnnouncements receives all block announcements through pushed
-// headers messages messages from peers and starts goroutines to handle the
-// announced header.
+// headers messages from peers and starts goroutines to handle the announced
+// header.
 func (s *Syncer) receiveHeadersAnnouncements(ctx context.Context) error {
 	for {
 		rp, headers, err := s.lp.ReceiveHeadersAnnouncement(ctx)

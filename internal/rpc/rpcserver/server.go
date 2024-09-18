@@ -624,7 +624,7 @@ func (s *walletServer) BirthBlock(ctx context.Context, req *pb.BirthBlockRequest
 		if birthState != nil {
 			errMsg = "birth block is pending..."
 		}
-		return nil, status.Errorf(codes.NotFound, errMsg)
+		return nil, status.Errorf(codes.NotFound, "%s", errMsg)
 	}
 
 	return &pb.BirthBlockResponse{
