@@ -2348,7 +2348,7 @@ func (s *Store) UnspentOutputCount(dbtx walletdb.ReadTx) int {
 
 // randomUTXO returns a random key/value pair from the unspent bucket, ignoring
 // any keys that match the skip function.
-func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k, v []byte, err error) {
+func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k, v []byte) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 
 	r := make([]byte, 33)
@@ -2378,7 +2378,7 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	if len(keys) > 0 {
 		k, v = c.Seek(keys[rand.IntN(len(keys))])
 		c.Close()
-		return k, v, nil
+		return k, v
 	}
 
 	// Search the opposite direction from the random seek key.
@@ -2402,11 +2402,11 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	if len(keys) > 0 {
 		k, v = c.Seek(keys[rand.IntN(len(keys))])
 		c.Close()
-		return k, v, err
+		return k, v
 	}
 
 	c.Close()
-	return nil, nil, nil
+	return nil, nil
 }
 
 // RandomUTXO returns a random unspent Credit, or nil if none matching are
@@ -2434,13 +2434,13 @@ func (s *Store) RandomUTXO(dbtx walletdb.ReadTx, minConf, syncHeight int32) (*Cr
 		}
 		return false
 	}
-	k, v, err := s.randomUTXO(dbtx, skip)
-	if k == nil || err != nil {
-		return nil, err
+	k, v := s.randomUTXO(dbtx, skip)
+	if k == nil {
+		return nil, nil
 	}
 	var op wire.OutPoint
 	var block Block
-	err = readCanonicalOutPoint(k, &op)
+	err := readCanonicalOutPoint(k, &op)
 	if err != nil {
 		return nil, err
 	}
@@ -3158,7 +3158,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 			var err error
 			if minConf != 0 && target != 0 && randTries < numUnspent/2 {
 				randTries++
-				k, v, err = s.randomUTXO(dbtx, skip)
+				k, v = s.randomUTXO(dbtx, skip)
 				if k != nil {
 					seen[string(k)] = struct{}{}
 				}
