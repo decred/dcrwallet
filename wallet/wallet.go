@@ -173,6 +173,8 @@ type Wallet struct {
 
 	vspClientsMu sync.Mutex
 	vspClients   map[string]*VSPClient
+
+	dialer DialFunc
 }
 
 // Config represents the configuration options needed to initialize a wallet.
@@ -194,6 +196,8 @@ type Config struct {
 	AllowHighFees bool
 	RelayFee      dcrutil.Amount
 	Params        *chaincfg.Params
+
+	Dialer DialFunc
 }
 
 // DisapprovePercent returns the wallet's block disapproval percentage.
@@ -5406,6 +5410,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		mixing:  !cfg.DisableMixing,
 
 		vspClients: make(map[string]*VSPClient),
+
+		dialer: cfg.Dialer,
 	}
 
 	// Open database managers

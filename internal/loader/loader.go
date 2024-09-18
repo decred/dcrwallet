@@ -47,6 +47,7 @@ type Loader struct {
 	manualTickets           bool
 	relayFee                dcrutil.Amount
 	mixSplitLimit           int
+	dialer                  wallet.DialFunc
 
 	mu sync.Mutex
 }
@@ -54,7 +55,7 @@ type Loader struct {
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int) *Loader {
+	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -69,6 +70,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled boo
 		manualTickets:           manualTickets,
 		relayFee:                relayFee,
 		mixSplitLimit:           mixSplitLimit,
+		dialer:                  dialer,
 	}
 }
 
@@ -176,6 +178,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		RelayFee:                l.relayFee,
 		MixSplitLimit:           l.mixSplitLimit,
 		Params:                  l.chainParams,
+		Dialer:                  l.dialer,
 	}
 	w, err = wallet.Open(ctx, cfg)
 	if err != nil {
@@ -262,6 +265,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
 		Params:                  l.chainParams,
+		Dialer:                  l.dialer,
 	}
 	w, err = wallet.Open(ctx, cfg)
 	if err != nil {
@@ -319,6 +323,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		RelayFee:                l.relayFee,
 		MixSplitLimit:           l.mixSplitLimit,
 		Params:                  l.chainParams,
+		Dialer:                  l.dialer,
 	}
 	w, err = wallet.Open(ctx, cfg)
 	if err != nil {

@@ -49,15 +49,12 @@ type VSPClientConfig struct {
 	// PubKey specifies the VSP's base64 encoded public key
 	PubKey string
 
-	// Dialer specifies an optional dialer when connecting to the VSP.
-	Dialer DialFunc
-
 	// Default policy for fee payments unless another is provided by the
 	// caller.
 	Policy *VSPPolicy
 }
 
-func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger) (*VSPClient, error) {
+func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger, dialer DialFunc) (*VSPClient, error) {
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
@@ -74,7 +71,7 @@ func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger) (*VSPClient,
 		Log:    log,
 	}
 	client.Transport = &http.Transport{
-		DialContext: cfg.Dialer,
+		DialContext: dialer,
 	}
 
 	v := &VSPClient{

@@ -321,8 +321,6 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 	}, nil
 }
 
-type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
-
 // StartWalletService starts the WalletService.
 func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
 	if walletService.ready.Swap(1) != 0 {
@@ -1817,7 +1815,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		cfg := wallet.VSPClientConfig{
 			URL:    vspHost,
 			PubKey: vspPubKey,
-			Dialer: nil,
 			Policy: &wallet.VSPPolicy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
@@ -2626,7 +2623,6 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		cfg := wallet.VSPClientConfig{
 			URL:    vspHost,
 			PubKey: vspPubKey,
-			Dialer: nil,
 			Policy: &wallet.VSPPolicy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
@@ -4112,7 +4108,6 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 	cfg := wallet.VSPClientConfig{
 		URL:    vspHost,
 		PubKey: vspPubKey,
-		Dialer: nil,
 		Policy: policy,
 	}
 	vspClient, err := s.wallet.VSP(cfg)
@@ -4159,7 +4154,6 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 	cfg := wallet.VSPClientConfig{
 		URL:    vspHost,
 		PubKey: vspPubKey,
-		Dialer: nil,
 		Policy: policy,
 	}
 	vspClient, err := s.wallet.VSP(cfg)
@@ -4199,7 +4193,6 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 	cfg := wallet.VSPClientConfig{
 		URL:    vspHost,
 		PubKey: vspPubKey,
-		Dialer: nil,
 		Policy: policy,
 	}
 	vspClient, err := s.wallet.VSP(cfg)
@@ -4236,7 +4229,6 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 	cfg := wallet.VSPClientConfig{
 		URL:    vspHost,
 		PubKey: vspPubKey,
-		Dialer: nil,
 		Policy: policy,
 	}
 	vspClient, err := s.wallet.VSP(cfg)

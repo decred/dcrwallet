@@ -169,7 +169,7 @@ func run(ctx context.Context) error {
 	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
-		cfg.ManualTickets, cfg.MixSplitLimit)
+		cfg.ManualTickets, cfg.MixSplitLimit, cfg.dial)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
@@ -273,7 +273,6 @@ func run(ctx context.Context) error {
 			vspCfg := wallet.VSPClientConfig{
 				URL:    cfg.VSPOpts.URL,
 				PubKey: cfg.VSPOpts.PubKey,
-				Dialer: cfg.dial,
 				Policy: &wallet.VSPPolicy{
 					MaxFee:     cfg.VSPOpts.MaxFee.Amount,
 					FeeAcct:    purchaseAcct,

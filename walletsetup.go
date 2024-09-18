@@ -115,7 +115,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 	loader := loader.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
-		cfg.ManualTickets, cfg.MixSplitLimit)
+		cfg.ManualTickets, cfg.MixSplitLimit, cfg.dial)
 
 	var privPass, pubPass, seed []byte
 	var imported bool
