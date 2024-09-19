@@ -1800,21 +1800,11 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	// new vspd request
-	var vspHost string
-	var vspPubKey string
 	var vspClient *wallet.VSPClient
 	if req.VspHost != "" || req.VspPubkey != "" {
-		vspHost = req.VspHost
-		vspPubKey = req.VspPubkey
-		if vspPubKey == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-		}
-		if vspHost == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-		}
 		cfg := wallet.VSPClientConfig{
-			URL:    vspHost,
-			PubKey: vspPubKey,
+			URL:    req.VspHost,
+			PubKey: req.VspPubkey,
 			Policy: &wallet.VSPPolicy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
@@ -1823,7 +1813,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		}
 		vspClient, err = s.wallet.VSP(cfg)
 		if err != nil {
-			return nil, status.Errorf(codes.Unknown, "VSP Server instance failed to start: %v", err)
+			return nil, status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 		}
 	}
 
@@ -2608,21 +2598,11 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 
 	// new vspd request
 	var err error
-	var vspHost string
-	var vspPubKey string
 	var vspClient *wallet.VSPClient
 	if req.VspHost != "" || req.VspPubkey != "" {
-		vspHost = req.VspHost
-		vspPubKey = req.VspPubkey
-		if vspPubKey == "" {
-			return status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-		}
-		if vspHost == "" {
-			return status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-		}
 		cfg := wallet.VSPClientConfig{
-			URL:    vspHost,
-			PubKey: vspPubKey,
+			URL:    req.VspHost,
+			PubKey: req.VspPubkey,
 			Policy: &wallet.VSPPolicy{
 				MaxFee:     0.1e8,
 				FeeAcct:    req.Account,
@@ -2631,7 +2611,7 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		}
 		vspClient, err = w.VSP(cfg)
 		if err != nil {
-			return status.Errorf(codes.Unknown, "TicketBuyer instance failed to start. Error: %v", err)
+			return status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 		}
 	}
 	if req.BalanceToMaintain < 0 {
@@ -4092,27 +4072,18 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		return nil, err
 	}
 
-	vspHost := req.VspHost
-	vspPubKey := req.VspPubkey
-	if vspPubKey == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-	}
-	if vspHost == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-	}
-	policy := &wallet.VSPPolicy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.Account,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := wallet.VSPClientConfig{
-		URL:    vspHost,
-		PubKey: vspPubKey,
-		Policy: policy,
+		URL:    req.VspHost,
+		PubKey: req.VspPubkey,
+		Policy: &wallet.VSPPolicy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.Account,
+			ChangeAcct: req.ChangeAccount,
+		},
 	}
 	vspClient, err := s.wallet.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "TicketBuyer instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 	}
 
 	// Process tickets fee if needed.
@@ -4138,27 +4109,18 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.ProcessManagedTicketsRequest) (
 	*pb.ProcessManagedTicketsResponse, error) {
 
-	vspHost := req.VspHost
-	vspPubKey := req.VspPubkey
-	if vspPubKey == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-	}
-	if vspHost == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-	}
-	policy := &wallet.VSPPolicy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := wallet.VSPClientConfig{
-		URL:    vspHost,
-		PubKey: vspPubKey,
-		Policy: policy,
+		URL:    req.VspHost,
+		PubKey: req.VspPubkey,
+		Policy: &wallet.VSPPolicy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.FeeAccount,
+			ChangeAcct: req.ChangeAccount,
+		},
 	}
 	vspClient, err := s.wallet.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 	}
 
 	tickets, err := s.wallet.ProcessedTickets(ctx)
@@ -4177,27 +4139,18 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.ProcessUnmanagedTicketsRequest) (
 	*pb.ProcessUnmanagedTicketsResponse, error) {
 
-	vspHost := req.VspHost
-	vspPubKey := req.VspPubkey
-	if vspPubKey == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-	}
-	if vspHost == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-	}
-	policy := &wallet.VSPPolicy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := wallet.VSPClientConfig{
-		URL:    vspHost,
-		PubKey: vspPubKey,
-		Policy: policy,
+		URL:    req.VspHost,
+		PubKey: req.VspPubkey,
+		Policy: &wallet.VSPPolicy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.FeeAccount,
+			ChangeAcct: req.ChangeAccount,
+		},
 	}
 	vspClient, err := s.wallet.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 	}
 
 	unmanagedTickets, err := s.wallet.UnprocessedTickets(ctx)
@@ -4213,27 +4166,18 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVoteChoicesRequest) (
 	*pb.SetVspdVoteChoicesResponse, error) {
 
-	vspHost := req.VspHost
-	vspPubKey := req.VspPubkey
-	if vspPubKey == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp pubkey can not be null")
-	}
-	if vspHost == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "vsp host can not be null")
-	}
-	policy := &wallet.VSPPolicy{
-		MaxFee:     0.1e8,
-		FeeAcct:    req.FeeAccount,
-		ChangeAcct: req.ChangeAccount,
-	}
 	cfg := wallet.VSPClientConfig{
-		URL:    vspHost,
-		PubKey: vspPubKey,
-		Policy: policy,
+		URL:    req.VspHost,
+		PubKey: req.VspPubkey,
+		Policy: &wallet.VSPPolicy{
+			MaxFee:     0.1e8,
+			FeeAcct:    req.FeeAccount,
+			ChangeAcct: req.ChangeAccount,
+		},
 	}
 	vspClient, err := s.wallet.VSP(cfg)
 	if err != nil {
-		return nil, status.Errorf(codes.Unknown, "VSPClient instance failed to start. Error: %v", err)
+		return nil, status.Errorf(codes.InvalidArgument, "VSP client failed to start. Error: %v", err)
 	}
 
 	treasuryChoices := make(map[string]string)
@@ -4276,7 +4220,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		if err != nil {
 			return err
 		}
-		if ticketHost == vspHost {
+		if ticketHost == req.VspHost {
 			ticket, err := s.wallet.NewVSPTicket(ctx, hash)
 			if err != nil {
 				return err

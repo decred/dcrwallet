@@ -55,6 +55,14 @@ type VSPClientConfig struct {
 }
 
 func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger, dialer DialFunc) (*VSPClient, error) {
+	if cfg.URL == "" {
+		return nil, errors.New("vsp url can not be null")
+	}
+
+	if cfg.PubKey == "" {
+		return nil, errors.New("vsp pubkey can not be null")
+	}
+
 	u, err := url.Parse(cfg.URL)
 	if err != nil {
 		return nil, err
