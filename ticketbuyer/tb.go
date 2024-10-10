@@ -216,6 +216,8 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	if err != nil {
 		return err
 	}
+	ctx, cancel := wallet.WrapNetworkBackendContext(n, ctx)
+	defer cancel()
 
 	if len(passphrase) > 0 {
 		// Ensure wallet is unlocked with the current passphrase.  If the passphase

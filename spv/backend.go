@@ -619,3 +619,24 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 func (s *Syncer) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
 	return 0, errors.E(errors.Invalid, "stake difficulty is not queryable over wire protocol")
 }
+
+func (s *Syncer) Done() <-chan struct{} {
+	s.doneMu.Lock()
+	c := s.done
+	s.doneMu.Unlock()
+	return c
+}
+
+func (s *Syncer) Err() error {
+	s.doneMu.Lock()
+	c := s.done
+	err := s.err
+	s.doneMu.Unlock()
+
+	select {
+	case <-c:
+		return err
+	default:
+		return nil
+	}
+}

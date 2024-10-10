@@ -91,6 +91,10 @@ type Syncer struct {
 	// Mempool for non-wallet-relevant transactions.
 	mempool     sync.Map // k=chainhash.Hash v=*wire.MsgTx
 	mempoolAdds chan *chainhash.Hash
+
+	done   chan struct{}
+	err    error
+	doneMu sync.Mutex
 }
 
 // Notifications struct to contain all of the upcoming callbacks that will
@@ -318,7 +322,18 @@ func (s *Syncer) setRequiredHeight(tipHeight int32) {
 
 // Run synchronizes the wallet, returning when synchronization fails or the
 // context is cancelled.
-func (s *Syncer) Run(ctx context.Context) error {
+func (s *Syncer) Run(ctx context.Context) (err error) {
+	s.doneMu.Lock()
+	s.done = make(chan struct{})
+	s.err = nil
+	s.doneMu.Unlock()
+	defer func() {
+		s.doneMu.Lock()
+		close(s.done)
+		s.err = err
+		s.doneMu.Unlock()
+	}()
+
 	tipHash, tipHeight := s.wallet.MainChainTip(ctx)
 	s.setRequiredHeight(tipHeight)
 	rescanPoint, err := s.wallet.RescanPoint(ctx)

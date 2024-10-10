@@ -1588,6 +1588,9 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 
 	const op errors.Op = "wallet.PurchaseTickets"
 
+	ctx, cancel := WrapNetworkBackendContext(n, ctx)
+	defer cancel()
+
 	resp, err := w.purchaseTickets(ctx, op, n, req)
 	if err == nil || !errors.Is(err, errVSPFeeRequiresUTXOSplit) || req.DontSignTx {
 		return resp, err

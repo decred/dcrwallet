@@ -87,3 +87,24 @@ func (s *Syncer) ExistsLiveTickets(ctx context.Context, tickets []*chainhash.Has
 func (s *Syncer) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error) {
 	return s.rpc.UsedAddresses(ctx, addrs)
 }
+
+func (s *Syncer) Done() <-chan struct{} {
+	s.doneMu.Lock()
+	c := s.done
+	s.doneMu.Unlock()
+	return c
+}
+
+func (s *Syncer) Err() error {
+	s.doneMu.Lock()
+	c := s.done
+	err := s.err
+	s.doneMu.Unlock()
+
+	select {
+	case <-c:
+		return err
+	default:
+		return nil
+	}
+}

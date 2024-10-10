@@ -275,6 +275,13 @@ func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAcc
 		return errors.E(op, errors.Invalid, s)
 	}
 
+	nb, err := w.NetworkBackend()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := WrapNetworkBackendContext(nb, ctx)
+	defer cancel()
+
 	sdiff, err := w.NextStakeDifficulty(ctx)
 	if err != nil {
 		return errors.E(op, err)
