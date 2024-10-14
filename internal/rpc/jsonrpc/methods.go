@@ -2032,9 +2032,14 @@ func (s *Server) importPrivKey(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+		}()
 	}
 
 	return nil, nil
@@ -2084,9 +2089,14 @@ func (s *Server) importPubKey(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+		}()
 	}
 
 	return nil, nil
@@ -2130,9 +2140,14 @@ func (s *Server) importScript(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+		}()
 	}
 
 	return nil, nil
