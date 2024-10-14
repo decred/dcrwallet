@@ -2056,7 +2056,8 @@ func (s *Server) importPrivKey(ctx context.Context, icmd any) (any, error) {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
 		}()
 	}
 
@@ -2113,7 +2114,8 @@ func (s *Server) importPubKey(ctx context.Context, icmd any) (any, error) {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
 		}()
 	}
 
@@ -2164,7 +2166,8 @@ func (s *Server) importScript(ctx context.Context, icmd any) (any, error) {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			_ = w.RescanFromHeight(context.Background(), n, scanFrom)
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
 		}()
 	}
 
