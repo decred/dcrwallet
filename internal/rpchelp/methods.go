@@ -96,6 +96,7 @@ var Methods = []struct {
 	{"redeemmultisigouts", []any{(*types.RedeemMultiSigOutResult)(nil)}},
 	{"renameaccount", nil},
 	{"rescanwallet", nil},
+	{"runaccountmixer", nil},
 	{"sendfrom", returnsString},
 	{"sendfromtreasury", returnsString},
 	{"sendmany", returnsString},
