@@ -257,7 +257,7 @@ ___
 
 #### `RescanPoint`
 
-The `RescanPoint` returns the block hash at which a rescan should begin
+The `RescanPoint` method returns the block hash at which a rescan should begin
 (inclusive), or null when no rescan is necessary.  A non-null rescan point
 indicates that blocks currently in the main chain must be checked for address
 usage and relevant transactions.
@@ -1186,6 +1186,7 @@ as an output or in a P2SH input.
 ___
 
 #### `ImportVotingAccountFromSeed`
+
 The `ImportVotingAccountFromSeed` method imports bytes that become the master
 seed for a hierarchical deterministic private key that is imported into the
 wallet with the supplied name and locked with the supplied password. Addresses
@@ -2557,7 +2558,7 @@ ___
 
 #### `LockWallet`
 
-The `LockWallet` request locks the wallet, preventing use of any keys protected
+The `LockWallet` method locks the wallet, preventing use of any keys protected
 by the private passphrase.  This does not affect accounts which are encrypted
 with a separate passphrase.
 
@@ -2594,7 +2595,7 @@ ___
 
 #### `LockAccount`
 
-The `LockAccount` request locks an account, preventing use of any keys protected
+The `LockAccount` method locks an account, preventing use of any keys protected
 by the private passphrase.  This does not affect any other accounts.
 
 **Request:** `LockAccountRequest`
@@ -2611,7 +2612,7 @@ by the private passphrase.  This does not affect any other accounts.
 
 #### `GetTrackedVSPTickets`
 
-The `GetTrackedVSPTickets` request returns the list of tickets currently tracked
+The `GetTrackedVSPTickets` method returns the list of tickets currently tracked
 by the VSP client inside dcrwallet. This only applies to tickets purchased
 following the new vspd mode.
 
@@ -2737,8 +2738,8 @@ always running.
 
 #### `GenerateRandomSeed`
 
-The `GenerateRandomSeed` generates a secure random seed, returning it as binary,
-hexadecimal, and in a mnemonic word list format.
+The `GenerateRandomSeed` method generates a secure random seed, returning it as
+binary, hexadecimal, and in a mnemonic word list format.
 
 **Request:** `GenerateRandomSeedRequest`
 
@@ -2761,7 +2762,7 @@ ___
 
 #### `DecodeSeed`
 
-The `DecodeSeed` decodes a human-readable form of the seed back into binary.  
+The `DecodeSeed` method decodes a human-readable form of the seed back into binary.  
 The user input can be either a hexadecimal string or a mnemonic word list.
 
 **Request:** `DecodeSeedRequest`
@@ -2789,7 +2790,7 @@ launch the ticket buyer.
 
 #### `RunTicketBuyer`
 
-The `RunTicketBuyer` starts a new ticket buyer for the specified account.
+The `RunTicketBuyer` method starts a new ticket buyer for the specified account.
 The users may specify a balance to maintain.
 
 **Request:** `RunTicketBuyerRequest`
@@ -2825,7 +2826,7 @@ launch the ticket buyer.
 
 #### `RunAccountMixer`
 
-The `RunAccountMixer` starts a new account mixer for the specified account (and branch).
+The `RunAccountMixer` method starts a new account mixer for the specified account (and branch).
 
 **Request:** `RunAccountMixerRequest`
 
