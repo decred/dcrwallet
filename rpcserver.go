@@ -363,7 +363,6 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			MixChangeAccount:    cfg.ChangeAccount,
 			VSPHost:             cfg.VSPOpts.URL,
 			VSPPubKey:           cfg.VSPOpts.PubKey,
-			VSPMaxFee:           cfg.VSPOpts.MaxFee.Amount,
 			TicketSplitAccount:  cfg.TicketSplitAccount,
 			Dial:                cfg.dial,
 		}
