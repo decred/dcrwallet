@@ -379,7 +379,6 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 			MixChangeAccount:    cfg.ChangeAccount,
 			VSPHost:             cfg.VSPOpts.URL,
 			VSPPubKey:           cfg.VSPOpts.PubKey,
-			VSPMaxFee:           cfg.VSPOpts.MaxFee.Amount,
 			TicketSplitAccount:  cfg.TicketSplitAccount,
 			Dial:                cfg.dial,
 			Loggers:             rpcLoggers{},
