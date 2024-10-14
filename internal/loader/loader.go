@@ -46,6 +46,7 @@ type Loader struct {
 	allowHighFees           bool
 	manualTickets           bool
 	relayFee                dcrutil.Amount
+	vspMaxFee               dcrutil.Amount
 	mixSplitLimit           int
 	dialer                  wallet.DialFunc
 
@@ -54,7 +55,7 @@ type Loader struct {
 
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
-	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, accountGapLimit int,
+	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, vspMaxFee dcrutil.Amount, accountGapLimit int,
 	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
@@ -69,6 +70,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled boo
 		allowHighFees:           allowHighFees,
 		manualTickets:           manualTickets,
 		relayFee:                relayFee,
+		vspMaxFee:               vspMaxFee,
 		mixSplitLimit:           mixSplitLimit,
 		dialer:                  dialer,
 	}
@@ -176,6 +178,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
+		VSPMaxFee:               l.vspMaxFee,
 		MixSplitLimit:           l.mixSplitLimit,
 		Params:                  l.chainParams,
 		Dialer:                  l.dialer,
@@ -264,6 +267,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
+		VSPMaxFee:               l.vspMaxFee,
 		Params:                  l.chainParams,
 		Dialer:                  l.dialer,
 	}
@@ -321,6 +325,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
+		VSPMaxFee:               l.vspMaxFee,
 		MixSplitLimit:           l.mixSplitLimit,
 		Params:                  l.chainParams,
 		Dialer:                  l.dialer,

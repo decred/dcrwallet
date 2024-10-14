@@ -3348,7 +3348,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 			URL:    s.cfg.VSPHost,
 			PubKey: s.cfg.VSPPubKey,
 			Policy: &wallet.VSPPolicy{
-				MaxFee:     s.cfg.VSPMaxFee,
+				MaxFee:     w.VSPMaxFee(),
 				FeeAcct:    account,
 				ChangeAcct: changeAccount,
 			},

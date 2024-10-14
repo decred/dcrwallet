@@ -1806,7 +1806,7 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 			URL:    req.VspHost,
 			PubKey: req.VspPubkey,
 			Policy: &wallet.VSPPolicy{
-				MaxFee:     0.1e8,
+				MaxFee:     s.wallet.VSPMaxFee(),
 				FeeAcct:    req.Account,
 				ChangeAcct: req.ChangeAccount,
 			},
@@ -2604,7 +2604,7 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 			URL:    req.VspHost,
 			PubKey: req.VspPubkey,
 			Policy: &wallet.VSPPolicy{
-				MaxFee:     0.1e8,
+				MaxFee:     w.VSPMaxFee(),
 				FeeAcct:    req.Account,
 				ChangeAcct: req.Account,
 			},
@@ -4076,7 +4076,7 @@ func (s *walletServer) SyncVSPFailedTickets(ctx context.Context, req *pb.SyncVSP
 		URL:    req.VspHost,
 		PubKey: req.VspPubkey,
 		Policy: &wallet.VSPPolicy{
-			MaxFee:     0.1e8,
+			MaxFee:     s.wallet.VSPMaxFee(),
 			FeeAcct:    req.Account,
 			ChangeAcct: req.ChangeAccount,
 		},
@@ -4113,7 +4113,7 @@ func (s *walletServer) ProcessManagedTickets(ctx context.Context, req *pb.Proces
 		URL:    req.VspHost,
 		PubKey: req.VspPubkey,
 		Policy: &wallet.VSPPolicy{
-			MaxFee:     0.1e8,
+			MaxFee:     s.wallet.VSPMaxFee(),
 			FeeAcct:    req.FeeAccount,
 			ChangeAcct: req.ChangeAccount,
 		},
@@ -4143,7 +4143,7 @@ func (s *walletServer) ProcessUnmanagedTickets(ctx context.Context, req *pb.Proc
 		URL:    req.VspHost,
 		PubKey: req.VspPubkey,
 		Policy: &wallet.VSPPolicy{
-			MaxFee:     0.1e8,
+			MaxFee:     s.wallet.VSPMaxFee(),
 			FeeAcct:    req.FeeAccount,
 			ChangeAcct: req.ChangeAccount,
 		},
@@ -4170,7 +4170,7 @@ func (s *walletServer) SetVspdVoteChoices(ctx context.Context, req *pb.SetVspdVo
 		URL:    req.VspHost,
 		PubKey: req.VspPubkey,
 		Policy: &wallet.VSPPolicy{
-			MaxFee:     0.1e8,
+			MaxFee:     s.wallet.VSPMaxFee(),
 			FeeAcct:    req.FeeAccount,
 			ChangeAcct: req.ChangeAccount,
 		},
