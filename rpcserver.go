@@ -245,7 +245,7 @@ func (rpcLoggers) SetLevels(levelSpec string) error {
 	return parseAndSetDebugLevels(levelSpec)
 }
 
-func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
+func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
 	var jsonrpcAddrNotifier jsonrpcListenerEventServer
 	var grpcAddrNotifier grpcListenerEventServer
 	if cfg.RPCListenerEvents {
@@ -384,7 +384,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			Dial:                cfg.dial,
 			Loggers:             rpcLoggers{},
 		}
-		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		jsonrpcServer = jsonrpc.NewServer(ctx, &opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}

@@ -370,7 +370,7 @@ func run(ctx context.Context) error {
 	//
 	// Servers will be associated with a loaded wallet if it has already been
 	// loaded, or after it is loaded later on.
-	gRPCServer, jsonRPCServer, err := startRPCServers(loader)
+	gRPCServer, jsonRPCServer, err := startRPCServers(ctx, loader)
 	if err != nil {
 		log.Errorf("Unable to create RPC servers: %v", err)
 		return err

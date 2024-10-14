@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2017-2019 The Decred developers
+// Copyright (c) 2017-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -91,12 +91,19 @@ func jsonAuthFail(w http.ResponseWriter) {
 
 // NewServer creates a new server for serving JSON-RPC client connections,
 // both HTTP POST and websocket.
-func NewServer(opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
+func NewServer(ctx context.Context, opts *Options, activeNet *chaincfg.Params, walletLoader *loader.Loader, listeners []net.Listener) *Server {
 	serveMux := http.NewServeMux()
 	const rpcAuthTimeoutSeconds = 10
 	server := &Server{
 		httpServer: http.Server{
 			Handler: serveMux,
+
+			// Use the provided context as the parent context for all requests
+			// to ensure handlers are able to react to both client disconnects
+			// as well as shutdown via the provided context.
+			BaseContext: func(l net.Listener) context.Context {
+				return ctx
+			},
 
 			// Timeout connections which don't complete the initial
 			// handshake within the allowed timeframe.
