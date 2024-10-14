@@ -26,6 +26,7 @@ import (
 	"decred.org/dcrwallet/v5/rpc/client/dcrd"
 	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
 	"decred.org/dcrwallet/v5/spv"
+	"decred.org/dcrwallet/v5/ticketbuyer"
 	"decred.org/dcrwallet/v5/version"
 	"decred.org/dcrwallet/v5/wallet"
 	"decred.org/dcrwallet/v5/wallet/txauthor"
@@ -152,6 +153,7 @@ var handlers = map[string]handler{
 	"redeemmultisigouts":        {fn: (*Server).redeemMultiSigOuts},
 	"renameaccount":             {fn: (*Server).renameAccount},
 	"rescanwallet":              {fn: (*Server).rescanWallet},
+	"runaccountmixer":           {fn: (*Server).runAccountMixer},
 	"sendfrom":                  {fn: (*Server).sendFrom},
 	"sendfromtreasury":          {fn: (*Server).sendFromTreasury},
 	"sendmany":                  {fn: (*Server).sendMany},
@@ -2032,9 +2034,15 @@ func (s *Server) importPrivKey(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
+		}()
 	}
 
 	return nil, nil
@@ -2084,9 +2092,15 @@ func (s *Server) importPubKey(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
+		}()
 	}
 
 	return nil, nil
@@ -2130,9 +2144,15 @@ func (s *Server) importScript(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if rescan {
-		// TODO: This is not synchronized with process shutdown and
-		// will cause panics when the DB is closed mid-transaction.
-		go w.RescanFromHeight(context.Background(), n, scanFrom)
+		// Rescan in the background rather than blocking the rpc request. Use
+		// the server waitgroup to ensure the rescan can return cleanly rather
+		// than being killed mid database transaction.
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			serverCtx := s.httpServer.BaseContext(nil)
+			_ = w.RescanFromHeight(serverCtx, n, scanFrom)
+		}()
 	}
 
 	return nil, nil
@@ -5502,6 +5522,37 @@ func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 
 	err = w.MixOutput(ctx, outpoint, changeAccount, mixAccount, mixBranch)
 	return nil, err
+}
+
+// runAccountMixer starts a new account mixer for the specified account (and
+// branch).
+func (s *Server) runAccountMixer(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.RunAccountMixerCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	tb := ticketbuyer.New(w, ticketbuyer.Config{
+		Mixing:             true,
+		MixedAccountBranch: cmd.MixedAccountBranch,
+		MixedAccount:       cmd.MixedAccount,
+		ChangeAccount:      cmd.ChangeAccount,
+		BuyTickets:         false,
+		MixChange:          true,
+	})
+
+	// Start ticketbuyer in the background rather than blocking the rpc request.
+	// Use the server waitgroup to ensure Run can return cleanly rather than
+	// being killed mid database transaction.
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		serverCtx := s.httpServer.BaseContext(nil)
+		_ = tb.Run(serverCtx, []byte(cmd.Passphrase))
+	}()
+
+	return nil, nil
 }
 
 func (s *Server) mixAccount(ctx context.Context, icmd any) (any, error) {

@@ -229,7 +229,7 @@ func generateClientKeyPair(caPriv any, ca *x509.Certificate) (cert, key []byte, 
 	return cert, key, nil
 }
 
-func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
+func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
 	var jsonrpcAddrNotifier jsonrpcListenerEventServer
 	var grpcAddrNotifier grpcListenerEventServer
 	if cfg.RPCListenerEvents {
@@ -367,7 +367,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			TicketSplitAccount:  cfg.TicketSplitAccount,
 			Dial:                cfg.dial,
 		}
-		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
+		jsonrpcServer = jsonrpc.NewServer(ctx, &opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {
 			jsonrpcAddrNotifier.notify(lis.Addr().String())
 		}
