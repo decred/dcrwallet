@@ -408,7 +408,7 @@ func (w *Wallet) AgendaChoices(ctx context.Context, ticketHash *chainhash.Hash) 
 	const op errors.Op = "wallet.AgendaChoices"
 	version, deployments := CurrentAgendas(w.chainParams)
 	if len(deployments) == 0 {
-		return nil, 0, nil
+		return map[string]string{}, 0, nil
 	}
 
 	choices = make(map[string]string, len(deployments))

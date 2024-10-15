@@ -4687,6 +4687,18 @@ func (s *Server) setVoteChoice(ctx context.Context, icmd any) (any, error) {
 func (s *Server) updateVSPVoteChoices(ctx context.Context, w *wallet.Wallet, ticketHash *chainhash.Hash,
 	choices map[string]string, tspendPolicy map[string]string, treasuryPolicy map[string]string) error {
 
+	// Ensure empty (as opposed to nil) choices on every category (required
+	// by the contract of the VSP API).
+	if choices == nil {
+		choices = map[string]string{}
+	}
+	if tspendPolicy == nil {
+		tspendPolicy = map[string]string{}
+	}
+	if treasuryPolicy == nil {
+		treasuryPolicy = map[string]string{}
+	}
+
 	if ticketHash != nil {
 		vspHost, err := w.VSPHostForTicket(ctx, ticketHash)
 		if err != nil {
