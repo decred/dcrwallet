@@ -114,7 +114,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 	loader := loader.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled,
 		cfg.ManualTickets, cfg.MixSplitLimit, cfg.dial)
 
 	var privPass, pubPass, seed []byte

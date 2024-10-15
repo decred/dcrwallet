@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 The btcsuite developers
+// Copyright (c) 2013-2024 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -19,7 +19,7 @@ type Options struct {
 	MaxPOSTClients      int64
 	MaxWebsocketClients int64
 
-	Mixing             bool
+	MixingEnabled      bool
 	MixAccount         string
 	MixBranch          uint32
 	MixChangeAccount   string
