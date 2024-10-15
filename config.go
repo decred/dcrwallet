@@ -168,7 +168,7 @@ type config struct {
 	IssueClientCert   bool  `long:"issueclientcert" description:"Notify a client cert and key over the TX pipe for RPC authentication"`
 
 	// CSPP
-	Mixing             bool                    `long:"mixing" description:"Enable mixing support"`
+	MixingEnabled      bool                    `long:"mixing" description:"Enable mixing support"`
 	CSPPSolver         *cfgutil.ExplicitString `long:"csppsolver" description:"Path to CSPP solver executable (if not in PATH)"`
 	MixedAccount       string                  `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
 	mixedAccount       string
@@ -738,7 +738,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 
 	var solverMustWork bool
-	if cfg.Mixing {
+	if cfg.MixingEnabled {
 		if cfg.CSPPSolver.ExplicitlySet() {
 			solverrpc.SolverProcess = cfg.CSPPSolver.Value
 			solverMustWork = true
