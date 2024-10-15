@@ -168,7 +168,7 @@ type config struct {
 	IssueClientCert   bool  `long:"issueclientcert" description:"Notify a client cert and key over the TX pipe for RPC authentication"`
 
 	// CSPP
-	MixingEnabled      bool                    `long:"mixing" description:"Enable mixing support"`
+	MixingEnabled      bool                    `long:"mixing" description:"Enable creation of mixed transactions and participation in the peer-to-peer mixing network"`
 	CSPPSolver         *cfgutil.ExplicitString `long:"csppsolver" description:"Path to CSPP solver executable (if not in PATH)"`
 	MixedAccount       string                  `long:"mixedaccount" description:"Account/branch used to derive CoinShuffle++ mixed outputs and voting rewards"`
 	mixedAccount       string
