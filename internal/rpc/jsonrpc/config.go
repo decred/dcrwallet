@@ -17,7 +17,7 @@ type Options struct {
 	MaxPOSTClients      int64
 	MaxWebsocketClients int64
 
-	Mixing             bool
+	MixingEnabled      bool
 	MixAccount         string
 	MixBranch          uint32
 	MixChangeAccount   string

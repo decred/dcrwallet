@@ -276,7 +276,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	forest.PruneChain(chain)
 	forest.Prune(int32(chain[len(chain)-1].Header.Height), w.chainParams)
 
-	if w.mixing {
+	if w.mixingEnabled {
 		w.mixClient.ExpireMessages(chain[len(chain)-1].Header.Height)
 	}
 

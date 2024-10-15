@@ -22,6 +22,7 @@ var basicWalletConfig = Config{
 	GapLimit:      20,
 	RelayFee:      dcrutil.Amount(1e5),
 	Params:        chaincfg.SimNetParams(),
+	MixingEnabled: true,
 }
 
 func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) (w *Wallet, teardown func()) {

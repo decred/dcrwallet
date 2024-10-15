@@ -270,7 +270,7 @@ func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAcc
 	op := errors.Opf("wallet.MixOutput(%v)", output)
 
 	// Mixing requests require wallet mixing support.
-	if !w.mixing {
+	if !w.mixingEnabled {
 		s := "wallet mixing support is disabled"
 		return errors.E(op, errors.Invalid, s)
 	}
@@ -454,7 +454,7 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 	const op errors.Op = "wallet.MixAccount"
 
 	// Mixing requests require wallet mixing support.
-	if !w.mixing {
+	if !w.mixingEnabled {
 		s := "wallet mixing support is disabled"
 		return errors.E(op, errors.Invalid, s)
 	}

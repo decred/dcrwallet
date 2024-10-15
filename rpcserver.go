@@ -373,7 +373,7 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 			Password:            pass,
 			MaxPOSTClients:      cfg.LegacyRPCMaxClients,
 			MaxWebsocketClients: cfg.LegacyRPCMaxWebsockets,
-			Mixing:              cfg.Mixing,
+			MixingEnabled:       cfg.MixingEnabled,
 			MixAccount:          cfg.mixedAccount,
 			MixBranch:           cfg.mixedBranch,
 			MixChangeAccount:    cfg.ChangeAccount,

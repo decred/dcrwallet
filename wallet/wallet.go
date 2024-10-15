@@ -155,10 +155,10 @@ type Wallet struct {
 	passphraseTimeoutCancel chan struct{}
 
 	// Mixing
-	mixing    bool
-	mixpool   *mixpool.Pool
-	mixSems   mixSemaphores
-	mixClient *mixclient.Client
+	mixingEnabled bool
+	mixpool       *mixpool.Pool
+	mixSems       mixSemaphores
+	mixClient     *mixclient.Client
 
 	// Cached Blake3 anchor candidate
 	cachedBlake3WorkDiffCandidateAnchor   *wire.BlockHeader
@@ -191,7 +191,7 @@ type Config struct {
 	AccountGapLimit         int
 	MixSplitLimit           int
 	DisableCoinTypeUpgrades bool
-	DisableMixing           bool
+	MixingEnabled           bool
 
 	ManualTickets bool
 	AllowHighFees bool
@@ -1606,7 +1606,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	// Do not attempt to split utxos for a fee payment when spending from
 	// the mixed account.  This error is rather unlikely anyways, as mixed
 	// accounts probably have very many outputs.
-	if req.Mixing && !w.mixing {
+	if req.Mixing && !w.mixingEnabled {
 		s := "wallet mixing support is disabled"
 		return nil, errors.E(op, errors.Invalid, s)
 	}
@@ -5416,8 +5416,8 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		addressBuffers: make(map[uint32]*bip0044AccountData),
 
-		mixSems: newMixSemaphores(cfg.MixSplitLimit),
-		mixing:  !cfg.DisableMixing,
+		mixSems:       newMixSemaphores(cfg.MixSplitLimit),
+		mixingEnabled: cfg.MixingEnabled,
 
 		vspMaxFee:  cfg.VSPMaxFee,
 		vspClients: make(map[string]*VSPClient),
@@ -5523,7 +5523,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 	// Record current tip as initialHeight.
 	_, w.initialHeight = w.MainChainTip(ctx)
 
-	if w.mixing {
+	if w.mixingEnabled {
 		w.mixpool = mixpool.NewPool((*mixpoolBlockchain)(w))
 		w.mixClient = mixclient.NewClient((*mixingWallet)(w))
 		w.mixClient.SetLogger(loggers.MixcLog)
@@ -5535,12 +5535,12 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 // MixingEnabled returns whether the wallet is enabled for mixing and is
 // running the mixing client.
 func (w *Wallet) MixingEnabled() bool {
-	return w.mixing
+	return w.mixingEnabled
 }
 
 // Run executes any necessary background goroutines for the wallet.
 func (w *Wallet) Run(ctx context.Context) error {
-	if w.mixing {
+	if w.mixingEnabled {
 		return w.mixClient.Run(ctx)
 	}
 	return nil

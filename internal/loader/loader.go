@@ -42,7 +42,7 @@ type Loader struct {
 	watchLast               uint32
 	accountGapLimit         int
 	disableCoinTypeUpgrades bool
-	disableMixing           bool
+	mixingEnabled           bool
 	allowHighFees           bool
 	manualTickets           bool
 	relayFee                dcrutil.Amount
@@ -56,7 +56,7 @@ type Loader struct {
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, vspMaxFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, disableMixing bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
+	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -66,7 +66,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled boo
 		watchLast:               watchLast,
 		accountGapLimit:         accountGapLimit,
 		disableCoinTypeUpgrades: disableCoinTypeUpgrades,
-		disableMixing:           disableMixing,
+		mixingEnabled:           mixingEnabled,
 		allowHighFees:           allowHighFees,
 		manualTickets:           manualTickets,
 		relayFee:                relayFee,
@@ -174,7 +174,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
-		DisableMixing:           l.disableMixing,
+		MixingEnabled:           l.mixingEnabled,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
@@ -264,7 +264,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
-		DisableMixing:           l.disableMixing,
+		MixingEnabled:           l.mixingEnabled,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
@@ -323,7 +323,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		WatchLast:               l.watchLast,
 		AccountGapLimit:         l.accountGapLimit,
 		DisableCoinTypeUpgrades: l.disableCoinTypeUpgrades,
-		DisableMixing:           l.disableMixing,
+		MixingEnabled:           l.mixingEnabled,
 		ManualTickets:           l.manualTickets,
 		AllowHighFees:           l.allowHighFees,
 		RelayFee:                l.relayFee,
