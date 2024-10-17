@@ -480,7 +480,9 @@ var errBreaksMinVersionTarget = errors.New("peer uses too low version to satisif
 
 // connectAndRunPeer connects to and runs the syncing process with the specified
 // peer. It blocks until the peer disconnects and logs any errors.
-func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent bool) {
+// connectAndRunPeer returns backoff flag indicating whether it is advised to
+// wait a bit before attempting to connect to this peer again.
+func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent bool) (backoff bool) {
 	// Attempt connection to peer.
 	rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
 	if err != nil {
@@ -491,6 +493,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 		s.remotesMu.Unlock()
 		if !errors.Is(err, context.Canceled) {
 			log.Warnf("Peering attempt failed: %v", err)
+			backoff = true
 		}
 		return
 	}
@@ -535,6 +538,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 			log.Infof("Lost peer %v", raddr)
 		}
 		rp.Disconnect(err)
+		backoff = true
 		return
 	}
 
@@ -545,6 +549,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 	} else {
 		log.Infof("Lost peer %v", raddr)
 	}
+	return
 }
 
 func (s *Syncer) breaksMinVersionTarget(rp *p2p.RemotePeer) bool {
@@ -569,13 +574,17 @@ func (s *Syncer) breaksMinVersionTarget(rp *p2p.RemotePeer) bool {
 
 func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
 	for {
-		s.connectAndRunPeer(ctx, raddr, true)
-
-		// Retry persistent peer after 5 seconds.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(5 * time.Second):
+		default:
+		}
+
+		backoff := s.connectAndRunPeer(ctx, raddr, true)
+		if backoff {
+			// Delay next connect attempt to save resources and not overwhelm peers,
+			// it's unlikely to succeed anyway if we do retry immediately.
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
@@ -607,9 +616,14 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			raddr := na.String()
-			s.connectAndRunPeer(ctx, raddr, false)
-			wg.Done()
+			backoff := s.connectAndRunPeer(ctx, raddr, false)
+			if backoff {
+				// Delay next connect attempt to save resources and not overwhelm peers,
+				// it's unlikely to succeed anyway if we do retry immediately.
+				time.Sleep(5 * time.Second)
+			}
 			<-sem
 		}()
 	}
