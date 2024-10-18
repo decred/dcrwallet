@@ -534,11 +534,11 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Warnf("Unable to complete startup sync with peer %v: %v", raddr, err)
+			backoff = true
 		} else {
 			log.Infof("Lost peer %v", raddr)
 		}
 		rp.Disconnect(err)
-		backoff = true
 		return
 	}
 
