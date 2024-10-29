@@ -52,8 +52,10 @@ func pickForGetCfilters(lastHeaderHeight int32) func(rp *p2p.RemotePeer) bool {
 		// blocks are generated while performing the sync, therefore
 		// the initial advertised peer height would be lower than the
 		// last header height.  Therefore, accept peers that are
-		// close, but not quite at the tip.
-		return rp.InitialHeight() >= lastHeaderHeight-6
+		// close, but not quite at the tip. It's possible that sync
+		// until now took longer than six blocks. In that case get
+		// cfilters from a peer that gave us headers.
+		return rp.InitialHeight() >= lastHeaderHeight-6 || rp.LastHeight() >= lastHeaderHeight
 	}
 }
 
