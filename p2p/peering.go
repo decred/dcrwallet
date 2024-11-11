@@ -1121,6 +1121,22 @@ func (rp *RemotePeer) deleteRequestedHeaders() {
 func (rp *RemotePeer) receivedHeaders(ctx context.Context, msg *wire.MsgHeaders) {
 	const opf = "remotepeer(%v).receivedHeaders"
 	rp.requestedHeadersMu.Lock()
+
+	// Ensure the remote peer sent as many headers as it could. It can only
+	// send fewer than 2k headers when the last one is >= their advertised
+	// height (their tip height). This handles cases where a peer might
+	// drip headers instead of sending a full batch.
+	tooFewHeaders := len(msg.Headers) > 0 &&
+		len(msg.Headers) < wire.MaxBlockHeadersPerMsg &&
+		msg.Headers[len(msg.Headers)-1].Height < uint32(rp.initHeight)
+	if tooFewHeaders {
+		op := errors.Opf(opf, rp.raddr)
+		err := errors.E(op, errors.Protocol, "peer sent too few headers")
+		rp.Disconnect(err)
+		rp.requestedHeadersMu.Unlock()
+		return
+	}
+
 	var prevHash chainhash.Hash
 	var prevHeight uint32
 	for i, h := range msg.Headers {
