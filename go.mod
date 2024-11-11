@@ -3,7 +3,7 @@ module decred.org/dcrwallet/v5
 go 1.22
 
 require (
-	decred.org/cspp/v2 v2.2.0
+	decred.org/cspp/v2 v2.3.0
 	github.com/decred/dcrd/addrmgr/v2 v2.0.4
 	github.com/decred/dcrd/blockchain/stake/v5 v5.0.1
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.2.1
@@ -12,7 +12,7 @@ require (
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
 	github.com/decred/dcrd/chaincfg/v3 v3.2.1
 	github.com/decred/dcrd/connmgr/v3 v3.1.2
-	github.com/decred/dcrd/crypto/blake256 v1.0.1
+	github.com/decred/dcrd/crypto/blake256 v1.1.0
 	github.com/decred/dcrd/crypto/rand v1.0.0
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
 	github.com/decred/dcrd/dcrec v1.0.1
@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrd/dcrutil/v4 v4.0.2
 	github.com/decred/dcrd/gcs/v4 v4.1.0
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.2
-	github.com/decred/dcrd/mixing v0.4.2-0.20241015160644-6fd343ab08d4
+	github.com/decred/dcrd/mixing v0.4.2
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.3.0
 	github.com/decred/dcrd/rpcclient/v8 v8.0.1
 	github.com/decred/dcrd/txscript/v4 v4.1.1
