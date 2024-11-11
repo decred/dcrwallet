@@ -55,6 +55,10 @@ type Syncer struct {
 	relevantTxs  map[chainhash.Hash][]*wire.MsgTx
 
 	cb *Callbacks
+
+	done   chan struct{}
+	err    error
+	doneMu sync.Mutex
 }
 
 // RPCOptions specifies the network and security settings for establishing a
@@ -523,6 +527,17 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 			const op errors.Op = "rpcsyncer.Run"
 			err = errors.E(op, err)
 		}
+	}()
+
+	s.doneMu.Lock()
+	s.done = make(chan struct{})
+	s.err = nil
+	s.doneMu.Unlock()
+	defer func() {
+		s.doneMu.Lock()
+		close(s.done)
+		s.err = err
+		s.doneMu.Unlock()
 	}()
 
 	params := s.wallet.ChainParams()

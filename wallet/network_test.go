@@ -35,3 +35,5 @@ func (mockNetwork) Rescan(ctx context.Context, blocks []chainhash.Hash, save fun
 }
 func (mockNetwork) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) { return 0, nil }
 func (mockNetwork) Synced(ctx context.Context) (bool, int32)                    { return false, 0 }
+func (mockNetwork) Done() <-chan struct{}                                       { return nil }
+func (mockNetwork) Err() error                                                  { return nil }
