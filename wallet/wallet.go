@@ -1560,7 +1560,7 @@ type PurchaseTicketsRequest struct {
 	VotingAddress    stdaddr.StakeAddress
 	MinConf          int32
 	Expiry           int32
-	VotingAccount    uint32 // Used when VotingAddress == nil, or Mixing == true
+	VotingAccount    uint32 // Used when Mixing == true || UseVotingAccount == true
 	UseVotingAccount bool   // Forces use of supplied voting account.
 	DontSignTx       bool
 
