@@ -95,6 +95,7 @@ var handlers = map[string]handler{
 	"createnewaccount":          {fn: (*Server).createNewAccount},
 	"createrawtransaction":      {fn: (*Server).createRawTransaction},
 	"createsignature":           {fn: (*Server).createSignature},
+	"debuglevel":                {fn: (*Server).debugLevel},
 	"disapprovepercent":         {fn: (*Server).disapprovePercent},
 	"discoverusage":             {fn: (*Server).discoverUsage},
 	"dumpprivkey":               {fn: (*Server).dumpPrivKey},
@@ -789,6 +790,23 @@ func (s *Server) createSignature(ctx context.Context, icmd any) (any, error) {
 		Signature: hex.EncodeToString(sig),
 		PublicKey: hex.EncodeToString(pubkey),
 	}, nil
+}
+
+func (s *Server) debugLevel(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.DebugLevelCmd)
+
+	if cmd.LevelSpec == "show" {
+		return fmt.Sprintf("Supported subsystems %v",
+			s.cfg.Loggers.Subsystems()), nil
+	}
+
+	err := s.cfg.Loggers.SetLevels(cmd.LevelSpec)
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"invalid debug level %v: %v", cmd.LevelSpec, err)
+	}
+
+	return "Done.", nil
 }
 
 // disapprovePercent returns the wallets current disapprove percentage.

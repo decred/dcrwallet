@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -229,6 +230,21 @@ func generateClientKeyPair(caPriv any, ca *x509.Certificate) (cert, key []byte, 
 	return cert, key, nil
 }
 
+type rpcLoggers struct{}
+
+func (rpcLoggers) Subsystems() []string {
+	s := make([]string, 0, len(subsystemLoggers))
+	for name := range subsystemLoggers {
+		s = append(s, name)
+	}
+	sort.Strings(s)
+	return s
+}
+
+func (rpcLoggers) SetLevels(levelSpec string) error {
+	return parseAndSetDebugLevels(levelSpec)
+}
+
 func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server, error) {
 	var jsonrpcAddrNotifier jsonrpcListenerEventServer
 	var grpcAddrNotifier grpcListenerEventServer
@@ -366,6 +382,7 @@ func startRPCServers(walletLoader *loader.Loader) (*grpc.Server, *jsonrpc.Server
 			VSPMaxFee:           cfg.VSPOpts.MaxFee.Amount,
 			TicketSplitAccount:  cfg.TicketSplitAccount,
 			Dial:                cfg.dial,
+			Loggers:             rpcLoggers{},
 		}
 		jsonrpcServer = jsonrpc.NewServer(&opts, activeNet.Params, walletLoader, listeners)
 		for _, lis := range listeners {

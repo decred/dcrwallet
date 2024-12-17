@@ -39,6 +39,7 @@ var Methods = []struct {
 	{"createnewaccount", nil},
 	{"createrawtransaction", returnsString},
 	{"createsignature", []any{(*types.CreateSignatureResult)(nil)}},
+	{"debuglevel", returnsString},
 	{"disapprovepercent", []any{(*uint32)(nil)}},
 	{"discoverusage", nil},
 	{"dumpprivkey", returnsString},

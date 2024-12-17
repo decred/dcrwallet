@@ -97,6 +97,19 @@ var helpDescsEnUS = map[string]string{
 	"createsignature-hashtype":              "The signature hash flags to use.",
 	"createsignature-previouspkscript":      "The hex encoded previous output script or P2SH redeem script.",
 
+	// DebugLevelCmd help.
+	"debuglevel--synopsis": "Dynamically changes the debug logging level.\n" +
+		"The levelspec can either a debug level or of the form:\n" +
+		"<subsystem>=<level>,<subsystem2>=<level2>,...\n" +
+		"The valid debug levels are trace, debug, info, warn, error, and critical.\n" +
+		"The valid subsystems are CMGR, DCRW, GRPC, LODR, MIXC, MIXP, PEER, RPCS, SYNC, TKBY, VSPC, and WLLT.\n" +
+		"Finally the keyword 'show' will return a list of the available subsystems.",
+	"debuglevel-levelspec":   "The debug level(s) to use or the keyword 'show'",
+	"debuglevel--condition0": "levelspec!=show",
+	"debuglevel--condition1": "levelspec=show",
+	"debuglevel--result0":    "The string 'Done.'",
+	"debuglevel--result1":    "The list of subsystems",
+
 	// DisapprovePercentCmd help.
 	"disapprovepercent--synopsis": "Returns the wallet's current block disapprove percent per vote. i.e. 100 means that all votes disapprove the block they are called on. Only used for testing purposes.",
 	"disapprovepercent--result0":  "The disapprove percent. When voting, this percent of votes will randomly disapprove the block they are called on.",
