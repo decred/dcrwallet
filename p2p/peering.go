@@ -2113,7 +2113,7 @@ func (rp *RemotePeer) PublishTransactions(ctx context.Context, txs ...*wire.MsgT
 	return nil
 }
 
-// PublishTransactions pushes an inventory message advertising transaction
+// PublishMixMessages pushes an inventory message advertising transaction
 // hashes of txs.
 func (rp *RemotePeer) PublishMixMessages(ctx context.Context, msgs ...mixing.Message) error {
 	const opf = "remotepeer(%v).PublishMixMessages"

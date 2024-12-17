@@ -700,7 +700,7 @@ func (c *Client) FundRawTransaction(ctx context.Context, rawhex string, fundAcco
 
 // GetInfoWallet calls the getinfo method.  It is named differently to avoid a
 // naming clash for dcrd clients with a GetInfo method.
-func (c *Client) GetInfo(ctx context.Context) (*types.InfoWalletResult, error) {
+func (c *Client) GetInfoWallet(ctx context.Context) (*types.InfoWalletResult, error) {
 	res := new(types.InfoWalletResult)
 	err := c.Call(ctx, "getinfo", res)
 	return res, err
