@@ -34,7 +34,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/jrick/bitset v1.0.0
 	github.com/jrick/logrotate v1.0.0
-	github.com/jrick/wsrpc/v2 v2.3.7
+	github.com/jrick/wsrpc/v2 v2.3.8
 	go.etcd.io/bbolt v1.3.11
 	golang.org/x/crypto v0.27.0
 	golang.org/x/sync v0.8.0
