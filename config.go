@@ -163,6 +163,8 @@ type config struct {
 	LegacyRPCMaxWebsockets int64                   `long:"rpcmaxwebsockets" description:"Max JSON-RPC websocket clients"`
 	Username               string                  `short:"u" long:"username" description:"JSON-RPC username and default dcrd RPC username"`
 	Password               string                  `short:"P" long:"password" default-mask:"-" description:"JSON-RPC password and default dcrd RPC password"`
+	RPCUser                string                  `long:"rpcuser" description:"JSON-RPC username and default dcrd RPC username"`
+	RPCPass                string                  `long:"rpcpass" default-mask:"-" description:"JSON-RPC password and default dcrd RPC password"`
 	JSONRPCAuthType        string                  `long:"jsonrpcauthtype" description:"Method for JSON-RPC client authentication (basic or clientcert)"`
 
 	// IPC options
@@ -459,6 +461,17 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				configFileError = err
 			}
 		}
+	}
+
+	if cfg.RPCUser != "" {
+		cfg.Username = cfg.RPCUser
+	} else {
+		log.Warn("The 'username' attribute in the config file is outdated. You should update it to 'rpcuser'")
+	}
+	if cfg.RPCPass != "" {
+		cfg.Password = cfg.RPCPass
+	} else {
+		log.Warn("The 'password' attribute in the config file is outdated. You should update it to 'rpcpass'")
 	}
 
 	// Parse command line options again to ensure they take precedence.
@@ -1110,10 +1123,10 @@ func createDefaultConfigFile(destPath string, authType string) error {
 		if getRpcErr == nil {
 			// Replace the rpcuser and rpcpass lines in the sample configuration
 			// file contents with their generated values.
-			rpcUserRE := regexp.MustCompile(`(?m)^;\s*username=[^\s]*$`)
-			rpcPassRE := regexp.MustCompile(`(?m)^;\s*password=[^\s]*$`)
-			updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(rpcUser, "rpcuser", "username"))
-			updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(rpcPass, "rpcpass", "password"))
+			rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
+			rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
+			updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(rpcUser, "rpcuser", "rpcuser"))
+			updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(rpcPass, "rpcpass", "rpcpass"))
 			cfg = updatedCfg
 		}
 	}
