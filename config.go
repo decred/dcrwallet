@@ -6,12 +6,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -71,6 +74,7 @@ const (
 
 var (
 	dcrdDefaultCAFile         = filepath.Join(dcrutil.AppDataDir("dcrd", false), "rpc.cert")
+	dcrdDefaultConfigFile     = filepath.Join(dcrutil.AppDataDir("dcrd", false), "dcrd.conf")
 	defaultAppDataDir         = dcrutil.AppDataDir("dcrwallet", false)
 	defaultConfigFile         = filepath.Join(defaultAppDataDir, defaultConfigFilename)
 	defaultRPCKeyFile         = filepath.Join(defaultAppDataDir, "rpc.key")
@@ -434,7 +438,27 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			parser.WriteHelp(os.Stderr)
 			return loadConfigError(err)
 		}
-		configFileError = err
+		// if path error, create default config file, assign default dcrd rpc config data if any
+		createFileErr := createDefaultConfigFile(configFilePath, preCfg.DcrdAuthType)
+		if createFileErr != nil {
+			fmt.Fprintf(os.Stderr, "Error creating a default "+
+				"config file: %v\n", createFileErr)
+			configFileError = createFileErr
+		} else {
+			log.Warnf("Config file does not exist. New default file created: %s", configFilePath)
+			configFileError = nil
+			// Reparse data on config file
+			err = flags.NewIniParser(parser).ParseFile(configFilePath)
+			if err != nil {
+				var e *os.PathError
+				if !errors.As(err, &e) {
+					fmt.Fprintln(os.Stderr, err)
+					parser.WriteHelp(os.Stderr)
+					return loadConfigError(err)
+				}
+				configFileError = err
+			}
+		}
 	}
 
 	// Parse command line options again to ensure they take precedence.
@@ -660,10 +684,30 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// Created successfully, so exit now with success.
 		os.Exit(0)
 	} else if !dbFileExists && !cfg.NoInitialLoad {
-		err := errors.Errorf("The wallet does not exist.  Run with the " +
-			"--create option to initialize and create it.")
-		fmt.Fprintln(os.Stderr, err)
-		return loadConfigError(err)
+		isCreate, err := ConfirmBool("The wallet does not exist. Do you want to create a wallet now?", "y")
+		if err != nil {
+			log.Errorf("Error creating wallet: %v", err)
+			return loadConfigError(err)
+		}
+		if isCreate {
+			err := createWallet(ctx, &cfg)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Unable to create wallet:", err)
+				return loadConfigError(err)
+			}
+			// Ask user whether to launch dcrwallet or exit
+			launch, err := ConfirmBool("Do you want to launch dcrwallet now?", "y")
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Unable to launch dcrwallet:", err)
+				return loadConfigError(err)
+			}
+			if !launch {
+				os.Exit(0)
+			}
+		} else {
+			log.Warnf("Can be run with --create option to initialize and create wallet.")
+			os.Exit(0)
+		}
 	}
 
 	ipNet := func(cidr string) net.IPNet {
@@ -1048,4 +1092,69 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	}
 
 	return &cfg, remainingArgs, nil
+}
+
+// createDefaultConfig copies the file sample-dcrd.conf to the given destination path,
+// and populates it with some randomly generated RPC username and password.
+func createDefaultConfigFile(destPath string, authType string) error {
+	// Create the destination directory if it does not exist.
+	err := os.MkdirAll(filepath.Dir(destPath), 0700)
+	if err != nil {
+		return err
+	}
+	cfg := Dcrwallet()
+	// check and read dcrd config file
+	if authType == authTypeBasic && exists(dcrdDefaultConfigFile) {
+		// get rpc user, password info from dcrd
+		rpcUser, rpcPass, getRpcErr := getRpcConfigFromDcrdConfigFile(dcrdDefaultConfigFile)
+		if getRpcErr == nil {
+			// Replace the rpcuser and rpcpass lines in the sample configuration
+			// file contents with their generated values.
+			rpcUserRE := regexp.MustCompile(`(?m)^;\s*username=[^\s]*$`)
+			rpcPassRE := regexp.MustCompile(`(?m)^;\s*password=[^\s]*$`)
+			updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(rpcUser, "rpcuser", "username"))
+			updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(rpcPass, "rpcpass", "password"))
+			cfg = updatedCfg
+		}
+	}
+	// Create config file at the provided path.
+	dest, err := os.OpenFile(destPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	defer dest.Close()
+	_, err = dest.WriteString(cfg)
+	return err
+}
+func getRpcConfigFromDcrdConfigFile(filePath string) (string, string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", "", err
+	}
+	defer f.Close()
+	br := bufio.NewReader(f)
+	username := ""
+	password := ""
+	for {
+		line, err := br.ReadString('\n')
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if strings.HasPrefix(line, "rpcuser=") {
+			username = strings.TrimSpace(line)
+		}
+		if strings.HasPrefix(line, "rpcpass=") {
+			password = strings.TrimSpace(line)
+		}
+	}
+	if username == "" || password == "" {
+		return "", "", fmt.Errorf("get dcrd rpc info failed")
+	}
+	return username, password, nil
+}
+
+// exists return true if the provided path exists.
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

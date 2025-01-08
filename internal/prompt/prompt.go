@@ -104,6 +104,10 @@ func promptList(reader *bufio.Reader, prefix string, validResponses []string, de
 	}
 }
 
+func AskConfirmBool(reader *bufio.Reader, prefix string, defaultEntry string) (bool, error) {
+	return promptListBool(reader, prefix, defaultEntry)
+}
+
 // promptListBool prompts the user for a boolean (yes/no) with the given prefix.
 // The function will repeat the prompt to the user until they enter a valid
 // response.
