@@ -443,11 +443,10 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		// if path error, create default config file, assign default dcrd rpc config data if any
 		createFileErr := createDefaultConfigFile(configFilePath, preCfg.DcrdAuthType)
 		if createFileErr != nil {
-			fmt.Fprintf(os.Stderr, "Error creating a default "+
+			fmt.Fprintf(os.Stderr, "Error creating default "+
 				"config file: %v\n", createFileErr)
 			configFileError = createFileErr
 		} else {
-			log.Warnf("Config file does not exist. New default file created: %s", configFilePath)
 			configFileError = nil
 			// Reparse data on config file
 			err = flags.NewIniParser(parser).ParseFile(configFilePath)
@@ -477,12 +476,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 	if cfg.RPCUser != "" {
 		cfg.Username = cfg.RPCUser
-	} else {
+	} else if cfg.Username != "" {
 		log.Warn("The 'username' attribute in the config file is outdated. You should update it to 'rpcuser'")
 	}
 	if cfg.RPCPass != "" {
 		cfg.Password = cfg.RPCPass
-	} else {
+	} else if cfg.Password != "" {
 		log.Warn("The 'password' attribute in the config file is outdated. You should update it to 'rpcpass'")
 	}
 
@@ -1154,10 +1153,10 @@ func createDefaultConfigFile(destPath string, authType string) error {
 		return err
 	}
 	cfg := Dcrwallet()
+	dcrdRpcUser := ""
+	dcrdRpcPass := ""
 	// check and read dcrd config file
 	if authType == authTypeBasic {
-		dcrdRpcUser := ""
-		dcrdRpcPass := ""
 		if exists(dcrdDefaultConfigFile) {
 			var getRpcErr error
 			// get rpc user, password info from dcrd
@@ -1172,12 +1171,6 @@ func createDefaultConfigFile(destPath string, authType string) error {
 				cfg = updatedCfg
 			}
 		}
-		// If dcrd rpc info cannot be obtained, the dcrwallet.conf file is still created, but warns the user about setting rpc parameters manually.
-		if dcrdRpcUser == "" && dcrdRpcPass == "" {
-			log.Warnf("Unable to get rpc informations from dcrd. You need to set these parameters manually for the program to run correctly.\n"+
-				"Config file path: %s", destPath)
-
-		}
 	}
 	// Create config file at the provided path.
 	dest, err := os.OpenFile(destPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
@@ -1186,6 +1179,13 @@ func createDefaultConfigFile(destPath string, authType string) error {
 	}
 	defer dest.Close()
 	_, err = dest.WriteString(cfg)
+	if err == nil {
+		log.Warnf("Config file does not exist. New default file created: %s", destPath)
+	}
+	// If dcrd rpc info cannot be obtained, the dcrwallet.conf file is still created, but warns the user about setting rpc parameters manually.
+	if dcrdRpcUser == "" && dcrdRpcPass == "" {
+		log.Warnf("Unable to get rpc informations from dcrd. Launch dcrd to automatically update or set it manually on the config file.")
+	}
 	return err
 }
 func getRpcConfigFromDcrdConfigFile(filePath string) (string, string, error) {
