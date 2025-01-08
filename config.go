@@ -461,6 +461,18 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				configFileError = err
 			}
 		}
+	} else {
+		// If rpc parameter is not set. Check dcrd rpc info and update config file
+		if cfg.RPCUser == "" && cfg.RPCPass == "" && cfg.Username == "" && cfg.Password == "" && preCfg.DcrdAuthType == authTypeBasic {
+			rpcUser, rpcPass, err := updateDefaultDcrdRPCInfos(configFilePath)
+			if err != nil {
+				log.Warnf("Updating rpc params from dcrd failed. \n %v", err)
+			} else {
+				cfg.RPCUser = rpcUser
+				cfg.RPCPass = rpcPass
+				log.Info("Update rpc params from dcrd successfully")
+			}
+		}
 	}
 
 	if cfg.RPCUser != "" {
@@ -1107,6 +1119,32 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	return &cfg, remainingArgs, nil
 }
 
+func updateDefaultDcrdRPCInfos(destPath string) (string, string, error) {
+	// get rpc user, password info from dcrd
+	dcrdRpcUser, dcrdRpcPass, getRpcErr := getRpcConfigFromDcrdConfigFile(dcrdDefaultConfigFile)
+	if getRpcErr != nil {
+		return "", "", getRpcErr
+	}
+	if dcrdRpcUser == "" && dcrdRpcPass == "" {
+		return "", "", fmt.Errorf("get dcrd rpc info failed")
+	}
+	cfgBuff, err := os.ReadFile(destPath)
+	if err != nil {
+		return "", "", err
+	}
+	cfg := string(cfgBuff)
+	rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
+	rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
+	updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(dcrdRpcUser, "rpcuser", "rpcuser"))
+	updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(dcrdRpcPass, "rpcpass", "rpcpass"))
+	cfg = updatedCfg
+	err = os.WriteFile(destPath, []byte(cfg), 0644)
+	if err != nil {
+		return "", "", err
+	}
+	return dcrdRpcUser, dcrdRpcPass, nil
+}
+
 // createDefaultConfig copies the file sample-dcrd.conf to the given destination path,
 // and populates it with some randomly generated RPC username and password.
 func createDefaultConfigFile(destPath string, authType string) error {
@@ -1117,17 +1155,28 @@ func createDefaultConfigFile(destPath string, authType string) error {
 	}
 	cfg := Dcrwallet()
 	// check and read dcrd config file
-	if authType == authTypeBasic && exists(dcrdDefaultConfigFile) {
-		// get rpc user, password info from dcrd
-		rpcUser, rpcPass, getRpcErr := getRpcConfigFromDcrdConfigFile(dcrdDefaultConfigFile)
-		if getRpcErr == nil {
-			// Replace the rpcuser and rpcpass lines in the sample configuration
-			// file contents with their generated values.
-			rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
-			rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
-			updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(rpcUser, "rpcuser", "rpcuser"))
-			updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(rpcPass, "rpcpass", "rpcpass"))
-			cfg = updatedCfg
+	if authType == authTypeBasic {
+		dcrdRpcUser := ""
+		dcrdRpcPass := ""
+		if exists(dcrdDefaultConfigFile) {
+			var getRpcErr error
+			// get rpc user, password info from dcrd
+			dcrdRpcUser, dcrdRpcPass, getRpcErr = getRpcConfigFromDcrdConfigFile(dcrdDefaultConfigFile)
+			if getRpcErr == nil {
+				// Replace the rpcuser and rpcpass lines in the sample configuration
+				// file contents with their generated values.
+				rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
+				rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
+				updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(dcrdRpcUser, "rpcuser", "rpcuser"))
+				updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(dcrdRpcPass, "rpcpass", "rpcpass"))
+				cfg = updatedCfg
+			}
+		}
+		// If dcrd rpc info cannot be obtained, the dcrwallet.conf file is still created, but warns the user about setting rpc parameters manually.
+		if dcrdRpcUser == "" && dcrdRpcPass == "" {
+			log.Warnf("Unable to get rpc informations from dcrd. You need to set these parameters manually for the program to run correctly.\n"+
+				"Config file path: %s", destPath)
+
 		}
 	}
 	// Create config file at the provided path.
