@@ -65,6 +65,8 @@ const (
 	// ticket buyer options
 	defaultBalanceToMaintainAbsolute = 0
 	defaultTicketbuyerLimit          = 1
+	// If max ticket price is set to 0, purchase will still be made even if ticket price is too high
+	defaultMaxTicketPrice = 0
 
 	walletDbName = "wallet.db"
 )
@@ -185,8 +187,10 @@ type config struct {
 
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
+	BalanceToMaintain         *cfgutil.AmountFlag `long:"balancetomaintain" description:"Amount of funds to keep in wallet when purchasing tickets"`
 	Limit                     uint                `long:"limit" description:"Buy no more than specified number of tickets per block"`
 	VotingAccount             string              `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
+	MaxTicketPrice            *cfgutil.AmountFlag `long:"maxticketprice" description:"Don't buy when the price is too high"`
 }
 
 type vspOptions struct {
@@ -380,8 +384,9 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 
 		// Ticket Buyer Options
 		TBOpts: ticketBuyerOptions{
-			BalanceToMaintainAbsolute: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
-			Limit:                     defaultTicketbuyerLimit,
+			BalanceToMaintain: cfgutil.NewAmountFlag(defaultBalanceToMaintainAbsolute),
+			Limit:             defaultTicketbuyerLimit,
+			MaxTicketPrice:    cfgutil.NewAmountFlag(defaultMaxTicketPrice),
 		},
 
 		VSPOpts: vspOptions{
@@ -435,6 +440,12 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			return loadConfigError(err)
 		}
 		configFileError = err
+	}
+
+	if cfg.TBOpts.BalanceToMaintainAbsolute != nil {
+		log.Warn("The 'ticketbuyer.balancetomaintainabsolute' attribute in the config file is outdated. You should update it to 'ticketbuyer.balancetomaintain'")
+	} else {
+		cfg.TBOpts.BalanceToMaintainAbsolute = cfg.TBOpts.BalanceToMaintain
 	}
 
 	// Parse command line options again to ensure they take precedence.
@@ -569,6 +580,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	if cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin() < 0 {
 		str := "%s: balancetomaintainabsolute cannot be negative: %v"
 		err := errors.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainAbsolute)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+
+	// Check valid Maxticketprice param
+	if cfg.TBOpts.MaxTicketPrice.ToCoin() < 0 {
+		str := "%s: maxticketprice cannot be negative: %v"
+		err := errors.Errorf(str, funcName, cfg.TBOpts.MaxTicketPrice)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}
