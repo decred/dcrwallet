@@ -435,6 +435,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 	}
 	err = flags.NewIniParser(parser).ParseFile(configFilePath)
+	manualSPVConfig := false
 	if err != nil {
 		var e *os.PathError
 		if !errors.As(err, &e) {
@@ -462,12 +463,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				configFileError = err
 			}
 			if !dcrdExist {
-				cfg, err = startWithSPVMode(cfg, configFilePath)
-				if err != nil {
-					log.Errorf("Start with SPV mode error: %v", err)
-					parser.WriteHelp(os.Stderr)
-					return loadConfigError(err)
-				}
+				manualSPVConfig = true
 			}
 		}
 	} else {
@@ -476,12 +472,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			rpcUser, rpcPass, err := updateDefaultDcrdRPCInfos(configFilePath)
 			if err != nil {
 				log.Warnf("Updating rpc params from dcrd failed: %v", err)
-				cfg, err = startWithSPVMode(cfg, configFilePath)
-				if err != nil {
-					log.Errorf("Start with SPV mode error: %v", err)
-					parser.WriteHelp(os.Stderr)
-					return loadConfigError(err)
-				}
+				manualSPVConfig = true
 			} else {
 				cfg.RPCUser = rpcUser
 				cfg.RPCPass = rpcPass
@@ -510,7 +501,14 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		}
 		return loadConfigError(err)
 	}
-
+	if manualSPVConfig {
+		cfg, err = configWithSPVMode(cfg, configFilePath)
+		if err != nil {
+			log.Errorf("SPV mode setting error: %v", err)
+			parser.WriteHelp(os.Stderr)
+			return loadConfigError(err)
+		}
+	}
 	// If an alternate data directory was specified, and paths with defaults
 	// relative to the data dir are unchanged, modify each path to be
 	// relative to the new data dir.
@@ -1134,48 +1132,71 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	return &cfg, remainingArgs, nil
 }
 
+// Config with SPV mode
+func configWithSPVMode(cfg config, cfgFilePath string) (config, error) {
+	var err error
+	if cfg.SPV {
+		cfg, err = autoGenerateRpcUserPass(cfg, cfgFilePath)
+	} else {
+		cfg, err = spvConfigWithQuestion(cfg, cfgFilePath)
+	}
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
 // In case RPC information is not automatically fetched from dcrd, ask the user whether they would like to run SPV mode.
 // The RPC username and password will be automatically generated.
-func startWithSPVMode(cfg config, cfgFilePath string) (config, error) {
+func spvConfigWithQuestion(cfg config, cfgFilePath string) (config, error) {
 	spvSelect, err := ConfirmBool("Would you like to launch SPV mode? (If SPV mode is selected, the username and password will be automatically generated.)", "y")
 	if err != nil {
-		log.Errorf("spv mode setup error: %v", err)
 		return cfg, err
 	}
 	if spvSelect {
 		cfg.SPV = true
 		cfg.Offline = false
-		// Generate a random user and password for the RPC server credentials.
-		randomBytes := make([]byte, 20)
-		_, err = rand.Read(randomBytes)
+		cfg, err = autoGenerateRpcUserPass(cfg, cfgFilePath)
 		if err != nil {
 			return cfg, err
 		}
-		randomUsername := base64.StdEncoding.EncodeToString(randomBytes)
-		_, err = rand.Read(randomBytes)
-		if err != nil {
-			return cfg, err
-		}
-		generatedRPCPass := base64.StdEncoding.EncodeToString(randomBytes)
-		cfgBuff, err := os.ReadFile(cfgFilePath)
-		if err != nil {
-			return cfg, err
-		}
-		cfgStr := string(cfgBuff)
-		rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
-		rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
-		updatedCfg := rpcUserRE.ReplaceAllString(cfgStr, fmt.Sprintf("rpcuser=%s", randomUsername))
-		updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, fmt.Sprintf("rpcpass=%s", generatedRPCPass))
-		cfgStr = updatedCfg
-		err = os.WriteFile(cfgFilePath, []byte(cfgStr), 0644)
-		if err != nil {
-			return cfg, err
-		}
-		cfg.RPCUser = randomUsername
-		cfg.Username = randomUsername
-		cfg.RPCPass = generatedRPCPass
-		cfg.Password = generatedRPCPass
 	}
+	return cfg, nil
+}
+
+// Automatically generate rpcuser and rpcpassword and save to config file
+func autoGenerateRpcUserPass(cfg config, configFilePath string) (config, error) {
+	// Generate a random user and password for the RPC server credentials.
+	randomBytes := make([]byte, 20)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return cfg, err
+	}
+	randomUsername := base64.StdEncoding.EncodeToString(randomBytes)
+	_, err = rand.Read(randomBytes)
+	if err != nil {
+		return cfg, err
+	}
+	generatedRPCPass := base64.StdEncoding.EncodeToString(randomBytes)
+	cfgBuff, err := os.ReadFile(configFilePath)
+	if err != nil {
+		return cfg, err
+	}
+	cfgStr := string(cfgBuff)
+	rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
+	rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
+	updatedCfg := rpcUserRE.ReplaceAllString(cfgStr, fmt.Sprintf("rpcuser=%s", randomUsername))
+	updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, fmt.Sprintf("rpcpass=%s", generatedRPCPass))
+	cfgStr = updatedCfg
+	err = os.WriteFile(configFilePath, []byte(cfgStr), 0644)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.RPCUser = randomUsername
+	cfg.Username = randomUsername
+	cfg.RPCPass = generatedRPCPass
+	cfg.Password = generatedRPCPass
+	log.Info("The RPC username and password were randomly generated and saved in the configuration file.")
 	return cfg, nil
 }
 
