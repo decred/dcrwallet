@@ -8,6 +8,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net"
@@ -441,7 +443,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 			return loadConfigError(err)
 		}
 		// if path error, create default config file, assign default dcrd rpc config data if any
-		createFileErr := createDefaultConfigFile(configFilePath, preCfg.DcrdAuthType)
+		dcrdExist, createFileErr := createDefaultConfigFile(configFilePath, preCfg.DcrdAuthType)
 		if createFileErr != nil {
 			fmt.Fprintf(os.Stderr, "Error creating default "+
 				"config file: %v\n", createFileErr)
@@ -459,13 +461,27 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 				}
 				configFileError = err
 			}
+			if !dcrdExist {
+				cfg, err = startWithSPVMode(cfg, configFilePath)
+				if err != nil {
+					log.Errorf("Start with SPV mode error: %v", err)
+					parser.WriteHelp(os.Stderr)
+					return loadConfigError(err)
+				}
+			}
 		}
 	} else {
 		// If rpc parameter is not set. Check dcrd rpc info and update config file
 		if cfg.RPCUser == "" && cfg.RPCPass == "" && cfg.Username == "" && cfg.Password == "" && preCfg.DcrdAuthType == authTypeBasic {
 			rpcUser, rpcPass, err := updateDefaultDcrdRPCInfos(configFilePath)
 			if err != nil {
-				log.Warnf("Updating rpc params from dcrd failed. \n %v", err)
+				log.Warnf("Updating rpc params from dcrd failed: %v", err)
+				cfg, err = startWithSPVMode(cfg, configFilePath)
+				if err != nil {
+					log.Errorf("Start with SPV mode error: %v", err)
+					parser.WriteHelp(os.Stderr)
+					return loadConfigError(err)
+				}
 			} else {
 				cfg.RPCUser = rpcUser
 				cfg.RPCPass = rpcPass
@@ -1118,6 +1134,51 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	return &cfg, remainingArgs, nil
 }
 
+// In case RPC information is not automatically fetched from dcrd, ask the user whether they would like to run SPV mode.
+// The RPC username and password will be automatically generated.
+func startWithSPVMode(cfg config, cfgFilePath string) (config, error) {
+	spvSelect, err := ConfirmBool("Would you like to launch SPV mode? (If SPV mode is selected, the username and password will be automatically generated.)", "y")
+	if err != nil {
+		log.Errorf("spv mode setup error: %v", err)
+		return cfg, err
+	}
+	if spvSelect {
+		cfg.SPV = true
+		cfg.Offline = false
+		// Generate a random user and password for the RPC server credentials.
+		randomBytes := make([]byte, 20)
+		_, err = rand.Read(randomBytes)
+		if err != nil {
+			return cfg, err
+		}
+		randomUsername := base64.StdEncoding.EncodeToString(randomBytes)
+		_, err = rand.Read(randomBytes)
+		if err != nil {
+			return cfg, err
+		}
+		generatedRPCPass := base64.StdEncoding.EncodeToString(randomBytes)
+		cfgBuff, err := os.ReadFile(cfgFilePath)
+		if err != nil {
+			return cfg, err
+		}
+		cfgStr := string(cfgBuff)
+		rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
+		rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
+		updatedCfg := rpcUserRE.ReplaceAllString(cfgStr, fmt.Sprintf("rpcuser=%s", randomUsername))
+		updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, fmt.Sprintf("rpcpass=%s", generatedRPCPass))
+		cfgStr = updatedCfg
+		err = os.WriteFile(cfgFilePath, []byte(cfgStr), 0644)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.RPCUser = randomUsername
+		cfg.Username = randomUsername
+		cfg.RPCPass = generatedRPCPass
+		cfg.Password = generatedRPCPass
+	}
+	return cfg, nil
+}
+
 func updateDefaultDcrdRPCInfos(destPath string) (string, string, error) {
 	// get rpc user, password info from dcrd
 	dcrdRpcUser, dcrdRpcPass, getRpcErr := getRpcConfigFromDcrdConfigFile(dcrdDefaultConfigFile)
@@ -1134,8 +1195,8 @@ func updateDefaultDcrdRPCInfos(destPath string) (string, string, error) {
 	cfg := string(cfgBuff)
 	rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
 	rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
-	updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(dcrdRpcUser, "rpcuser", "rpcuser"))
-	updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(dcrdRpcPass, "rpcpass", "rpcpass"))
+	updatedCfg := rpcUserRE.ReplaceAllString(cfg, dcrdRpcUser)
+	updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, dcrdRpcPass)
 	cfg = updatedCfg
 	err = os.WriteFile(destPath, []byte(cfg), 0644)
 	if err != nil {
@@ -1146,11 +1207,11 @@ func updateDefaultDcrdRPCInfos(destPath string) (string, string, error) {
 
 // createDefaultConfig copies the file sample-dcrd.conf to the given destination path,
 // and populates it with some randomly generated RPC username and password.
-func createDefaultConfigFile(destPath string, authType string) error {
+func createDefaultConfigFile(destPath string, authType string) (dcrdExist bool, err error) {
 	// Create the destination directory if it does not exist.
-	err := os.MkdirAll(filepath.Dir(destPath), 0700)
+	err = os.MkdirAll(filepath.Dir(destPath), 0700)
 	if err != nil {
-		return err
+		return false, err
 	}
 	cfg := Dcrwallet()
 	dcrdRpcUser := ""
@@ -1166,8 +1227,8 @@ func createDefaultConfigFile(destPath string, authType string) error {
 				// file contents with their generated values.
 				rpcUserRE := regexp.MustCompile(`(?m)^;\s*rpcuser=[^\s]*$`)
 				rpcPassRE := regexp.MustCompile(`(?m)^;\s*rpcpass=[^\s]*$`)
-				updatedCfg := rpcUserRE.ReplaceAllString(cfg, strings.ReplaceAll(dcrdRpcUser, "rpcuser", "rpcuser"))
-				updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, strings.ReplaceAll(dcrdRpcPass, "rpcpass", "rpcpass"))
+				updatedCfg := rpcUserRE.ReplaceAllString(cfg, dcrdRpcUser)
+				updatedCfg = rpcPassRE.ReplaceAllString(updatedCfg, dcrdRpcPass)
 				cfg = updatedCfg
 			}
 		}
@@ -1175,18 +1236,21 @@ func createDefaultConfigFile(destPath string, authType string) error {
 	// Create config file at the provided path.
 	dest, err := os.OpenFile(destPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer dest.Close()
 	_, err = dest.WriteString(cfg)
 	if err == nil {
 		log.Warnf("Config file does not exist. New default file created: %s", destPath)
+	} else {
+		return false, err
 	}
 	// If dcrd rpc info cannot be obtained, the dcrwallet.conf file is still created, but warns the user about setting rpc parameters manually.
 	if dcrdRpcUser == "" && dcrdRpcPass == "" {
 		log.Warnf("Unable to get rpc informations from dcrd. Launch dcrd to automatically update or set it manually on the config file.")
+		return false, nil
 	}
-	return err
+	return true, nil
 }
 func getRpcConfigFromDcrdConfigFile(filePath string) (string, string, error) {
 	f, err := os.Open(filePath)
