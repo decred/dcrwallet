@@ -1552,6 +1552,7 @@ type PurchaseTicketsRequest struct {
 	SourceAccount    uint32
 	MinConf          int32
 	Expiry           int32
+	MaxTicketPrice   dcrutil.Amount
 	VotingAccount    uint32 // Used when Mixing == true || UseVotingAccount == true
 	UseVotingAccount bool   // Forces use of supplied voting account.
 	DontSignTx       bool
