@@ -105,6 +105,13 @@ func displaySimnetMiningAddrs(seed []byte, imported bool) error {
 	return nil
 }
 
+// Confirm yes/no/y/n with confirm question and default confirmation value
+func ConfirmBool(prefix, defaultEntry string) (bool, error) {
+	r := bufio.NewReader(os.Stdin)
+	confirmYes, err := prompt.AskConfirmBool(r, prefix, defaultEntry)
+	return confirmYes, err
+}
+
 // createWallet prompts the user for information needed to generate a new wallet
 // and generates the wallet accordingly.  The new wallet will reside at the
 // provided path. The bool passed back gives whether or not the wallet was
