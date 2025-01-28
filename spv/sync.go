@@ -388,11 +388,22 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
 
+	// Ensure initial sync and wallet.Run cleanly finish/are canceled
+	// first when outer context is canceled.
+	walletCtx, walletCtxCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-gctx.Done():
+		}
+		walletCtxCancel()
+	}()
+
 	// Perform the initial startup sync.
 	g.Go(func() error {
 		// First step: fetch missing CFilters.
 		progress := make(chan wallet.MissingCFilterProgress, 1)
-		go s.wallet.FetchMissingCFiltersWithProgress(gctx, s, progress)
+		go s.wallet.FetchMissingCFiltersWithProgress(walletCtx, s, progress)
 
 		log.Debugf("Fetching missing CFilters...")
 		s.fetchMissingCfiltersStart()
@@ -408,14 +419,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		// Next: fetch headers and cfilters up to mainchain tip.
 		s.fetchHeadersStart()
 		log.Debugf("Fetching headers and CFilters...")
-		err = s.initialSyncHeaders(gctx)
+		err = s.initialSyncHeaders(walletCtx)
 		if err != nil {
 			return err
 		}
 		s.fetchHeadersFinished()
 
 		// Finally: Perform the initial rescan over the received blocks.
-		err = s.initialSyncRescan(gctx)
+		err = s.initialSyncRescan(walletCtx)
 		if err != nil {
 			return err
 		}
@@ -425,16 +436,6 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return nil
 	})
 
-	// Ensure wallet.Run cleanly finishes/is canceled first when outer
-	// context is canceled.
-	walletCtx, walletCtxCancel := context.WithCancel(context.Background())
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-gctx.Done():
-		}
-		walletCtxCancel()
-	}()
 	g.Go(func() error {
 		// Run wallet background goroutines (currently, this just runs
 		// mixclient).
