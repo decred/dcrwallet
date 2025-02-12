@@ -321,7 +321,7 @@ func (s *Syncer) setRequiredHeight(tipHeight int32) {
 }
 
 // Run synchronizes the wallet, returning when synchronization fails or the
-// context is cancelled.
+// context is canceled.
 func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.doneMu.Lock()
 	s.done = make(chan struct{})
@@ -367,32 +367,43 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Start background handlers to read received messages from remote peers
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return s.receiveGetData(ctx) })
-	g.Go(func() error { return s.receiveInv(ctx) })
-	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
-	g.Go(func() error { return s.receiveMixMsgs(ctx) })
+	g, gctx := errgroup.WithContext(context.Background())
+	g.Go(func() error { return s.receiveGetData(gctx) })
+	g.Go(func() error { return s.receiveInv(gctx) })
+	g.Go(func() error { return s.receiveHeadersAnnouncements(gctx) })
+	g.Go(func() error { return s.receiveMixMsgs(gctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
 		for i := range s.persistentPeers {
 			raddr := s.persistentPeers[i]
-			g.Go(func() error { return s.connectToPersistent(ctx, raddr) })
+			g.Go(func() error { return s.connectToPersistent(gctx, raddr) })
 		}
 	} else {
-		g.Go(func() error { return s.connectToCandidates(ctx) })
+		g.Go(func() error { return s.connectToCandidates(gctx) })
 	}
 
-	g.Go(func() error { return s.handleMempool(ctx) })
+	g.Go(func() error { return s.handleMempool(gctx) })
 
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
+
+	// Ensure initial sync and wallet.Run cleanly finish/are canceled
+	// first when outer context is canceled.
+	walletCtx, walletCtxCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-gctx.Done():
+		}
+		walletCtxCancel()
+	}()
 
 	// Perform the initial startup sync.
 	g.Go(func() error {
 		// First step: fetch missing CFilters.
 		progress := make(chan wallet.MissingCFilterProgress, 1)
-		go s.wallet.FetchMissingCFiltersWithProgress(ctx, s, progress)
+		go s.wallet.FetchMissingCFiltersWithProgress(walletCtx, s, progress)
 
 		log.Debugf("Fetching missing CFilters...")
 		s.fetchMissingCfiltersStart()
@@ -408,14 +419,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		// Next: fetch headers and cfilters up to mainchain tip.
 		s.fetchHeadersStart()
 		log.Debugf("Fetching headers and CFilters...")
-		err = s.initialSyncHeaders(ctx)
+		err = s.initialSyncHeaders(walletCtx)
 		if err != nil {
 			return err
 		}
 		s.fetchHeadersFinished()
 
 		// Finally: Perform the initial rescan over the received blocks.
-		err = s.initialSyncRescan(ctx)
+		err = s.initialSyncRescan(walletCtx)
 		if err != nil {
 			return err
 		}
@@ -425,10 +436,18 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return nil
 	})
 
-	// Run wallet background goroutines (currently, this just runs
-	// mixclient).
 	g.Go(func() error {
-		return s.wallet.Run(ctx)
+		// Run wallet background goroutines (currently, this just runs
+		// mixclient).
+		err := s.wallet.Run(walletCtx)
+		if err != nil {
+			return err
+		}
+
+		// If gctx has not yet been canceled, do so here now.
+		// walletCtx is canceled after either ctx or gctx is canceled.
+		<-walletCtx.Done()
+		return walletCtx.Err()
 	})
 
 	// Wait until cancellation or a handler errors.
