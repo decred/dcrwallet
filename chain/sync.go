@@ -542,9 +542,11 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 
 	params := s.wallet.ChainParams()
 
+	ntfnCtx, ntfnCtxCancel := context.WithCancel(context.Background())
+	defer ntfnCtxCancel()
 	s.notifier = &notifier{
 		syncer: s,
-		ctx:    ctx,
+		ctx:    ntfnCtx,
 		closed: make(chan struct{}),
 	}
 	addr, err := normalizeAddress(s.opts.Address, s.opts.DefaultPort)
@@ -589,12 +591,12 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 		opts = append(opts, wsrpc.WithTLSConfig(tc))
 	}
-	client, err := wsrpc.Dial(ctx, addr, opts...)
+	wsClient, err := wsrpc.Dial(ctx, addr, opts...)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
-	s.rpc = dcrd.New(client)
+	defer wsClient.Close()
+	s.rpc = dcrd.New(wsClient)
 
 	// Verify that the server is running on the expected network.
 	var netID wire.CurrencyNet
@@ -723,10 +725,27 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 
+	defer func() {
+		ntfnCtxCancel()
+
+		select {
+		case <-ctx.Done():
+			wsClient.Close()
+		default:
+		}
+
+		// Wait for notifications to finish before returning
+		<-s.notifier.closed
+	}()
+
+	// Ensure wallet.Run cleanly finishes/is canceled first when outer
+	// context is canceled.
+	walletCtx, walletCtxCancel := context.WithCancel(context.Background())
+	defer walletCtxCancel()
 	g.Go(func() error {
 		// Run wallet background goroutines (currently, this just runs
 		// mixclient).
-		return s.wallet.Run(ctx)
+		return s.wallet.Run(walletCtx)
 	})
 
 	// Request notifications for mixing messages.
@@ -739,18 +758,13 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 
 	log.Infof("Blockchain sync completed, wallet ready for general usage.")
 
-	// Wait for notifications to finish before returning
-	defer func() {
-		<-s.notifier.closed
-	}()
-
 	g.Go(func() error {
 		select {
 		case <-ctx.Done():
-			client.Close()
+			walletCtxCancel()
 			return ctx.Err()
-		case <-client.Done():
-			return client.Err()
+		case <-wsClient.Done():
+			return wsClient.Err()
 		}
 	})
 	return g.Wait()

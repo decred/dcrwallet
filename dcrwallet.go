@@ -523,20 +523,25 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
 	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
 	amgr := addrmgr.New(amgrDir, cfg.lookup)
-	lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
-	lp.SetDialFunc(cfg.dial)
-	lp.SetDisableRelayTx(cfg.SPVDisableRelayTx)
-	syncer := spv.NewSyncer(w, lp)
-	if len(cfg.SPVConnect) > 0 {
-		syncer.SetPersistentPeers(cfg.SPVConnect)
-	}
-	w.SetNetworkBackend(syncer)
 	for {
+		lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
+		lp.SetDialFunc(cfg.dial)
+		lp.SetDisableRelayTx(cfg.SPVDisableRelayTx)
+		syncer := spv.NewSyncer(w, lp)
+		if len(cfg.SPVConnect) > 0 {
+			syncer.SetPersistentPeers(cfg.SPVConnect)
+		}
 		err := syncer.Run(ctx)
-		if done(ctx) {
+		if err == nil || done(ctx) {
+			loggers.SyncLog.Infof("SPV synchronization stopped")
 			return
 		}
-		log.Errorf("SPV synchronization ended: %v", err)
+		loggers.SyncLog.Errorf("SPV synchronization stopped: %v", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Second):
+		}
 	}
 }
 
@@ -571,7 +576,11 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 		syncer := chain.NewSyncer(w, rpcOptions)
 		err := syncer.Run(ctx)
 		if err != nil {
-			loggers.SyncLog.Errorf("Wallet synchronization stopped: %v", err)
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				loggers.SyncLog.Infof("RPC synchronization stopped")
+				return
+			}
+			loggers.SyncLog.Errorf("RPC synchronization stopped: %v", err)
 			select {
 			case <-ctx.Done():
 				return
