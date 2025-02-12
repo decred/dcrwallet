@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/addrmgr/v2"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr"
 	"github.com/decred/dcrd/gcs/v4/blockcf2"
 	"github.com/decred/dcrd/mixing"
@@ -42,6 +43,11 @@ const (
 	minVersion       = wire.MixVersion
 	minVersionTarget = 3
 )
+
+type backoff struct {
+	duration time.Duration
+	time     time.Time
+}
 
 // Syncer implements wallet synchronization services by over the Decred wire
 // protocol using Simplified Payment Verification (SPV) with compact filters.
@@ -92,9 +98,13 @@ type Syncer struct {
 	mempool     sync.Map // k=chainhash.Hash v=*wire.MsgTx
 	mempoolAdds chan *chainhash.Hash
 
-	done   chan struct{}
-	err    error
-	doneMu sync.Mutex
+	backoffs   map[string]backoff
+	backoffsMu sync.Mutex
+
+	teardown func()
+	done     chan struct{}
+	err      error
+	doneMu   sync.Mutex
 }
 
 // Notifications struct to contain all of the upcoming callbacks that will
@@ -142,6 +152,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		lp:                lp,
 		mempoolAdds:       make(chan *chainhash.Hash),
 		initialSyncDone:   make(chan struct{}),
+		backoffs:          make(map[string]backoff),
 	}
 }
 
@@ -176,10 +187,12 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	if s.atomicWalletSynced.CompareAndSwap(1, 0) &&
-		s.notifications != nil &&
-		s.notifications.Synced != nil {
-		s.notifications.Synced(false)
+	if s.atomicWalletSynced.CompareAndSwap(1, 0) {
+		if s.notifications != nil &&
+			s.notifications.Synced != nil {
+			s.notifications.Synced(false)
+		}
+		s.teardown()
 	}
 }
 
@@ -321,7 +334,7 @@ func (s *Syncer) setRequiredHeight(tipHeight int32) {
 }
 
 // Run synchronizes the wallet, returning when synchronization fails or the
-// context is cancelled.
+// context is canceled.
 func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.doneMu.Lock()
 	s.done = make(chan struct{})
@@ -367,32 +380,48 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	}
 
 	// Start background handlers to read received messages from remote peers
-	g, ctx := errgroup.WithContext(ctx)
-	g.Go(func() error { return s.receiveGetData(ctx) })
-	g.Go(func() error { return s.receiveInv(ctx) })
-	g.Go(func() error { return s.receiveHeadersAnnouncements(ctx) })
-	g.Go(func() error { return s.receiveMixMsgs(ctx) })
+	g, gctx := errgroup.WithContext(context.Background())
+	gctx, cancel := context.WithCancel(gctx)
+	s.teardown = func() {
+		err = errors.E(errors.NoPeers)
+		cancel()
+	}
+	g.Go(func() error { return s.receiveGetData(gctx) })
+	g.Go(func() error { return s.receiveInv(gctx) })
+	g.Go(func() error { return s.receiveHeadersAnnouncements(gctx) })
+	g.Go(func() error { return s.receiveMixMsgs(gctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
 		for i := range s.persistentPeers {
 			raddr := s.persistentPeers[i]
-			g.Go(func() error { return s.connectToPersistent(ctx, raddr) })
+			g.Go(func() error { return s.connectToPersistent(gctx, raddr) })
 		}
 	} else {
-		g.Go(func() error { return s.connectToCandidates(ctx) })
+		g.Go(func() error { return s.connectToCandidates(gctx) })
 	}
 
-	g.Go(func() error { return s.handleMempool(ctx) })
+	g.Go(func() error { return s.handleMempool(gctx) })
 
 	s.wallet.SetNetworkBackend(s)
 	defer s.wallet.SetNetworkBackend(nil)
+
+	// Ensure initial sync and wallet.Run cleanly finish/are canceled
+	// first when outer context is canceled.
+	walletCtx, walletCtxCancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-gctx.Done():
+		}
+		walletCtxCancel()
+	}()
 
 	// Perform the initial startup sync.
 	g.Go(func() error {
 		// First step: fetch missing CFilters.
 		progress := make(chan wallet.MissingCFilterProgress, 1)
-		go s.wallet.FetchMissingCFiltersWithProgress(ctx, s, progress)
+		go s.wallet.FetchMissingCFiltersWithProgress(walletCtx, s, progress)
 
 		log.Debugf("Fetching missing CFilters...")
 		s.fetchMissingCfiltersStart()
@@ -408,14 +437,14 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		// Next: fetch headers and cfilters up to mainchain tip.
 		s.fetchHeadersStart()
 		log.Debugf("Fetching headers and CFilters...")
-		err = s.initialSyncHeaders(ctx)
+		err = s.initialSyncHeaders(walletCtx)
 		if err != nil {
 			return err
 		}
 		s.fetchHeadersFinished()
 
 		// Finally: Perform the initial rescan over the received blocks.
-		err = s.initialSyncRescan(ctx)
+		err = s.initialSyncRescan(walletCtx)
 		if err != nil {
 			return err
 		}
@@ -425,14 +454,25 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return nil
 	})
 
-	// Run wallet background goroutines (currently, this just runs
-	// mixclient).
 	g.Go(func() error {
-		return s.wallet.Run(ctx)
+		// Run wallet background goroutines (currently, this just runs
+		// mixclient).
+		err := s.wallet.Run(walletCtx)
+		if err != nil {
+			return err
+		}
+
+		// If gctx has not yet been canceled, do so here now.
+		// walletCtx is canceled after either ctx or gctx is canceled.
+		<-walletCtx.Done()
+		return walletCtx.Err()
 	})
 
 	// Wait until cancellation or a handler errors.
-	return g.Wait()
+	if e := g.Wait(); err == nil {
+		err = e
+	}
+	return
 }
 
 // peerCandidate returns a peer address that we shall attempt to connect to.
@@ -480,7 +520,16 @@ var errBreaksMinVersionTarget = errors.New("peer uses too low version to satisif
 
 // connectAndRunPeer connects to and runs the syncing process with the specified
 // peer. It blocks until the peer disconnects and logs any errors.
-func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent bool) {
+func (s *Syncer) connectAndRunPeer(ctx context.Context, backoff time.Duration, raddr string, persistent bool) (connected bool) {
+	if backoff > 0 {
+		log.Tracef("connectAndRunPeer(%v): sleeping backoff %v", raddr, backoff)
+		select {
+		case <-time.After(backoff):
+		case <-ctx.Done():
+			return
+		}
+	}
+
 	// Attempt connection to peer.
 	rp, err := s.lp.ConnectOutbound(ctx, raddr, reqSvcs)
 	if err != nil {
@@ -513,6 +562,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 	s.remotesMu.Unlock()
 	log.Infof("New peer %v %v version=%d %v", raddr, rp.UA(), rp.Pver(), rp.Services())
 	s.peerConnected(n, raddr)
+	connected = true
 
 	// Alert disconnection once this peer is done.
 	defer func() {
@@ -545,6 +595,7 @@ func (s *Syncer) connectAndRunPeer(ctx context.Context, raddr string, persistent
 	} else {
 		log.Infof("Lost peer %v", raddr)
 	}
+	return
 }
 
 func (s *Syncer) breaksMinVersionTarget(rp *p2p.RemotePeer) bool {
@@ -567,16 +618,59 @@ func (s *Syncer) breaksMinVersionTarget(rp *p2p.RemotePeer) bool {
 	return true
 }
 
-func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
-	for {
-		s.connectAndRunPeer(ctx, raddr, true)
+// Returns the next backoff duration based on the previous value.  Backoffs
+// start at 5s and add an exponentially decaying increase, capped to 1m30s.
+// It takes roughly 45m of repeated connection failures to reach the maximum
+// backoff period.
+func nextBackoff(d time.Duration) time.Duration {
+	const maxBackoff = 90 * time.Second
+	d = 5*time.Second + d*95/100
+	if d > maxBackoff {
+		d = maxBackoff
+	}
+	return d
+}
 
-		// Retry persistent peer after 5 seconds.
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(5 * time.Second):
+// backoffJitter returns a random +-200ms of jitter to be added to every backoff.
+func backoffJitter() time.Duration {
+	return -200*time.Millisecond + rand.Duration(400*time.Millisecond)
+}
+
+func (s *Syncer) backoff(raddr string) backoff {
+	s.backoffsMu.Lock()
+	defer s.backoffsMu.Unlock()
+
+	return s.backoffs[raddr]
+}
+
+func (s *Syncer) setBackoff(raddr string, b backoff) {
+	s.backoffsMu.Lock()
+	defer s.backoffsMu.Unlock()
+
+	if b.duration == 0 {
+		delete(s.backoffs, raddr)
+		return
+	}
+
+	s.backoffs[raddr] = b
+}
+
+func (s *Syncer) connectToPersistent(ctx context.Context, raddr string) error {
+	var d time.Duration
+	for {
+		// Persistent peers use a backoff duration scaled to 1/5th of
+		// discovered candidate peers (min 5s -> 1s, max 1m30s -> 18s).
+		jitter := backoffJitter()
+		connected := s.connectAndRunPeer(ctx, d/5+jitter, raddr, true)
+		if err := ctx.Err(); err != nil {
+			return err
 		}
+		if connected {
+			d = 0
+		} else {
+			d += jitter
+		}
+		d = nextBackoff(d)
 	}
 }
 
@@ -608,7 +702,24 @@ func (s *Syncer) connectToCandidates(ctx context.Context) error {
 		wg.Add(1)
 		go func() {
 			raddr := na.String()
-			s.connectAndRunPeer(ctx, raddr, false)
+			b := s.backoff(raddr)
+			var jitter, delay time.Duration
+			if b.time.IsZero() {
+				jitter = rand.Duration(200 * time.Millisecond)
+				delay = jitter
+			} else {
+				jitter = backoffJitter()
+				delay = time.Until(b.time) + jitter
+			}
+			connected := s.connectAndRunPeer(ctx, delay, raddr, false)
+			if connected {
+				s.setBackoff(raddr, backoff{})
+			} else {
+				b.duration = nextBackoff(b.duration + jitter)
+				b.time = time.Now().Add(b.duration)
+				s.setBackoff(raddr, b)
+			}
+
 			wg.Done()
 			<-sem
 		}()
