@@ -5332,6 +5332,14 @@ func (s *Server) version(ctx context.Context, icmd any) (any, error) {
 		}
 	}
 
+	resp["dcrwallet"] = dcrdtypes.VersionResult{
+		VersionString: version.String(),
+		Major:         version.Major,
+		Minor:         version.Minor,
+		Patch:         version.Patch,
+		Prerelease:    version.PreRelease,
+		BuildMetadata: version.BuildMetadata,
+	}
 	resp["dcrwalletjsonrpcapi"] = dcrdtypes.VersionResult{
 		VersionString: jsonrpcSemverString,
 		Major:         jsonrpcSemverMajor,
