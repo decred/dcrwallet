@@ -20,7 +20,7 @@ import (
 )
 
 func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
-	f, err := os.CreateTemp("", "udb")
+	f, err := os.CreateTemp(t.TempDir(), "udb")
 	if err != nil {
 		t.Fatal(err)
 	}
