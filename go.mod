@@ -3,7 +3,7 @@ module decred.org/dcrwallet/v5
 go 1.23
 
 require (
-	decred.org/cspp/v2 v2.3.0
+	decred.org/cspp/v2 v2.4.0
 	github.com/decred/dcrd/addrmgr/v2 v2.0.4
 	github.com/decred/dcrd/blockchain/stake/v5 v5.0.1
 	github.com/decred/dcrd/blockchain/standalone/v2 v2.2.1
@@ -13,7 +13,7 @@ require (
 	github.com/decred/dcrd/chaincfg/v3 v3.2.1
 	github.com/decred/dcrd/connmgr/v3 v3.1.2
 	github.com/decred/dcrd/crypto/blake256 v1.1.0
-	github.com/decred/dcrd/crypto/rand v1.0.0
+	github.com/decred/dcrd/crypto/rand v1.0.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
 	github.com/decred/dcrd/dcrec v1.0.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrd/dcrutil/v4 v4.0.2
 	github.com/decred/dcrd/gcs/v4 v4.1.0
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.2
-	github.com/decred/dcrd/mixing v0.4.2
+	github.com/decred/dcrd/mixing v0.5.0
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.3.0
 	github.com/decred/dcrd/rpcclient/v8 v8.0.1
 	github.com/decred/dcrd/txscript/v4 v4.1.1
@@ -36,9 +36,9 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	github.com/jrick/wsrpc/v2 v2.3.8
 	go.etcd.io/bbolt v1.3.11
-	golang.org/x/crypto v0.31.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/term v0.27.0
+	golang.org/x/crypto v0.33.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/term v0.29.0
 	google.golang.org/grpc v1.67.3
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1
 	google.golang.org/protobuf v1.36.1
@@ -54,8 +54,8 @@ require (
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.3 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241223144023-3abc09e42ca8 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
