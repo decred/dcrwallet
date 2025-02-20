@@ -553,9 +553,10 @@ func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	for {
 		err := syncer.Run(ctx)
 		if done(ctx) {
+			loggers.SyncLog.Infof("SPV synchronization stopped")
 			return
 		}
-		log.Errorf("SPV synchronization ended: %v", err)
+		loggers.SyncLog.Errorf("SPV synchronization stopped: %v", err)
 	}
 }
 
@@ -590,7 +591,11 @@ func rpcSyncLoop(ctx context.Context, w *wallet.Wallet) {
 		syncer := chain.NewSyncer(w, rpcOptions)
 		err := syncer.Run(ctx)
 		if err != nil {
-			loggers.SyncLog.Errorf("Wallet synchronization stopped: %v", err)
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				loggers.SyncLog.Infof("RPC synchronization stopped")
+				return
+			}
+			loggers.SyncLog.Errorf("RPC synchronization stopped: %v", err)
 			select {
 			case <-ctx.Done():
 				return
