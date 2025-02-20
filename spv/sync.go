@@ -92,9 +92,10 @@ type Syncer struct {
 	mempool     sync.Map // k=chainhash.Hash v=*wire.MsgTx
 	mempoolAdds chan *chainhash.Hash
 
-	done   chan struct{}
-	err    error
-	doneMu sync.Mutex
+	teardown func()
+	done     chan struct{}
+	err      error
+	doneMu   sync.Mutex
 }
 
 // Notifications struct to contain all of the upcoming callbacks that will
@@ -176,10 +177,12 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	if s.atomicWalletSynced.CompareAndSwap(1, 0) &&
-		s.notifications != nil &&
-		s.notifications.Synced != nil {
-		s.notifications.Synced(false)
+	if s.atomicWalletSynced.CompareAndSwap(1, 0) {
+		if s.notifications != nil &&
+			s.notifications.Synced != nil {
+			s.notifications.Synced(false)
+		}
+		s.teardown()
 	}
 }
 
@@ -368,6 +371,11 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 
 	// Start background handlers to read received messages from remote peers
 	g, gctx := errgroup.WithContext(context.Background())
+	gctx, cancel := context.WithCancel(gctx)
+	s.teardown = func() {
+		err = errors.E(errors.NoPeers)
+		cancel()
+	}
 	g.Go(func() error { return s.receiveGetData(gctx) })
 	g.Go(func() error { return s.receiveInv(gctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(gctx) })
@@ -451,7 +459,10 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	})
 
 	// Wait until cancellation or a handler errors.
-	return g.Wait()
+	if e := g.Wait(); err == nil {
+		err = e
+	}
+	return
 }
 
 // peerCandidate returns a peer address that we shall attempt to connect to.
