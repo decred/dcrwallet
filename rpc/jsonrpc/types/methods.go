@@ -1327,6 +1327,7 @@ func init() {
 	// dcrd methods also implemented by dcrwallet
 	register = []registeredMethod{
 		{"createrawtransaction", (*CreateRawTransactionCmd)(nil)},
+		{"debuglevel", (*DebugLevelCmd)(nil)},
 		{"getbestblock", (*GetBestBlockCmd)(nil)},
 		{"getbestblockhash", (*GetBestBlockHashCmd)(nil)},
 		{"getblockcount", (*GetBlockCountCmd)(nil)},
@@ -1363,6 +1364,7 @@ func init() {
 type (
 	AuthenticateCmd         dcrdtypes.AuthenticateCmd
 	CreateRawTransactionCmd dcrdtypes.CreateRawTransactionCmd
+	DebugLevelCmd           dcrdtypes.DebugLevelCmd
 	GetBestBlockCmd         dcrdtypes.GetBestBlockCmd
 	GetBestBlockHashCmd     dcrdtypes.GetBestBlockHashCmd
 	GetBlockCountCmd        dcrdtypes.GetBlockCountCmd
