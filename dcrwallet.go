@@ -168,7 +168,7 @@ func run(ctx context.Context) error {
 
 	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
+		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled,
 		cfg.ManualTickets, cfg.MixSplitLimit, cfg.dial)
 
 	// Stop any services started by the loader after the shutdown procedure is
@@ -251,7 +251,7 @@ func run(ctx context.Context) error {
 
 		if cfg.VSPOpts.URL != "" {
 			changeAccountName := cfg.ChangeAccount
-			if changeAccountName == "" && !cfg.Mixing {
+			if changeAccountName == "" && !cfg.MixingEnabled {
 				log.Warnf("Change account not set, using "+
 					"purchase account %q", cfg.PurchaseAccount)
 				changeAccountName = cfg.PurchaseAccount
@@ -307,7 +307,7 @@ func run(ctx context.Context) error {
 			if cfg.EnableTicketBuyer {
 				purchaseAccount = lookup("purchaseaccount", cfg.PurchaseAccount)
 
-				if cfg.Mixing && cfg.TBOpts.VotingAccount == "" {
+				if cfg.MixingEnabled && cfg.TBOpts.VotingAccount == "" {
 					err := errors.New("cannot run mixed ticketbuyer without --votingaccount")
 					log.Error(err)
 					return err
@@ -316,11 +316,11 @@ func run(ctx context.Context) error {
 					votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
 				}
 			}
-			if (cfg.EnableTicketBuyer && cfg.Mixing) || cfg.MixChange {
+			if (cfg.EnableTicketBuyer && cfg.MixingEnabled) || cfg.MixChange {
 				mixedAccount = lookup("mixedaccount", cfg.mixedAccount)
 				changeAccount = lookup("changeaccount", cfg.ChangeAccount)
 			}
-			if cfg.EnableTicketBuyer && cfg.Mixing {
+			if cfg.EnableTicketBuyer && cfg.MixingEnabled {
 				ticketSplitAccount = lookup("ticketsplitaccount", cfg.TicketSplitAccount)
 			}
 
@@ -337,7 +337,7 @@ func run(ctx context.Context) error {
 				Maintain:           cfg.TBOpts.BalanceToMaintainAbsolute.Amount,
 				Limit:              int(cfg.TBOpts.Limit),
 				VotingAccount:      votingAccount,
-				Mixing:             cfg.Mixing,
+				Mixing:             cfg.MixingEnabled,
 				MixChange:          cfg.MixChange,
 				MixedAccount:       mixedAccount,
 				MixedAccountBranch: cfg.mixedBranch,
