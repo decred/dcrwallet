@@ -168,8 +168,9 @@ func run(ctx context.Context) error {
 
 	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.AccountGapLimit, cfg.DisableCoinTypeUpgrades, !cfg.Mixing,
-		cfg.ManualTickets, cfg.MixSplitLimit, cfg.dial)
+		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
+		cfg.DisableCoinTypeUpgrades, !cfg.Mixing, cfg.ManualTickets,
+		cfg.MixSplitLimit, cfg.dial)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.
