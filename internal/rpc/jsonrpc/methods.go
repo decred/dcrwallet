@@ -5499,6 +5499,9 @@ func (s *Server) walletPassphraseChange(ctx context.Context, icmd any) (any, err
 
 func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.MixOutputCmd)
+	if !s.cfg.Mixing {
+		return nil, errors.E("Mixing is not configured")
+	}
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
