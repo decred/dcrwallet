@@ -759,13 +759,15 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	log.Infof("Blockchain sync completed, wallet ready for general usage.")
 
 	g.Go(func() error {
+		var err error
 		select {
 		case <-ctx.Done():
-			walletCtxCancel()
-			return ctx.Err()
+			err = ctx.Err()
 		case <-wsClient.Done():
-			return wsClient.Err()
+			err = wsClient.Err()
 		}
+		walletCtxCancel()
+		return err
 	})
 	return g.Wait()
 }
