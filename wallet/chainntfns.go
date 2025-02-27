@@ -276,7 +276,9 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 	forest.PruneChain(chain)
 	forest.Prune(int32(chain[len(chain)-1].Header.Height), w.chainParams)
 
-	w.mixClient.ExpireMessages(chain[len(chain)-1].Header.Height)
+	if w.mixing {
+		w.mixClient.ExpireMessages(chain[len(chain)-1].Header.Height)
+	}
 
 	w.NtfnServer.notifyMainChainTipChanged(chainTipChanges)
 	w.NtfnServer.sendAttachedBlockNotification(ctx)
