@@ -626,7 +626,7 @@ func (f *existsAddrIndexFinder) accountUsed(ctx context.Context, xpub *hd.Extend
 	for i := 0; i < 2; i++ {
 		r := <-results
 		if r.err != nil {
-			return false, err
+			return false, r.err
 		}
 		if r.used {
 			return true, nil
