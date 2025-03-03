@@ -30,6 +30,9 @@ type Config struct {
 	// Minimum amount to maintain in purchasing account
 	Maintain dcrutil.Amount
 
+	// Maximum ticket price allowed to be purchased
+	MaxTicketPrice dcrutil.Amount
+
 	// Limit maximum number of purchased tickets per block
 	Limit int
 
@@ -282,11 +285,11 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	}
 
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
-		Count:         buy,
-		SourceAccount: account,
-		MinConf:       minconf,
-		Expiry:        expiry,
-
+		Count:          buy,
+		SourceAccount:  account,
+		MinConf:        minconf,
+		Expiry:         expiry,
+		MaxTicketPrice: cfg.MaxTicketPrice,
 		// CSPP
 		Mixing:             mixing,
 		VotingAccount:      votingAccount,
