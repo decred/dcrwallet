@@ -389,7 +389,6 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	g.Go(func() error { return s.receiveGetData(gctx) })
 	g.Go(func() error { return s.receiveInv(gctx) })
 	g.Go(func() error { return s.receiveHeadersAnnouncements(gctx) })
-	g.Go(func() error { return s.receiveMixMsgs(gctx) })
 	s.lp.AddHandledMessages(p2p.MaskGetData | p2p.MaskInv)
 
 	if len(s.persistentPeers) != 0 {
@@ -1284,34 +1283,6 @@ func (s *Syncer) receiveHeadersAnnouncements(ctx context.Context) error {
 				}
 
 				log.Warnf("Failed to handle headers announced by %v: %v", rp, err)
-			}
-		}()
-	}
-}
-
-// receiveMixMsgs receives all mixing messages from peers and starts goroutines
-// to handle the message acceptance.
-func (s *Syncer) receiveMixMsgs(ctx context.Context) error {
-	for {
-		rp, msg, err := s.lp.ReceiveMixMessage(ctx)
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			err := s.handleMixMessage(ctx, rp, msg)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-
-				if errors.Is(err, errors.Protocol) || errors.Is(err, errors.Consensus) {
-					log.Warnf("Disconnecting peer %v: %v", rp, err)
-					rp.Disconnect(err)
-					return
-				}
-
-				log.Warnf("Failed to handle mix message announced by %v: %v", rp, err)
 			}
 		}()
 	}

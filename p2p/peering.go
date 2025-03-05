@@ -154,7 +154,6 @@ type LocalPeer struct {
 	receivedInv       chan *inMsg
 	announcedHeaders  chan *inMsg
 	receivedInitState chan *inMsg
-	receivedMixMsg    chan *inMsg
 
 	extaddr        net.Addr
 	amgr           *addrmgr.AddrManager
@@ -176,7 +175,6 @@ func NewLocalPeer(params *chaincfg.Params, extaddr *net.TCPAddr, amgr *addrmgr.A
 		receivedInv:       make(chan *inMsg),
 		announcedHeaders:  make(chan *inMsg),
 		receivedInitState: make(chan *inMsg),
-		receivedMixMsg:    make(chan *inMsg),
 		extaddr:           extaddr,
 		amgr:              amgr,
 		chainParams:       params,
@@ -948,19 +946,6 @@ func (lp *LocalPeer) ReceiveHeadersAnnouncement(ctx context.Context) (*RemotePee
 		rp, msg := r.rp, r.msg.(*wire.MsgHeaders)
 		recycleInMsg(r)
 		return rp, msg.Headers, nil
-	}
-}
-
-// ReceiveMixMessage waits for a mixing message from a remote peer, returning
-// the peer that sent the message, and the message itself.
-func (lp *LocalPeer) ReceiveMixMessage(ctx context.Context) (*RemotePeer, mixing.Message, error) {
-	select {
-	case <-ctx.Done():
-		return nil, nil, ctx.Err()
-	case r := <-lp.receivedMixMsg:
-		rp, msg := r.rp, r.msg.(mixing.Message)
-		recycleInMsg(r)
-		return rp, msg, nil
 	}
 }
 
