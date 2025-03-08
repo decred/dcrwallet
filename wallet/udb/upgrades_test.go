@@ -41,10 +41,7 @@ var pubPass = []byte("public")
 
 func TestUpgrades(t *testing.T) {
 	ctx := context.Background()
-	d, err := os.MkdirTemp("", "dcrwallet_udb_TestUpgrades")
-	if err != nil {
-		t.Fatal(err)
-	}
+	d := t.TempDir()
 
 	t.Run("group", func(t *testing.T) {
 		for i, test := range dbUpgradeTests {
@@ -85,7 +82,6 @@ func TestUpgrades(t *testing.T) {
 		}
 	})
 
-	os.RemoveAll(d)
 }
 
 func verifyV2Upgrade(ctx context.Context, t *testing.T, db walletdb.DB) {
