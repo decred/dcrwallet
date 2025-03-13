@@ -171,6 +171,7 @@ type Wallet struct {
 	minTestNetTarget   *big.Int
 	minTestNetDiffBits uint32
 
+	vspMaxFee    dcrutil.Amount
 	vspClientsMu sync.Mutex
 	vspClients   map[string]*VSPClient
 
@@ -195,6 +196,7 @@ type Config struct {
 	ManualTickets bool
 	AllowHighFees bool
 	RelayFee      dcrutil.Amount
+	VSPMaxFee     dcrutil.Amount
 	Params        *chaincfg.Params
 
 	Dialer DialFunc
@@ -753,6 +755,11 @@ func (w *Wallet) SetTSpendPolicy(ctx context.Context, tspendHash *chainhash.Hash
 
 	w.tspendPolicy[*tspendHash] = policy
 	return nil
+}
+
+// VSPMaxFee is the maximum fee to pay when registering a ticket with a VSP.
+func (w *Wallet) VSPMaxFee() dcrutil.Amount {
+	return w.vspMaxFee
 }
 
 // RelayFee returns the current minimum relay fee (per kB of serialized
@@ -5412,6 +5419,7 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 		mixSems: newMixSemaphores(cfg.MixSplitLimit),
 		mixing:  !cfg.DisableMixing,
 
+		vspMaxFee:  cfg.VSPMaxFee,
 		vspClients: make(map[string]*VSPClient),
 
 		dialer: cfg.Dialer,
