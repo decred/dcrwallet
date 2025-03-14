@@ -3337,7 +3337,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	// mixing is enabled).
 	var changeAccount = account
 
-	if s.cfg.Mixing {
+	if s.cfg.MixingEnabled {
 		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
@@ -3386,7 +3386,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		DontSignTx:    dontSignTx,
 
 		// CSPP
-		Mixing:             s.cfg.Mixing,
+		Mixing:             s.cfg.MixingEnabled,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		MixedSplitAccount:  mixedSplitAccount,
@@ -3513,7 +3513,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 // All errors are returned in dcrjson.RPCError format
 func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	changeAccount := account
-	if s.cfg.Mixing && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
+	if s.cfg.MixingEnabled && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return "", err
@@ -3549,7 +3549,7 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 // returned in dcrjson.RPCError format
 func (s *Server) sendAmountToTreasury(ctx context.Context, w *wallet.Wallet, amount dcrutil.Amount, account uint32, minconf int32) (string, error) {
 	changeAccount := account
-	if s.cfg.Mixing {
+	if s.cfg.MixingEnabled {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return "", err
@@ -5534,7 +5534,7 @@ func (s *Server) mixOutput(ctx context.Context, icmd any) (any, error) {
 }
 
 func (s *Server) mixAccount(ctx context.Context, icmd any) (any, error) {
-	if !s.cfg.Mixing {
+	if !s.cfg.MixingEnabled {
 		return nil, errors.E("Mixing is not configured")
 	}
 	w, ok := s.walletLoader.LoadedWallet()
