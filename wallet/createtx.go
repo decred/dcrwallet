@@ -1204,6 +1204,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		return nil, err
 	}
 
+	// If the ticket price exceeds the max ticket price, skipping purchase
+	if req.MaxTicketPrice > 0 && ticketPrice > req.MaxTicketPrice {
+		return nil, errors.E(op, errors.Invalid, "Skipping purchase: Ticket price exceeds max ticket price.")
+	}
+
 	const stakeSubmissionPkScriptSize = txsizes.P2PKHPkScriptSize + 1
 
 	// Make sure that we have enough funds. Calculate different
