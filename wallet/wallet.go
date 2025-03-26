@@ -918,8 +918,8 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 				return err
 			}
 			hdAccounts[acct] = hdAccount{
-				externalCount:        minUint32(props.LastReturnedExternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
-				internalCount:        minUint32(props.LastReturnedInternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
+				externalCount:        min(props.LastReturnedExternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
+				internalCount:        min(props.LastReturnedInternalIndex+w.gapLimit, hdkeychain.HardenedKeyStart-1),
 				lastReturnedExternal: props.LastReturnedExternalIndex,
 				lastReturnedInternal: props.LastReturnedInternalIndex,
 				lastUsedExternal:     props.LastUsedExternalIndex,
@@ -1013,7 +1013,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 		const step = 256
 		for ; start <= end; start += step {
 			addrs := make([]stdaddr.Address, 0, step)
-			stop := minUint32(end+1, start+step)
+			stop := min(end+1, start+step)
 			for child := start; child < stop; child++ {
 				addr, err := deriveChildAddress(branchKey, child, w.chainParams)
 				if errors.Is(err, hdkeychain.ErrInvalidChild) {
