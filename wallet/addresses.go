@@ -691,13 +691,6 @@ func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
 	return addr, nil
 }
 
-func minUint32(a, b uint32) uint32 {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // markUsedAddress updates the database, recording that the previously looked up
 // managed address has been publicly used.  After recording this usage, new
 // addresses are derived and saved to the db.
@@ -722,7 +715,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 		branch = udb.InternalBranch
 	}
 	err = w.manager.SyncAccountToAddrIndex(ns, account,
-		minUint32(hdkeychain.HardenedKeyStart-1, lastUsed+w.gapLimit),
+		min(hdkeychain.HardenedKeyStart-1, lastUsed+w.gapLimit),
 		branch)
 	if err != nil {
 		return errors.E(op, err)

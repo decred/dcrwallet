@@ -616,9 +616,9 @@ func (s *NotificationServer) notifyAccountProperties(props *udb.AccountPropertie
 	// addresses have also been generated and are being watched for transaction
 	// activity.
 	if props.AccountNumber <= udb.MaxAccountNum {
-		n.ExternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
+		n.ExternalKeyCount = min(hdkeychain.HardenedKeyStart,
 			props.LastUsedExternalIndex+s.wallet.gapLimit)
-		n.InternalKeyCount = minUint32(hdkeychain.HardenedKeyStart,
+		n.InternalKeyCount = min(hdkeychain.HardenedKeyStart,
 			props.LastUsedInternalIndex+s.wallet.gapLimit)
 	}
 	for _, c := range clients {
