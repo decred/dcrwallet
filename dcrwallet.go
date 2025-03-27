@@ -335,6 +335,7 @@ func run(ctx context.Context) error {
 				BuyTickets:         cfg.EnableTicketBuyer,
 				Account:            purchaseAccount,
 				Maintain:           cfg.TBOpts.BalanceToMaintainAbsolute.Amount,
+				MaxTicketPrice:     cfg.TBOpts.MaxTicketPrice.Amount,
 				Limit:              int(cfg.TBOpts.Limit),
 				VotingAccount:      votingAccount,
 				Mixing:             cfg.Mixing,
