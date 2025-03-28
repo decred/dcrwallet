@@ -497,9 +497,13 @@ func (w *Wallet) rescanPoint(dbtx walletdb.ReadTx) (*chainhash.Hash, error) {
 	return &rescanPoint, nil
 }
 
-// SetBirthState sets the birthday state in the database.
+// SetBirthState sets the birthday state in the database. This should be called
+// before initial sync has happened.
 func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error {
 	const op errors.Op = "wallet.SetBirthState"
+	if bs == nil {
+		return errors.E(op, errors.Invalid, "nil birthday state")
+	}
 	err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 		return udb.SetBirthState(dbtx, bs)
 	})
@@ -509,7 +513,8 @@ func (w *Wallet) SetBirthState(ctx context.Context, bs *udb.BirthdayState) error
 	return nil
 }
 
-// BirthState returns the birthday state.
+// BirthState returns the birthday state. Will return a nil state if none has
+// been set.
 func (w *Wallet) BirthState(ctx context.Context) (bs *udb.BirthdayState, err error) {
 	const op errors.Op = "wallet.BirthState"
 	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
@@ -520,4 +525,43 @@ func (w *Wallet) BirthState(ctx context.Context) (bs *udb.BirthdayState, err err
 		return nil, errors.E(op, err)
 	}
 	return bs, nil
+}
+
+// SetBirthStateAndScan sets the wallet birthstate. This version should be used
+// to change the birth state after initial sync has happened. It will find an
+// adequate block from time or height.
+func (w *Wallet) SetBirthStateAndScan(ctx context.Context, bs *udb.BirthdayState) error {
+	if bs == nil {
+		return errors.New("nil birthday state")
+	}
+	if !(bs.SetFromTime || bs.SetFromHeight) {
+		return errors.New("nothing to set")
+	}
+	tipHash, _ := w.MainChainTip(ctx)
+	syncedHeader, err := w.BlockHeader(ctx, &tipHash)
+	if err != nil {
+		return err
+	}
+	h := syncedHeader
+	for {
+		if (bs.SetFromTime && (h.Height == 0 || h.Timestamp.After(bs.Time))) ||
+			bs.SetFromHeight && h.Height <= bs.Height {
+			bh := h.BlockHash()
+			height := h.Height
+			bs.Hash = bh
+			bs.Height = height
+			bs.SetFromTime = false
+			bs.SetFromHeight = false
+			if err := w.SetBirthState(ctx, bs); err != nil {
+				return err
+			}
+			log.Infof("Set wallet birthday to block %d (%v).", height, bh)
+			break
+		}
+		h, err = w.BlockHeader(ctx, &h.PrevBlock)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
