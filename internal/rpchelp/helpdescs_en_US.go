@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -723,6 +723,13 @@ var helpDescsEnUS = map[string]string{
 	// RescanWallet help.
 	"rescanwallet--synopsis":   "Rescan the block chain for wallet data, blocking until the rescan completes or exits with an error",
 	"rescanwallet-beginheight": "The height of the first block to begin the rescan from",
+
+	// RunAccountMixerCmd help.
+	"runaccountmixer--synopsis":          "Starts a new account mixer for the specified account (and branch)",
+	"runaccountmixer-passphrase":         "The private passphrase to unlock the wallet",
+	"runaccountmixer-mixedaccount":       "The account number to which the mixing funds should end up",
+	"runaccountmixer-mixedaccountbranch": "The branch number to which the mixing funds should end up",
+	"runaccountmixer-changeaccount":      "The account that will be used for any unmixed change that is waiting to be mixed",
 
 	// SendFromCmd help.
 	"sendfrom--synopsis": "Authors, signs, and sends a transaction that outputs some amount to a payment address.\n" +
