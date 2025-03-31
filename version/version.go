@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2021 The Decred developers
+// Copyright (c) 2015-2024 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -8,6 +8,7 @@ package version
 import (
 	"bytes"
 	"fmt"
+	"runtime/debug"
 	"strings"
 )
 
@@ -40,6 +41,29 @@ func init() {
 	if BuildMetadata == "" {
 		BuildMetadata = vcsCommitID()
 	}
+}
+
+func vcsCommitID() string {
+	bi, ok := debug.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	var vcs, revision string
+	for _, bs := range bi.Settings {
+		switch bs.Key {
+		case "vcs":
+			vcs = bs.Value
+		case "vcs.revision":
+			revision = bs.Value
+		}
+	}
+	if vcs == "" {
+		return ""
+	}
+	if vcs == "git" && len(revision) > 9 {
+		revision = revision[:9]
+	}
+	return revision
 }
 
 // String returns the application version as a properly formed string per the
