@@ -443,7 +443,6 @@ The service provides the following methods:
 - [`TicketPrice`](#ticketprice)
 - [`StakeInfo`](#stakeinfo)
 - [`PurchaseTickets`](#purchasetickets)
-- [`RevokeTickets`](#revoketickets)
 - [`LoadActiveDataFilters`](#loadactivedatafilters)
 - [`SignMessage`](#signmessage)
 - [`SignMessages`](#signmessages)
@@ -1815,23 +1814,6 @@ ___
 - `InvalidArgument`: A negative fees per kB was set.
 
 - `FailedPrecondition`: The wallet balance was not enough to buy tickets.
-
-___
-
-#### `RevokeTickets`
-
-The `RevokeTickets` method creates revocations for any missed or expired tickets
-that have not yet been revoked.
-
-**Request:** `RevokeTicketsRequest`
-
-- `bytes passphrase`: The wallet's private passphrase.
-
-**Response:** `RevokeTicketsResponse`
-
-**Expected errors:**
-
-- `InvalidArgument`: The private passphrase is incorrect.
 
 ___
 

@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2016 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -675,12 +675,6 @@ func (c *Client) AccountAddressIndex(ctx context.Context, account string, branch
 // index.
 func (c *Client) AccountSyncAddressIndex(ctx context.Context, account string, branch uint32, index int) error {
 	return c.Call(ctx, "accountsyncaddressindex", nil, account, branch, index)
-}
-
-// RevokeTickets triggers the wallet to issue revocations for any missed tickets that
-// have not yet been revoked.
-func (c *Client) RevokeTickets(ctx context.Context) error {
-	return c.Call(ctx, "revoketickets", nil)
 }
 
 // AddTicket manually adds a new ticket to the wallet stake manager. This is used

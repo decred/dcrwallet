@@ -1928,16 +1928,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}, nil
 }
 
-// deprecated
-func (s *walletServer) RevokeTickets(ctx context.Context, req *pb.RevokeTicketsRequest) (*pb.RevokeTicketsResponse, error) {
-	return &pb.RevokeTicketsResponse{}, nil
-}
-
-// deprecated
-func (s *walletServer) RevokeTicket(ctx context.Context, req *pb.RevokeTicketRequest) (*pb.RevokeTicketResponse, error) {
-	return &pb.RevokeTicketResponse{}, nil
-}
-
 func (s *walletServer) LoadActiveDataFilters(ctx context.Context, req *pb.LoadActiveDataFiltersRequest) (
 	*pb.LoadActiveDataFiltersResponse, error) {
 
