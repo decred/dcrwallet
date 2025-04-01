@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2024 The Decred developers
+// Copyright (c) 2016-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -61,8 +61,8 @@ import (
 
 // Public API version constants
 const (
-	semverString = "8.0.0"
-	semverMajor  = 8
+	semverString = "9.0.0"
+	semverMajor  = 9
 	semverMinor  = 0
 	semverPatch  = 0
 )
