@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -764,15 +764,6 @@ type RescanWalletCmd struct {
 	BeginHeight *int `jsonrpcdefault:"0"`
 }
 
-// RevokeTicketsCmd describes the revoketickets JSON-RPC request and parameters.
-type RevokeTicketsCmd struct {
-}
-
-// NewRevokeTicketsCmd creates a new RevokeTicketsCmd.
-func NewRevokeTicketsCmd() *RevokeTicketsCmd {
-	return &RevokeTicketsCmd{}
-}
-
 // SendFromCmd defines the sendfrom JSON-RPC command.
 type SendFromCmd struct {
 	FromAccount string
@@ -1268,7 +1259,6 @@ func init() {
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
 		{"renameaccount", (*RenameAccountCmd)(nil)},
 		{"rescanwallet", (*RescanWalletCmd)(nil)},
-		{"revoketickets", (*RevokeTicketsCmd)(nil)},
 		{"sendfrom", (*SendFromCmd)(nil)},
 		{"sendfromtreasury", (*SendFromTreasuryCmd)(nil)},
 		{"sendmany", (*SendManyCmd)(nil)},
