@@ -164,8 +164,6 @@ const (
 	WalletService_PublishTransaction_FullMethodName          = "/walletrpc.WalletService/PublishTransaction"
 	WalletService_PublishUnminedTransactions_FullMethodName  = "/walletrpc.WalletService/PublishUnminedTransactions"
 	WalletService_PurchaseTickets_FullMethodName             = "/walletrpc.WalletService/PurchaseTickets"
-	WalletService_RevokeTicket_FullMethodName                = "/walletrpc.WalletService/RevokeTicket"
-	WalletService_RevokeTickets_FullMethodName               = "/walletrpc.WalletService/RevokeTickets"
 	WalletService_LoadActiveDataFilters_FullMethodName       = "/walletrpc.WalletService/LoadActiveDataFilters"
 	WalletService_SignMessage_FullMethodName                 = "/walletrpc.WalletService/SignMessage"
 	WalletService_SignMessages_FullMethodName                = "/walletrpc.WalletService/SignMessages"
@@ -240,8 +238,6 @@ type WalletServiceClient interface {
 	PublishTransaction(ctx context.Context, in *PublishTransactionRequest, opts ...grpc.CallOption) (*PublishTransactionResponse, error)
 	PublishUnminedTransactions(ctx context.Context, in *PublishUnminedTransactionsRequest, opts ...grpc.CallOption) (*PublishUnminedTransactionsResponse, error)
 	PurchaseTickets(ctx context.Context, in *PurchaseTicketsRequest, opts ...grpc.CallOption) (*PurchaseTicketsResponse, error)
-	RevokeTicket(ctx context.Context, in *RevokeTicketRequest, opts ...grpc.CallOption) (*RevokeTicketResponse, error)
-	RevokeTickets(ctx context.Context, in *RevokeTicketsRequest, opts ...grpc.CallOption) (*RevokeTicketsResponse, error)
 	LoadActiveDataFilters(ctx context.Context, in *LoadActiveDataFiltersRequest, opts ...grpc.CallOption) (*LoadActiveDataFiltersResponse, error)
 	SignMessage(ctx context.Context, in *SignMessageRequest, opts ...grpc.CallOption) (*SignMessageResponse, error)
 	SignMessages(ctx context.Context, in *SignMessagesRequest, opts ...grpc.CallOption) (*SignMessagesResponse, error)
@@ -770,26 +766,6 @@ func (c *walletServiceClient) PurchaseTickets(ctx context.Context, in *PurchaseT
 	return out, nil
 }
 
-func (c *walletServiceClient) RevokeTicket(ctx context.Context, in *RevokeTicketRequest, opts ...grpc.CallOption) (*RevokeTicketResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RevokeTicketResponse)
-	err := c.cc.Invoke(ctx, WalletService_RevokeTicket_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletServiceClient) RevokeTickets(ctx context.Context, in *RevokeTicketsRequest, opts ...grpc.CallOption) (*RevokeTicketsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RevokeTicketsResponse)
-	err := c.cc.Invoke(ctx, WalletService_RevokeTickets_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *walletServiceClient) LoadActiveDataFilters(ctx context.Context, in *LoadActiveDataFiltersRequest, opts ...grpc.CallOption) (*LoadActiveDataFiltersResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LoadActiveDataFiltersResponse)
@@ -1060,8 +1036,6 @@ type WalletServiceServer interface {
 	PublishTransaction(context.Context, *PublishTransactionRequest) (*PublishTransactionResponse, error)
 	PublishUnminedTransactions(context.Context, *PublishUnminedTransactionsRequest) (*PublishUnminedTransactionsResponse, error)
 	PurchaseTickets(context.Context, *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error)
-	RevokeTicket(context.Context, *RevokeTicketRequest) (*RevokeTicketResponse, error)
-	RevokeTickets(context.Context, *RevokeTicketsRequest) (*RevokeTicketsResponse, error)
 	LoadActiveDataFilters(context.Context, *LoadActiveDataFiltersRequest) (*LoadActiveDataFiltersResponse, error)
 	SignMessage(context.Context, *SignMessageRequest) (*SignMessageResponse, error)
 	SignMessages(context.Context, *SignMessagesRequest) (*SignMessagesResponse, error)
@@ -1222,12 +1196,6 @@ func (UnimplementedWalletServiceServer) PublishUnminedTransactions(context.Conte
 }
 func (UnimplementedWalletServiceServer) PurchaseTickets(context.Context, *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PurchaseTickets not implemented")
-}
-func (UnimplementedWalletServiceServer) RevokeTicket(context.Context, *RevokeTicketRequest) (*RevokeTicketResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RevokeTicket not implemented")
-}
-func (UnimplementedWalletServiceServer) RevokeTickets(context.Context, *RevokeTicketsRequest) (*RevokeTicketsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RevokeTickets not implemented")
 }
 func (UnimplementedWalletServiceServer) LoadActiveDataFilters(context.Context, *LoadActiveDataFiltersRequest) (*LoadActiveDataFiltersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadActiveDataFilters not implemented")
@@ -2030,42 +1998,6 @@ func _WalletService_PurchaseTickets_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletService_RevokeTicket_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeTicketRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServiceServer).RevokeTicket(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: WalletService_RevokeTicket_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).RevokeTicket(ctx, req.(*RevokeTicketRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _WalletService_RevokeTickets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RevokeTicketsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServiceServer).RevokeTickets(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: WalletService_RevokeTickets_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServiceServer).RevokeTickets(ctx, req.(*RevokeTicketsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _WalletService_LoadActiveDataFilters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoadActiveDataFiltersRequest)
 	if err := dec(in); err != nil {
@@ -2608,14 +2540,6 @@ var WalletService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PurchaseTickets",
 			Handler:    _WalletService_PurchaseTickets_Handler,
-		},
-		{
-			MethodName: "RevokeTicket",
-			Handler:    _WalletService_RevokeTicket_Handler,
-		},
-		{
-			MethodName: "RevokeTickets",
-			Handler:    _WalletService_RevokeTickets_Handler,
 		},
 		{
 			MethodName: "LoadActiveDataFilters",

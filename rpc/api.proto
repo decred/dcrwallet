@@ -67,8 +67,6 @@ service WalletService {
 	rpc PublishTransaction (PublishTransactionRequest) returns (PublishTransactionResponse);
 	rpc PublishUnminedTransactions (PublishUnminedTransactionsRequest) returns (PublishUnminedTransactionsResponse);
 	rpc PurchaseTickets(PurchaseTicketsRequest) returns (PurchaseTicketsResponse);
-	rpc RevokeTicket(RevokeTicketRequest) returns (RevokeTicketResponse);
-	rpc RevokeTickets(RevokeTicketsRequest) returns (RevokeTicketsResponse);
 	rpc LoadActiveDataFilters(LoadActiveDataFiltersRequest) returns (LoadActiveDataFiltersResponse);
 	rpc SignMessage (SignMessageRequest) returns (SignMessageResponse);
 	rpc SignMessages (SignMessagesRequest) returns (SignMessagesResponse);
@@ -651,16 +649,6 @@ message PurchaseTicketsResponse {
 	repeated bytes tickets = 2;
 	bytes split_tx = 3;
 }
-
-message RevokeTicketRequest {
-	bytes ticket_hash = 1;
-}
-message RevokeTicketResponse {}
-
-message RevokeTicketsRequest {
-	bytes passphrase = 1;
-}
-message RevokeTicketsResponse {}
 
 message LoadActiveDataFiltersRequest {}
 message LoadActiveDataFiltersResponse {}
