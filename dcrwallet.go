@@ -315,6 +315,8 @@ func run(ctx context.Context) error {
 				}
 				if cfg.TBOpts.VotingAccount != "" {
 					votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
+				} else {
+					votingAccount = purchaseAccount
 				}
 			}
 			if (cfg.EnableTicketBuyer && cfg.MixingEnabled) || cfg.MixChange {
