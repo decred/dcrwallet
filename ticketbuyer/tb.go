@@ -282,14 +282,15 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	}
 
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
-		Count:         buy,
-		SourceAccount: account,
-		MinConf:       minconf,
-		Expiry:        expiry,
+		Count:            buy,
+		SourceAccount:    account,
+		MinConf:          minconf,
+		Expiry:           expiry,
+		VotingAccount:    votingAccount,
+		UseVotingAccount: true,
 
 		// CSPP
 		Mixing:             mixing,
-		VotingAccount:      votingAccount,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedBranch,
 		MixedSplitAccount:  splitAccount,
