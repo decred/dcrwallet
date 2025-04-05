@@ -1864,13 +1864,12 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	}
 
 	request := &wallet.PurchaseTicketsRequest{
-		Count:            numTickets,
-		SourceAccount:    req.Account,
-		MinConf:          minConf,
-		Expiry:           expiry,
-		DontSignTx:       dontSignTx,
-		UseVotingAccount: req.UseVotingAccount,
-		VotingAccount:    req.VotingAccount,
+		Count:         numTickets,
+		SourceAccount: req.Account,
+		VotingAccount: req.VotingAccount,
+		MinConf:       minConf,
+		Expiry:        expiry,
+		DontSignTx:    dontSignTx,
 
 		// CSPP
 		Mixing:             req.EnableMixing,
@@ -1880,6 +1879,16 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 		ChangeAccount:      changeAccount,
 
 		VSPClient: vspClient,
+	}
+	// If an explicit voting account is not set, use the mixed account as
+	// the voting account if mixing is enabled, otherwise use the source
+	// account.
+	if !req.UseVotingAccount {
+		if req.EnableMixing {
+			request.VotingAccount = mixedAccount
+		} else {
+			request.VotingAccount = req.Account
+		}
 	}
 
 	// If dontSignTx is false we unlock the wallet so we can sign the tx.
