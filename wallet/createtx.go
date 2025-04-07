@@ -1504,32 +1504,14 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			PrevOut:  *txOut,
 		}
 
-		var addrVote stdaddr.StakeAddress
-
-		// If req.Mixing or req.UseVotingAccount is true, derive the
-		// submission script's address from the voting account. This
-		// is intended to be used with a special account type. The
-		// signing address for the same index is saved to the
-		// database. That address is later used to sign messages sent
-		// to a vspd related to this ticket.
-		if req.Mixing || req.UseVotingAccount {
-			var idx uint32
-			addrVote, idx, err = stakeAddrFunc(op, req.VotingAccount, 1)
-			if err != nil {
-				return nil, err
-			}
-			_, err := w.signingAddressAtIdx(ctx, op, w.persistReturnedChild(ctx, nil),
-				req.VotingAccount, idx)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// If the user hasn't specified a voting account, derive a voting
-			// address from the purchasing account.
-			addrVote, _, err = stakeAddrFunc(op, req.SourceAccount, 1)
-			if err != nil {
-				return nil, err
-			}
+		addrVote, idx, err := stakeAddrFunc(op, req.VotingAccount, 1)
+		if err != nil {
+			return nil, err
+		}
+		_, err = w.signingAddressAtIdx(ctx, op, w.persistReturnedChild(ctx, nil),
+			req.VotingAccount, idx)
+		if err != nil {
+			return nil, err
 		}
 		subsidyAccount := req.SourceAccount
 		var branch uint32 = 1

@@ -3412,6 +3412,13 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 
 		VSPClient: vspClient,
 	}
+	// Use the mixed account as voting account if mixing is enabled,
+	// otherwise use the source account.
+	if s.cfg.MixingEnabled {
+		request.VotingAccount = mixedAccount
+	} else {
+		request.VotingAccount = account
+	}
 
 	ticketsResponse, err := w.PurchaseTickets(ctx, n, request)
 	if err != nil {
