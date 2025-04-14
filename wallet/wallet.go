@@ -1594,6 +1594,12 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 
 	const op errors.Op = "wallet.PurchaseTickets"
 
+	// Mixing requests require wallet mixing support.
+	if req.Mixing && !w.mixingEnabled {
+		s := "wallet mixing support is disabled"
+		return nil, errors.E(op, errors.Invalid, s)
+	}
+
 	ctx, cancel := WrapNetworkBackendContext(n, ctx)
 	defer cancel()
 
@@ -1605,10 +1611,6 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	// Do not attempt to split utxos for a fee payment when spending from
 	// the mixed account.  This error is rather unlikely anyways, as mixed
 	// accounts probably have very many outputs.
-	if req.Mixing && !w.mixingEnabled {
-		s := "wallet mixing support is disabled"
-		return nil, errors.E(op, errors.Invalid, s)
-	}
 	if req.Mixing && req.MixedAccount == req.SourceAccount {
 		return nil, errors.E(op, errors.InsufficientBalance)
 	}
