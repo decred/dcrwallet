@@ -10,7 +10,6 @@ import (
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txauthor"
-	. "decred.org/dcrwallet/v5/wallet/txauthor"
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"decred.org/dcrwallet/v5/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -38,12 +37,12 @@ func p2pkhOutputs(amounts ...dcrutil.Amount) []*wire.TxOut {
 	return v
 }
 
-func makeInputSource(unspents []*wire.TxOut) InputSource {
+func makeInputSource(unspents []*wire.TxOut) txauthor.InputSource {
 	// Return outputs in order.
 	currentTotal := dcrutil.Amount(0)
 	currentInputs := make([]*wire.TxIn, 0, len(unspents))
 	redeemScriptSizes := make([]int, 0, len(unspents))
-	f := func(target dcrutil.Amount) (*InputDetail, error) {
+	f := func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 		for currentTotal < target && len(unspents) != 0 {
 			u := unspents[0]
 			unspents = unspents[1:]
@@ -61,7 +60,7 @@ func makeInputSource(unspents []*wire.TxOut) InputSource {
 		}
 		return &inputDetail, nil
 	}
-	return InputSource(f)
+	return txauthor.InputSource(f)
 }
 
 func TestNewUnsignedTransaction(t *testing.T) {
@@ -199,7 +198,7 @@ func TestNewUnsignedTransaction(t *testing.T) {
 
 	for i, test := range tests {
 		inputSource := makeInputSource(test.UnspentOutputs)
-		tx, err := NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource, chaincfg.MainNetParams().MaxTxSize)
+		tx, err := txauthor.NewUnsignedTransaction(test.Outputs, test.RelayFee, inputSource, changeSource, chaincfg.MainNetParams().MaxTxSize)
 		if err != nil {
 			insufficientBalance := errors.Is(err, errors.InsufficientBalance)
 			if insufficientBalance != test.InputSourceError {
