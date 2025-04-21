@@ -6,6 +6,7 @@ package wallet
 
 import (
 	"context"
+	"sync/atomic"
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txrules"
@@ -25,7 +26,6 @@ import (
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
-	"github.com/decred/go-socks/socks"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -479,23 +479,30 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 	w.lockedOutpointMu.Unlock()
 
 	var g errgroup.Group
+	var success atomic.Int32
 	for i := range credits {
 		op := &credits[i].OutPoint
 		g.Go(func() error {
 			err := w.MixOutput(ctx, op, changeAccount, mixAccount, mixBranch)
-			if errors.Is(err, errThrottledMixRequest) {
-				return nil
+			if err == nil {
+				success.Add(1)
 			}
-			if errors.Is(err, errNoSplitDenomination) {
-				return nil
-			}
-			if errors.Is(err, socks.ErrPoolMaxConnections) {
-				return nil
+			switch {
+			case errors.Is(err, errNoSplitDenomination):
+				log.Debugf("Unable to mix output for account %q: %v",
+					changeAccount, err)
+				err = nil
+			case errors.Is(err, errThrottledMixRequest):
+				log.Debugf("Temporarily skipped output %v during account %q mix: %v",
+					op, changeAccount, err)
+				err = nil
 			}
 			return err
 		})
 	}
 	err = g.Wait()
+	log.Debugf("Mixed %d of %d selected outputs of account %q", success.Load(),
+		len(credits), changeAccount)
 	if err != nil {
 		return errors.E(op, err)
 	}
