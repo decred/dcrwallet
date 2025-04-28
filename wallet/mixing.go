@@ -344,10 +344,7 @@ SplitPoints:
 			continue
 		}
 
-		count = uint32(amount / mixValue)
-		if count > 4 {
-			count = 4
-		}
+		count = min(uint32(amount/mixValue), 4)
 		for ; count > 0; count-- {
 			remValue = amount - dcrutil.Amount(count)*mixValue
 			if remValue < 0 {

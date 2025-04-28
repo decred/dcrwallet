@@ -623,10 +623,7 @@ func (s *Syncer) breaksMinVersionTarget(rp *p2p.RemotePeer) bool {
 // backoff period.
 func nextBackoff(d time.Duration) time.Duration {
 	const maxBackoff = 90 * time.Second
-	d = 5*time.Second + d*95/100
-	if d > maxBackoff {
-		d = maxBackoff
-	}
+	d = min(5*time.Second+d*95/100, maxBackoff)
 	return d
 }
 

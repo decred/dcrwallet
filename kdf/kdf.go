@@ -28,10 +28,7 @@ type Argon2idParams struct {
 // The time and memory parameters may be increased by an application when stronger
 // security requirements are desired, and additional memory is available.
 func NewArgon2idParams(rand io.Reader) (*Argon2idParams, error) {
-	ncpu := runtime.NumCPU()
-	if ncpu > 256 {
-		ncpu = 256
-	}
+	ncpu := min(runtime.NumCPU(), 256)
 	p := &Argon2idParams{
 		Time:    1,
 		Memory:  256 * 1024, // 256 MiB
