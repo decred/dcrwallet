@@ -542,10 +542,7 @@ func (rp *RemotePeer) sendWaitingInventory(ctx context.Context) error {
 
 	s := rp.waitingInvs
 	for len(s) != 0 {
-		l := len(s)
-		if l > wire.MaxInvPerMsg {
-			l = wire.MaxInvPerMsg
-		}
+		l := min(len(s), wire.MaxInvPerMsg)
 		if err := sendInvMsg(s[:l]); err != nil {
 			return err
 		}

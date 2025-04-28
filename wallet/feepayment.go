@@ -204,10 +204,7 @@ func (fp *vspFeePayment) next() time.Duration {
 	switch {
 	case tipHeight < ticketLive: // immature, mined ticket
 		blocksUntilLive := ticketLive - tipHeight
-		jitter = fp.params.TargetTimePerBlock * time.Duration(blocksUntilLive)
-		if jitter > immatureJitter {
-			jitter = immatureJitter
-		}
+		jitter = min(fp.params.TargetTimePerBlock*time.Duration(blocksUntilLive), immatureJitter)
 	case tipHeight < ticketExpires: // live ticket
 		jitter = liveJitter
 	default: // unmined ticket

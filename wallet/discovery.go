@@ -871,10 +871,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, 
 				return ctx.Err()
 			}
 
-			to := j + N
-			if to > max {
-				to = max
-			}
+			to := min(j+N, max)
 			err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 				ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 				return w.manager.SyncAccountToAddrIndex(ns, acct, to, 0)
@@ -893,10 +890,7 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, 
 				return ctx.Err()
 			}
 
-			to := j + N
-			if to > max {
-				to = max
-			}
+			to := min(j+N, max)
 			err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 				ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
 				return w.manager.SyncAccountToAddrIndex(ns, acct, to, 1)
