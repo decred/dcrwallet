@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -96,10 +97,8 @@ func promptList(reader *bufio.Reader, prefix string, validResponses []string, de
 			reply = defaultEntry
 		}
 
-		for _, validResponse := range validResponses {
-			if reply == validResponse {
-				return reply, nil
-			}
+		if slices.Contains(validResponses, reply) {
+			return reply, nil
 		}
 	}
 }
