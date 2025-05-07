@@ -870,10 +870,14 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 
 	// Get an initial fee estimate based on the number of selected inputs
 	// and added outputs, with no change.
+	feeRate := w.RelayFee()
 	szEst := txsizes.EstimateSerializeSize(scriptSizes, msgtx.TxOut, 0)
-	feeEst := txrules.FeeForSerializeSize(w.RelayFee(), szEst)
+	feeEst := txrules.FeeForSerializeSize(feeRate, szEst)
 
 	msgtx.TxOut[0].Value = int64(totalAdded - feeEst)
+	if txrules.IsDustOutput(msgtx.TxOut[0], feeRate) {
+		return nil, errors.E(op, errors.InsufficientBalance)
+	}
 
 	err = w.signP2PKHMsgTx(msgtx, forSigning, addrmgrNs)
 	if err != nil {
