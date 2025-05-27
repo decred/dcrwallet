@@ -863,7 +863,7 @@ type SendToTreasuryCmd struct {
 	Amount float64
 }
 
-// NewSendToTreasurymd returns a new instance which can be used to issue a
+// NewSendToTreasuryCmd returns a new instance which can be used to issue a
 // sendtotreasury JSON-RPC command.
 func NewSendToTreasuryCmd(amount float64, comment, commentTo *string) *SendToTreasuryCmd {
 	return &SendToTreasuryCmd{
@@ -877,7 +877,7 @@ type SendFromTreasuryCmd struct {
 	Amounts map[string]float64
 }
 
-// NewSendFromTreasurymd returns a new instance which can be used to issue a
+// NewSendFromTreasuryCmd returns a new instance which can be used to issue a
 // sendfromtreasury JSON-RPC command.
 func NewSendFromTreasuryCmd(pubkey string, amounts map[string]float64) *SendFromTreasuryCmd {
 	return &SendFromTreasuryCmd{
