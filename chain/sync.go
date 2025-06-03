@@ -493,9 +493,9 @@ func (s *Syncer) waitRPCSync(ctx context.Context, minHeight int64) error {
 			return nil
 		}
 
-		log.Infof("Waiting dcrd instance to catch up to minimum block "+
-			"height %d (%d blocks, %d headers, IBS=%v)",
-			minHeight, info.Blocks, info.Headers, info.InitialBlockDownload)
+		log.Infof("Waiting for dcrd instance to catch up to minimum block "+
+			"height %d (%d blocks, %d headers, chain synced=%v)",
+			minHeight, info.Blocks, info.Headers, !info.InitialBlockDownload)
 
 		// Determine when to make the next check. When there are less
 		// than 100 blocks to go, use a lower check interval.
