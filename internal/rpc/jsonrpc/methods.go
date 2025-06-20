@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1289,9 +1289,7 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd any) (any, error) {
 			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for previous block: %v", err)
 		}
 	}
-	sort.Slice(timestamps, func(i, j int) bool {
-		return timestamps[i] < timestamps[j]
-	})
+	slices.Sort(timestamps)
 	medianTime := timestamps[len(timestamps)/2]
 
 	// Determine the PoW hash.  When the v1 PoW hash differs from the
@@ -1415,9 +1413,7 @@ func (s *Server) getBlock(ctx context.Context, icmd any) (any, error) {
 			return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code, "Info not found for previous block: %v", err)
 		}
 	}
-	sort.Slice(timestamps, func(i, j int) bool {
-		return timestamps[i] < timestamps[j]
-	})
+	slices.Sort(timestamps)
 	medianTime := timestamps[len(timestamps)/2]
 
 	// Determine the PoW hash.  When the v1 PoW hash differs from the
@@ -2512,8 +2508,15 @@ func (s *Server) getPeerInfo(ctx context.Context, icmd any) (any, error) {
 		}
 		infos = append(infos, info)
 	}
-	sort.Slice(infos, func(i, j int) bool {
-		return infos[i].ID < infos[j].ID
+	slices.SortFunc(infos, func(a, b *types.GetPeerInfoResult) int {
+		switch {
+		case a.ID < b.ID:
+			return -1
+		case a.ID > b.ID:
+			return 1
+		default:
+			return 0
+		}
 	})
 	return infos, nil
 }
