@@ -1659,9 +1659,9 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	version, script := addr.(Address).PaymentScript()
 	a.outputs = append(a.outputs, &wire.TxOut{Version: version, PkScript: script})
 	txsize := txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHInputSize},
-		a.outputs, txsizes.P2PKHPkScriptSize)
+		a.outputs, 0)
 	txfee := txrules.FeeForSerializeSize(relayFee, txsize)
-	a.outputs[0].Value = int64(vspFee + 2*txfee)
+	a.outputs[0].Value = int64(vspFee + txfee)
 	err = w.authorTx(ctx, op, a)
 	if err != nil {
 		return nil, err
