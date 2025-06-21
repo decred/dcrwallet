@@ -1291,7 +1291,7 @@ func (m *Manager) ImportPrivateKey(ns walletdb.ReadWriteBucket, wif *dcrutil.WIF
 	return managedAddr, nil
 }
 
-// ImportPubKey imports a compressed 33-byte serialized secp256k1 public key and
+// ImportPublicKey imports a compressed 33-byte serialized secp256k1 public key and
 // the derived P2PKH address.  This method may only be used by watching-only
 // wallets.
 func (m *Manager) ImportPublicKey(ns walletdb.ReadWriteBucket, pubkey []byte) (ManagedPubKeyAddress, error) {
