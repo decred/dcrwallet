@@ -867,7 +867,7 @@ func deleteAccountNameIndex(ns walletdb.ReadWriteBucket, name string) error {
 	return nil
 }
 
-// deleteAccounIdIndex deletes the given key from the account id index of the database.
+// deleteAccountIDIndex deletes the given key from the account id index of the database.
 func deleteAccountIDIndex(ns walletdb.ReadWriteBucket, account uint32) error {
 	bucket := ns.NestedReadWriteBucket(acctIDIdxBucketName)
 

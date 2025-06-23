@@ -936,7 +936,7 @@ func fetchRawCreditAccount(v []byte) (uint32, error) {
 	return byteOrder.Uint32(v[90:94]), nil
 }
 
-// spendRawCredit marks the credit with a given key as mined at some particular
+// spendCredit marks the credit with a given key as mined at some particular
 // block as spent by the input at some transaction incidence.  The debited
 // amount is returned.
 func spendCredit(ns walletdb.ReadWriteBucket, k []byte, spender *indexedIncidence) (dcrutil.Amount, error) {
