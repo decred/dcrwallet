@@ -43,7 +43,7 @@ func (u unstableAPI) TxDetails(ctx context.Context, txHash *chainhash.Hash) (*ud
 }
 
 // RangeTransactions calls udb.Store.RangeTransactions under a single
-// database view tranasction.
+// database view transaction.
 func (u unstableAPI) RangeTransactions(ctx context.Context, begin, end int32, f func([]udb.TxDetails) (bool, error)) error {
 	const op errors.Op = "wallet.RangeTransactions"
 	err := walletdb.View(ctx, u.w.db, func(dbtx walletdb.ReadTx) error {

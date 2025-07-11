@@ -92,7 +92,7 @@ func (r *RPC) ExistsLiveTicket(ctx context.Context, ticket *chainhash.Hash) (boo
 }
 
 // UsedAddresses returns a bitset identifying whether each address has been
-// publically used on the blockchain.  This feature requires the optional dcrd
+// publicly used on the blockchain.  This feature requires the optional dcrd
 // existsaddress index to be enabled.
 func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error) {
 	const op errors.Op = "dcrd.UsedAddresses"
