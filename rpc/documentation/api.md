@@ -1209,7 +1209,7 @@ search for tickets using submission scripts derived from this account.
 
 - `int32 discover_from`: The block height to begin discovering usage from. Default is 0.
 
-- `int32 discover_gap_limit`: The gap limit used when discovering usage. Dafaults to wallet config defaults.
+- `int32 discover_gap_limit`: The gap limit used when discovering usage. Defaults to wallet config defaults.
 
 **Response:** `ImportPrivateKeyResponse`
 
@@ -2188,7 +2188,7 @@ ___
 The `TransactionDetails` message is included in responses to report transactions
 relevant to the wallet.  The message includes details such as which previous
 wallet inputs are spent by this transaction, whether each output is controlled
-by the wallet or not, the total fee (if calculable), and the earlist time the
+by the wallet or not, the total fee (if calculable), and the earliest time the
 transaction was seen.
 
 - `bytes hash`: The hash of the serialized transaction.
@@ -2403,7 +2403,7 @@ is sent there will be a type included.
   addresses process.
 
 - `DISCOVER_ADDRESSES_FINISHED`: Notifies when the wallet has finished the
-  discover addesses process.
+  discover addresses process.
 
 - `RESCAN_STARTED`: When the rescan process has begun (if at all).
 

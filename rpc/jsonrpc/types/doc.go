@@ -15,7 +15,7 @@ is also instructive to read the documentation for the dcrjson package
 # Marshalling and Unmarshalling
 
 The types in this package map to the required parts of the protocol as discussed
-in the dcrjson documention
+in the dcrjson documentation
 
   - Request Objects (type Request)
   - Commands (type <Foo>Cmd)
