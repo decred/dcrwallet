@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"maps"
+
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/internal/loggers"
 )
@@ -42,9 +44,6 @@ func (w *Wallet) AllVSPs() map[string]*VSPClient {
 	// Create a copy to avoid callers mutating the list.
 	w.vspClientsMu.Lock()
 	defer w.vspClientsMu.Unlock()
-	res := make(map[string]*VSPClient, len(w.vspClients))
-	for host, client := range w.vspClients {
-		res[host] = client
-	}
-	return res
+
+	return maps.Clone(w.vspClients)
 }
