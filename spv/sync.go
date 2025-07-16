@@ -7,6 +7,7 @@ package spv
 import (
 	"context"
 	"fmt"
+	"maps"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -220,11 +221,7 @@ func (s *Syncer) GetRemotePeers() map[string]*p2p.RemotePeer {
 	s.remotesMu.Lock()
 	defer s.remotesMu.Unlock()
 
-	remotes := make(map[string]*p2p.RemotePeer, len(s.remotes))
-	for k, rp := range s.remotes {
-		remotes[k] = rp
-	}
-	return remotes
+	return maps.Clone(s.remotes)
 }
 
 // peerConnected updates the notification for peer count, if set.
