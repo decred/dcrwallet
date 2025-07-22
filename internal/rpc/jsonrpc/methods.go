@@ -51,6 +51,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Dual-coin constants
+const (
+	// CoinTypeVAR represents the VAR coin type (mined coins)
+	CoinTypeVAR = 0
+	// CoinTypeMaxSKA represents the maximum valid SKA coin type
+	CoinTypeMaxSKA = 255
+	// CoinTypeMinSKA represents the minimum valid SKA coin type
+	CoinTypeMinSKA = 1
+)
+
 // API version constants
 const (
 	jsonrpcSemverString = "10.0.0"
@@ -68,6 +78,14 @@ const (
 	// to use actual script versions.
 	scriptVersionAssumed = 0
 )
+
+// validateCoinType validates a coin type parameter and returns an appropriate error
+func validateCoinType(coinType dcrutil.CoinType) error {
+	if coinType < CoinTypeVAR || coinType > CoinTypeMaxSKA {
+		return rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between %d (VAR) and %d (SKA)", CoinTypeVAR, CoinTypeMaxSKA)
+	}
+	return nil
+}
 
 // confirms returns the number of confirmations for a transaction in a block at
 // height txHeight (or -1 for an unconfirmed tx) given the chain height
@@ -1058,8 +1076,8 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 	// Validate coin type if specified
 	if cmd.CoinType != nil {
 		coinType := dcrutil.CoinType(*cmd.CoinType)
-		if coinType < 0 || coinType > 255 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		if err := validateCoinType(coinType); err != nil {
+			return nil, err
 		}
 	}
 
@@ -3335,8 +3353,8 @@ func (s *Server) listUnspent(ctx context.Context, icmd any) (any, error) {
 	// Validate coin type if specified
 	if cmd.CoinType != nil {
 		coinType := dcrutil.CoinType(*cmd.CoinType)
-		if coinType < 0 || coinType > 255 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		if err := validateCoinType(coinType); err != nil {
+			return nil, err
 		}
 	}
 
@@ -4706,8 +4724,8 @@ func (s *Server) sendToAddress(ctx context.Context, icmd any) (any, error) {
 	var coinType dcrutil.CoinType = dcrutil.CoinTypeVAR // Default to VAR for backward compatibility
 	if cmd.CoinType != nil {
 		coinType = dcrutil.CoinType(*cmd.CoinType)
-		if coinType < 0 || coinType > 255 {
-			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		if err := validateCoinType(coinType); err != nil {
+			return nil, err
 		}
 	}
 
@@ -5985,8 +6003,8 @@ func (s *Server) getCoinBalance(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// Validate coin type range
-	if coinType < 0 || coinType > 255 {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+	if err := validateCoinType(coinType); err != nil {
+		return nil, err
 	}
 
 	accountName := "*"
