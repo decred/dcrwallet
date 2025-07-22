@@ -788,6 +788,7 @@ func valueUnspentCredit(cred *credit, scrType scriptType, scrLoc uint32,
 		}
 	}
 
+	v[9] = byte(cred.coinType) // Store CoinType in unused space
 	v[81] = byte(scrType)
 	v[81] |= accountExistsMask
 	byteOrder.PutUint32(v[82:86], scrLoc)
@@ -901,6 +902,15 @@ func fetchRawCreditHasExpiry(v []byte, dbVersion uint32) bool {
 	default:
 		return false
 	}
+}
+
+// fetchRawCreditCoinType returns the CoinType for this credit.
+// For backward compatibility, defaults to VAR (0) if not set.
+func fetchRawCreditCoinType(v []byte) dcrutil.CoinType {
+	if len(v) < 10 {
+		return dcrutil.CoinTypeVAR // Default to VAR for older credits
+	}
+	return dcrutil.CoinType(v[9])
 }
 
 // fetchRawCreditScriptOffset returns the ScriptOffset for the pkScript of this

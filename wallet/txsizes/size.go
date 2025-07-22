@@ -102,10 +102,11 @@ const (
 	// P2PKH output script.  It is calculated as:
 	//
 	//   - 8 bytes output value
+	//   - 1 byte coin type (dual-coin support)
 	//   - 2 bytes version
 	//   - 1 byte compact int encoding value 25
 	//   - 25 bytes P2PKH output script
-	P2PKHOutputSize = 8 + 2 + 1 + 25
+	P2PKHOutputSize = 8 + 1 + 2 + 1 + 25
 
 	// TSPENDInputSize
 	//
@@ -201,9 +202,10 @@ func EstimateInputSize(scriptSize int) int {
 
 // EstimateOutputSize returns the worst case serialize size estimate for a tx output
 //   - 8 bytes amount
+//   - 1 byte coin type (dual-coin support)
 //   - 2 bytes version
 //   - the compact int representation of the script size
 //   - the supplied script size
 func EstimateOutputSize(scriptSize int) int {
-	return 8 + 2 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize
+	return 8 + 1 + 2 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize
 }

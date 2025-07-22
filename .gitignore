@@ -17,3 +17,6 @@ rpc/rpc_example/rpc_example
 
 # Temporary database files created by tests.
 wallet/udb/*.kv
+
+# Compiled test binaries
+*.test

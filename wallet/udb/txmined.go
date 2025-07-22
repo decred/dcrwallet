@@ -90,6 +90,7 @@ type credit struct {
 	opCode     uint8
 	isCoinbase bool
 	hasExpiry  bool
+	coinType   dcrutil.CoinType // Dual-coin support: track coin type
 }
 
 // TxRecord represents a transaction managed by the Store.
@@ -168,6 +169,7 @@ type Credit struct {
 	Received     time.Time
 	FromCoinBase bool
 	HasExpiry    bool
+	CoinType     dcrutil.CoinType // Dual-coin support: track coin type (VAR=0, SKA=1-255)
 }
 
 // Store implements a transaction store for storing and managing wallet
@@ -1153,6 +1155,7 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		cred.change = change
 		cred.opCode = fetchRawUnminedCreditTagOpCode(v)
 		cred.isCoinbase = fetchRawUnminedCreditTagIsCoinbase(v)
+		cred.coinType = dcrutil.CoinType(rec.MsgTx.TxOut[i].CoinType)
 
 		// Legacy credit output values may be of the wrong
 		// size.
@@ -1413,6 +1416,7 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 			opCode:     getStakeOpCode(version, pkScript),
 			isCoinbase: compat.IsEitherCoinBaseTx(&rec.MsgTx),
 			hasExpiry:  rec.MsgTx.Expiry != 0,
+			coinType:   dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType),
 		}
 		scTy := pkScriptType(version, pkScript)
 		scLoc := uint32(rec.MsgTx.PkScriptLocs()[index])
@@ -1527,6 +1531,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		opCode:     opCode,
 		isCoinbase: isCoinbase,
 		hasExpiry:  rec.MsgTx.Expiry != wire.NoExpiryValue,
+		coinType:   dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType),
 	}
 	scrType := pkScriptType(scriptVersion, pkScript)
 	pkScrLocs := rec.MsgTx.PkScriptLocs()
@@ -2264,6 +2269,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 	var blockTime time.Time
 	var pkScript []byte
 	var receiveTime time.Time
+	var coinType dcrutil.CoinType // Dual-coin support: track coin type from TxOut
 
 	if unminedCredV != nil {
 		var err error
@@ -2291,6 +2297,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 			return nil, errors.E(errors.IO, errors.Errorf("no output %d for tx %v", op.Index, &op.Hash))
 		}
 		pkScript = tx.TxOut[op.Index].PkScript
+		coinType = dcrutil.CoinType(tx.TxOut[op.Index].CoinType) // Extract coin type from TxOut
 	} else {
 		mined = true
 
@@ -2306,6 +2313,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 
 		scrLoc := fetchRawCreditScriptOffset(minedCredV)
 		scrLen := fetchRawCreditScriptLength(minedCredV)
+		coinType = fetchRawCreditCoinType(minedCredV) // Read CoinType from database
 
 		recK, recV := existsTxRecord(ns, &op.Hash, block)
 		receiveTime = fetchRawTxRecordReceived(recV)
@@ -2332,6 +2340,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 		Received:     receiveTime,
 		FromCoinBase: isCoinbase,
 		HasExpiry:    hasExpiry,
+		CoinType:     coinType, // Include coin type in credit
 	}
 	if mined {
 		c.BlockMeta.Block = *block

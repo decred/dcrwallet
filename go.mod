@@ -59,3 +59,12 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
+
+// Replace with local Monetarium dcrd modules for dual-coin support
+replace (
+	github.com/decred/dcrd/blockchain/v5 => ../dcrd/blockchain
+	github.com/decred/dcrd/chaincfg/chainhash => ../dcrd/chaincfg/chainhash
+	github.com/decred/dcrd/chaincfg/v3 => ../dcrd/chaincfg
+	github.com/decred/dcrd/dcrutil/v4 => ../dcrd/dcrutil
+	github.com/decred/dcrd/wire => ../dcrd/wire
+)
