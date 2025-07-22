@@ -1898,18 +1898,11 @@ func (w *Wallet) ChangePublicPassphrase(ctx context.Context, old, new []byte) er
 	return nil
 }
 
-// Balances describes a breakdown of an account's balances in various
-// categories.
-type Balances struct {
-	Account                 uint32
-	ImmatureCoinbaseRewards dcrutil.Amount
-	ImmatureStakeGeneration dcrutil.Amount
-	LockedByTickets         dcrutil.Amount
-	Spendable               dcrutil.Amount
-	Total                   dcrutil.Amount
-	VotingAuthority         dcrutil.Amount
-	Unconfirmed             dcrutil.Amount
-}
+// Balances type alias for udb.Balances to maintain backward compatibility
+type Balances = udb.Balances
+
+// CoinBalance type alias for udb.CoinBalance to maintain backward compatibility  
+type CoinBalance = udb.CoinBalance
 
 // AccountBalance returns the balance breakdown for a single account.
 func (w *Wallet) AccountBalance(ctx context.Context, account uint32, confirms int32) (Balances, error) {
@@ -1947,6 +1940,158 @@ func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balance
 		return nil, errors.E(op, err)
 	}
 	return balances, nil
+}
+
+// AccountBalanceByCoinType returns the balance breakdown for a specific coin type within an account.
+// It separates VAR (CoinType 0) from SKA coins (CoinType 1-255) and provides detailed
+// breakdown of spendable, immature, and locked amounts for the requested coin type only.
+//
+// Parameters:
+//   - account: The account number to query (0 for default account)
+//   - coinType: The specific coin type (0=VAR, 1-255=SKA variants)
+//   - confirms: Minimum confirmations required for inclusion in balance calculation
+//
+// Returns CoinBalance with detailed breakdown for the specified coin type, or empty
+// CoinBalance if the account contains no funds of that coin type. Returns error if
+// the account is invalid or database access fails.
+//
+// Example:
+//   varBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinTypeVAR, 1)
+//   skaBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(1), 6)
+func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
+	const op errors.Op = "wallet.AccountBalanceByCoinType"
+	
+	// Validate coin type range
+	if coinType < 0 || coinType > 255 {
+		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
+	}
+	
+	// Get full account balance
+	balance, err := w.AccountBalance(ctx, account, confirms)
+	if err != nil {
+		return CoinBalance{}, errors.E(op, err)
+	}
+	
+	// Return specific coin type balance
+	if coinBalance, exists := balance.CoinTypeBalances[coinType]; exists {
+		return coinBalance, nil
+	}
+	
+	// Return empty balance if coin type not found
+	return CoinBalance{CoinType: coinType}, nil
+}
+
+// AccountBalancesByCoinType returns balance breakdowns for all accounts 
+// filtered by specific coin type.
+func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) ([]CoinBalance, error) {
+	const op errors.Op = "wallet.AccountBalancesByCoinType"
+	
+	// Validate coin type range
+	if coinType < 0 || coinType > 255 {
+		return nil, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
+	}
+	
+	// Get all account balances
+	balances, err := w.AccountBalances(ctx, confirms)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	
+	var coinBalances []CoinBalance
+	for _, balance := range balances {
+		if coinBalance, exists := balance.CoinTypeBalances[coinType]; exists {
+			coinBalances = append(coinBalances, coinBalance)
+		} else {
+			// Add empty balance for accounts without this coin type
+			coinBalances = append(coinBalances, CoinBalance{CoinType: coinType})
+		}
+	}
+	
+	return coinBalances, nil
+}
+
+// TotalBalanceByCoinType returns the aggregated balance across all accounts for a specific coin type.
+// This method sums up all balances of the specified coin type from every account in the wallet,
+// providing a comprehensive view of total holdings for VAR or any SKA variant.
+//
+// Parameters:
+//   - coinType: The specific coin type to aggregate (0=VAR, 1-255=SKA variants)
+//   - confirms: Minimum confirmations required for inclusion in balance calculation
+//
+// Returns CoinBalance with aggregated totals across all accounts for the specified coin type.
+// All balance fields (Spendable, ImmatureReward, LockedByTickets, etc.) are summed across accounts.
+// Returns error if database access fails.
+//
+// Example:
+//   totalVAR, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinTypeVAR, 1)
+//   totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinType(1), 6)
+func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
+	const op errors.Op = "wallet.TotalBalanceByCoinType"
+	
+	// Validate coin type range
+	if coinType < 0 || coinType > 255 {
+		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
+	}
+	
+	coinBalances, err := w.AccountBalancesByCoinType(ctx, coinType, confirms)
+	if err != nil {
+		return CoinBalance{}, errors.E(op, err)
+	}
+	
+	var total CoinBalance
+	total.CoinType = coinType
+	
+	for _, balance := range coinBalances {
+		total.ImmatureCoinbaseRewards += balance.ImmatureCoinbaseRewards
+		total.ImmatureStakeGeneration += balance.ImmatureStakeGeneration
+		total.LockedByTickets += balance.LockedByTickets
+		total.Spendable += balance.Spendable
+		total.Total += balance.Total
+		total.VotingAuthority += balance.VotingAuthority
+		total.Unconfirmed += balance.Unconfirmed
+	}
+	
+	return total, nil
+}
+
+// ListCoinTypes returns a sorted list of all coin types that have non-zero balances across all accounts.
+// This discovery method helps identify which coin types (VAR and/or SKA variants) are currently
+// held in the wallet, useful for UI display and transaction planning.
+//
+// Parameters:
+//   - confirms: Minimum confirmations required for inclusion in balance calculation
+//
+// Returns a slice of dcrutil.CoinType values sorted in ascending order (VAR=0 first, then SKA 1-255).
+// Only includes coin types with positive total balances across all accounts. Returns error if
+// database access fails.
+//
+// Example:
+//   activeCoins, err := wallet.ListCoinTypes(ctx, 1)
+//   // Result might be: [0, 1, 5] representing VAR, SKA-1, and SKA-5
+func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.CoinType, error) {
+	const op errors.Op = "wallet.ListCoinTypes"
+	
+	balances, err := w.AccountBalances(ctx, confirms)
+	if err != nil {
+		return nil, errors.E(op, err)
+	}
+	
+	coinTypesMap := make(map[dcrutil.CoinType]bool)
+	for _, balance := range balances {
+		for coinType, coinBalance := range balance.CoinTypeBalances {
+			// Only include coin types with non-zero total balance
+			if coinBalance.Total > 0 {
+				coinTypesMap[coinType] = true
+			}
+		}
+	}
+	
+	var coinTypes []dcrutil.CoinType
+	for coinType := range coinTypesMap {
+		coinTypes = append(coinTypes, coinType)
+	}
+	
+	return coinTypes, nil
 }
 
 // CurrentAddress gets the most recently requested payment address from a wallet.

@@ -206,8 +206,69 @@ func totalBalances(dbtx walletdb.ReadTx, w *Wallet, m map[uint32]dcrutil.Amount)
 func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
 	s := make([]AccountBalance, 0, len(m))
 	for k, v := range m {
-		s = append(s, AccountBalance{Account: k, TotalBalance: v})
+		s = append(s, AccountBalance{
+			Account:      k, 
+			TotalBalance: v,
+			// Initialize empty CoinTypeBalances map for backward compatibility
+			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
+		})
 	}
+	return s
+}
+
+// multiCoinTotalBalances calculates per-coin-type balances for all accounts
+func multiCoinTotalBalances(dbtx walletdb.ReadTx, w *Wallet, accountCoinBalances map[uint32]map[dcrutil.CoinType]dcrutil.Amount) error {
+	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
+	unspent, err := w.txStore.UnspentOutputs(dbtx)
+	if err != nil {
+		return err
+	}
+	
+	for i := range unspent {
+		output := unspent[i]
+		_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
+		if len(addrs) == 0 {
+			continue
+		}
+		
+		outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
+		if err == nil {
+			// Initialize account map if not exists
+			if accountCoinBalances[outputAcct] == nil {
+				accountCoinBalances[outputAcct] = make(map[dcrutil.CoinType]dcrutil.Amount)
+			}
+			
+			// Add to coin-type specific balance
+			coinType := dcrutil.CoinType(output.CoinType)
+			accountCoinBalances[outputAcct][coinType] += output.Amount
+		}
+	}
+	return nil
+}
+
+// flattenMultiCoinBalanceMap converts multi-coin balance map to AccountBalance slice
+func flattenMultiCoinBalanceMap(accountCoinBalances map[uint32]map[dcrutil.CoinType]dcrutil.Amount) []AccountBalance {
+	s := make([]AccountBalance, 0, len(accountCoinBalances))
+	
+	for account, coinBalances := range accountCoinBalances {
+		accountBalance := AccountBalance{
+			Account:          account,
+			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
+		}
+		
+		// Calculate total balance and populate coin type balances
+		for coinType, amount := range coinBalances {
+			accountBalance.CoinTypeBalances[coinType] = amount
+			
+			// For backward compatibility, aggregate VAR balance as total
+			if coinType == dcrutil.CoinTypeVAR {
+				accountBalance.TotalBalance = amount
+			}
+		}
+		
+		s = append(s, accountBalance)
+	}
+	
 	return s
 }
 
@@ -463,13 +524,36 @@ type TransactionSummaryOutput struct {
 	OutputScript []byte
 }
 
-// AccountBalance associates a total (zero confirmation) balance with an
-// account.  Balances for other minimum confirmation counts require more
-// expensive logic and it is not clear which minimums a client is interested in,
-// so they are not included.
+// AccountBalance associates balance information with an account for notification purposes.
+// This structure supports both legacy VAR-only notifications (TotalBalance field) and
+// new multi-coin notifications (CoinTypeBalances map) for the dual-coin system.
+//
+// The structure provides zero-confirmation balance data. Balances for other minimum
+// confirmation counts require more expensive logic and it is not clear which minimums
+// a client is interested in, so they are not included in notifications.
+//
+// Fields:
+//   - Account: The account number this balance notification relates to
+//   - TotalBalance: Legacy VAR total balance (maintained for backward compatibility)
+//   - CoinTypeBalances: Map of coin type to total balance for that coin type
+//     Key 0 = VAR balance, Keys 1-255 = SKA variant balances
+//
+// Example notification data:
+//   AccountBalance{
+//     Account: 0,
+//     TotalBalance: 500000000, // 5 VAR (legacy field)
+//     CoinTypeBalances: map[dcrutil.CoinType]dcrutil.Amount{
+//       0: 500000000,   // 5 VAR
+//       1: 1000000000,  // 10 SKA-1
+//       2: 250000000,   // 2.5 SKA-2
+//     }
+//   }
 type AccountBalance struct {
 	Account      uint32
-	TotalBalance dcrutil.Amount
+	TotalBalance dcrutil.Amount  // VAR total balance (for backward compatibility)
+	
+	// Multi-coin support: breakdown by coin type
+	CoinTypeBalances map[dcrutil.CoinType]dcrutil.Amount
 }
 
 // TransactionNotificationsClient receives TransactionNotifications from the

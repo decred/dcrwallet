@@ -23,6 +23,7 @@ import (
 type OutputSelectionPolicy struct {
 	Account               uint32
 	RequiredConfirmations int32
+	CoinType              *dcrutil.CoinType // Optional coin type filter
 }
 
 func (p *OutputSelectionPolicy) meetsRequiredConfs(txHeight, curHeight int32) bool {
@@ -74,6 +75,11 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 				continue
 			}
 
+			// Filter by coin type if specified in policy
+			if policy.CoinType != nil && dcrutil.CoinType(output.CoinType) != *policy.CoinType {
+				continue
+			}
+
 			// Stakebase isn't exposed by wtxmgr so those will be
 			// OutputKindNormal for now.
 			outputSource := OutputKindNormal
@@ -89,6 +95,7 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 					// only version 0 at time of writing.
 					Version:  0,
 					PkScript: output.PkScript,
+					CoinType: wire.CoinType(output.CoinType),
 				},
 				OutputKind:      outputSource,
 				ContainingBlock: BlockIdentity(output.Block),

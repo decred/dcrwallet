@@ -204,9 +204,9 @@ func TestCreditDatabaseIntegration(t *testing.T) {
 			}
 
 			// Test valueUnspentCredit serialization
-			serialized := make([]byte, 10) // Ensure space for CoinType
+			serialized := make([]byte, 95) // Use full credit value size
 			// Simulate valueUnspentCredit logic
-			serialized[9] = byte(cred.coinType)
+			serialized[94] = byte(cred.coinType)
 
 			// Test fetchRawCreditCoinType deserialization
 			deserializedCoinType := fetchRawCreditCoinType(serialized)

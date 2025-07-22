@@ -3462,15 +3462,27 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 
 		height := extractRawCreditHeight(cKey)
 		opcode := fetchRawCreditTagOpCode(cVal)
+		coinType := fetchRawCreditCoinType(cVal)
 
 		ab, ok := accountBalances[thisAcct]
 		if !ok {
 			ab = &Balances{
 				Account: thisAcct,
+				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
+		
+		// Ensure coin type balance entry exists
+		if _, exists := ab.CoinTypeBalances[coinType]; !exists {
+			ab.CoinTypeBalances[coinType] = CoinBalance{
+				CoinType: coinType,
+			}
+		}
 
+		// Get current coin type balance for modification
+		coinBalance := ab.CoinTypeBalances[coinType]
+		
 		switch opcode {
 		case txscript.OP_TGEN:
 			// Or add another type of balance?
@@ -3483,33 +3495,81 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 
 			if (isConfirmed && !creditFromCoinbase) ||
 				matureCoinbase {
-				ab.Spendable += utxoAmt
+				// Update per-coin balance
+				coinBalance.Spendable += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.Spendable += utxoAmt
+				}
 			} else if creditFromCoinbase && !matureCoinbase {
-				ab.ImmatureCoinbaseRewards += utxoAmt
+				// Update per-coin balance
+				coinBalance.ImmatureCoinbaseRewards += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.ImmatureCoinbaseRewards += utxoAmt
+				}
 			}
 
-			ab.Total += utxoAmt
+			// Update per-coin total
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR total for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.Total += utxoAmt
+			}
 		case txscript.OP_SSTX:
-			ab.VotingAuthority += utxoAmt
+			// Update per-coin balance
+			coinBalance.VotingAuthority += utxoAmt
+			// Update legacy VAR balance for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.VotingAuthority += utxoAmt
+			}
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
 			if coinbaseMatured(s.chainParams, height, syncHeight) {
-				ab.Spendable += utxoAmt
+				// Update per-coin balance
+				coinBalance.Spendable += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.Spendable += utxoAmt
+				}
 			} else {
-				ab.ImmatureStakeGeneration += utxoAmt
+				// Update per-coin balance
+				coinBalance.ImmatureStakeGeneration += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.ImmatureStakeGeneration += utxoAmt
+				}
 			}
 
-			ab.Total += utxoAmt
+			// Update per-coin total
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR total for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.Total += utxoAmt
+			}
 		case txscript.OP_SSTXCHANGE:
 			if ticketChangeMatured(s.chainParams, height, syncHeight) {
-				ab.Spendable += utxoAmt
+				// Update per-coin balance
+				coinBalance.Spendable += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.Spendable += utxoAmt
+				}
 			}
 
-			ab.Total += utxoAmt
+			// Update per-coin total
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR total for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.Total += utxoAmt
+			}
 		default:
 			log.Warnf("Unhandled opcode: %v", opcode)
 		}
+		
+		// Store updated coin balance back to map
+		ab.CoinTypeBalances[coinType] = coinBalance
 	}
 
 	c.Close()
@@ -3543,9 +3603,24 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		if !ok {
 			ab = &Balances{
 				Account: thisAcct,
+				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
+		
+		// Extract coin type from unmined credit
+		coinType := fetchRawUnminedCreditCoinType(v)
+		
+		// Ensure coin type balance entry exists
+		if _, exists := ab.CoinTypeBalances[coinType]; !exists {
+			ab.CoinTypeBalances[coinType] = CoinBalance{
+				CoinType: coinType,
+			}
+		}
+		
+		// Get current coin type balance for modification
+		coinBalance := ab.CoinTypeBalances[coinType]
+		
 		// Skip ticket outputs, as only SSGen can spend these.
 		opcode := fetchRawUnminedCreditTagOpCode(v)
 
@@ -3555,20 +3630,53 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		switch opcode {
 		case opNonstake:
 			if minConf == 0 && !unpublished {
-				ab.Spendable += utxoAmt
+				// Update per-coin balance
+				coinBalance.Spendable += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.Spendable += utxoAmt
+				}
 			} else if !fetchRawCreditIsCoinbase(v) {
-				ab.Unconfirmed += utxoAmt
+				// Update per-coin balance
+				coinBalance.Unconfirmed += utxoAmt
+				// Update legacy VAR balance for backward compatibility
+				if coinType == dcrutil.CoinTypeVAR {
+					ab.Unconfirmed += utxoAmt
+				}
 			}
-			ab.Total += utxoAmt
+			// Update per-coin total
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR total for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.Total += utxoAmt
+			}
 		case txscript.OP_SSTX:
-			ab.VotingAuthority += utxoAmt
+			// Update per-coin balance
+			coinBalance.VotingAuthority += utxoAmt
+			// Update legacy VAR balance for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.VotingAuthority += utxoAmt
+			}
 		case txscript.OP_SSGEN:
 			fallthrough
 		case txscript.OP_SSRTX:
-			ab.ImmatureStakeGeneration += utxoAmt
-			ab.Total += utxoAmt
+			// Update per-coin balance
+			coinBalance.ImmatureStakeGeneration += utxoAmt
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR balance for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.ImmatureStakeGeneration += utxoAmt
+				ab.Total += utxoAmt
+			}
 		case txscript.OP_SSTXCHANGE:
-			ab.Total += utxoAmt
+			// Update per-coin total
+			coinBalance.Total += utxoAmt
+			// Update legacy VAR total for backward compatibility
+			if coinType == dcrutil.CoinTypeVAR {
+				ab.Total += utxoAmt
+			}
+			// Store updated coin balance and continue
+			ab.CoinTypeBalances[coinType] = coinBalance
 			continue
 		case txscript.OP_TGEN:
 			// Only consider mined tspends for simpler balance
@@ -3576,6 +3684,9 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		default:
 			log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
 		}
+		
+		// Store updated coin balance back to map
+		ab.CoinTypeBalances[coinType] = coinBalance
 	}
 
 	// Account for ticket commitments by iterating over the unspent commitments
@@ -3608,9 +3719,9 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 	return accountBalances, nil
 }
 
-// Balances is an convenience type.
-type Balances = struct {
-	Account                 uint32
+// CoinBalance represents balance breakdown for a specific coin type
+type CoinBalance struct {
+	CoinType                dcrutil.CoinType
 	ImmatureCoinbaseRewards dcrutil.Amount
 	ImmatureStakeGeneration dcrutil.Amount
 	LockedByTickets         dcrutil.Amount
@@ -3618,6 +3729,24 @@ type Balances = struct {
 	Total                   dcrutil.Amount
 	VotingAuthority         dcrutil.Amount
 	Unconfirmed             dcrutil.Amount
+}
+
+// Balances describes a breakdown of an account's balances in various
+// categories. Extended to support multiple coin types while maintaining
+// backward compatibility with existing VAR-only operations.
+type Balances struct {
+	Account                 uint32
+	// VAR balance fields (maintained for backward compatibility)
+	ImmatureCoinbaseRewards dcrutil.Amount
+	ImmatureStakeGeneration dcrutil.Amount
+	LockedByTickets         dcrutil.Amount
+	Spendable               dcrutil.Amount
+	Total                   dcrutil.Amount
+	VotingAuthority         dcrutil.Amount
+	Unconfirmed             dcrutil.Amount
+	
+	// Multi-coin support: breakdown by coin type
+	CoinTypeBalances        map[dcrutil.CoinType]CoinBalance
 }
 
 // AccountBalance returns a Balances struct for some given account at

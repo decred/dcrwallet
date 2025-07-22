@@ -76,9 +76,9 @@ func TestCreditSerialization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test fetchRawCreditCoinType function directly
-			// Create sample serialized credit data with CoinType in byte 9
-			testData := make([]byte, 10)
-			testData[9] = byte(tt.coinType)
+			// Create sample serialized credit data with CoinType at byte 94
+			testData := make([]byte, 95)
+			testData[94] = byte(tt.coinType)
 
 			// Test deserialization
 			gotCoinType := fetchRawCreditCoinType(testData)

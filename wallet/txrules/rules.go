@@ -112,6 +112,45 @@ func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 	return totalOutput
 }
 
+// FeeForSerializeSizeDualCoin calculates the required fee for a transaction
+// based on coin type. SKA transactions have zero fees, VAR transactions use normal fees.
+func FeeForSerializeSizeDualCoin(relayFeePerKb dcrutil.Amount, txSerializeSize int, coinType dcrutil.CoinType) dcrutil.Amount {
+	if coinType != dcrutil.CoinTypeVAR {
+		// SKA transactions have zero fees
+		return 0
+	}
+	// VAR transactions use normal fee calculation
+	return FeeForSerializeSize(relayFeePerKb, txSerializeSize)
+}
+
+// IsDustAmountDualCoin determines dust for dual-coin system.
+// For SKA transactions, only check if amount is positive (no fee-based dust).
+func IsDustAmountDualCoin(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.Amount, coinType dcrutil.CoinType) bool {
+	if coinType != dcrutil.CoinTypeVAR {
+		// For SKA transactions, dust is simply any amount <= 0
+		return amount <= 0
+	}
+	// For VAR transactions, use normal dust calculation
+	return IsDustAmount(amount, scriptSize, relayFeePerKb)
+}
+
+// IsDustOutputDualCoin determines whether a transaction output is considered dust
+// in the dual-coin system.
+func IsDustOutputDualCoin(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool {
+	// Unspendable outputs which solely carry data are not checked for dust.
+	if stdscript.IsNullDataScript(output.Version, output.PkScript) {
+		return false
+	}
+
+	// All other unspendable outputs are considered dust.
+	if txscript.IsUnspendable(output.Value, output.PkScript) {
+		return true
+	}
+
+	return IsDustAmountDualCoin(dcrutil.Amount(output.Value), len(output.PkScript),
+		relayFeePerKb, dcrutil.CoinType(output.CoinType))
+}
+
 // PaysHighFees checks whether the signed transaction pays insanely high fees.
 // Transactons are defined to have a high fee if they have pay a fee rate that
 // is 1000 time higher than the default fee.

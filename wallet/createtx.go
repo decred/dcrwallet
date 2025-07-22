@@ -8,6 +8,7 @@ package wallet
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"sort"
 	"time"
 
@@ -59,6 +60,7 @@ const (
 type Input struct {
 	OutPoint wire.OutPoint
 	PrevOut  wire.TxOut
+	CoinType dcrutil.CoinType
 }
 
 // --------------------------------------------------------------------------------
@@ -111,6 +113,16 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 			if account > lastAcct {
 				return errors.E(errors.NotExist, "missing account")
+			}
+		}
+
+		// Dual-coin validation: Ensure all outputs use the same coin type
+		var txCoinType *wire.CoinType
+		for i, output := range outputs {
+			if i == 0 {
+				txCoinType = &output.CoinType
+			} else if output.CoinType != *txCoinType {
+				return errors.E(errors.Invalid, fmt.Sprintf("cannot mix different coin types in transaction: output %d has coin type %d, but output 0 has coin type %d", i, output.CoinType, *txCoinType))
 			}
 		}
 

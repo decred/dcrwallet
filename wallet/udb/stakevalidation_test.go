@@ -53,7 +53,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 	block3Header := g.generate(0)
 
 	block1Tx := wire.MsgTx{
-		TxOut: []*wire.TxOut{{Value: 2e8}},
+		TxOut: []*wire.TxOut{{Value: 2e8, CoinType: 0}}, // Explicit VAR = 0
 	}
 	block2Tx := wire.MsgTx{
 		TxIn: []*wire.TxIn{
@@ -65,7 +65,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 				},
 			},
 		},
-		TxOut: []*wire.TxOut{{Value: 1e8}},
+		TxOut: []*wire.TxOut{{Value: 1e8, CoinType: 0}}, // Explicit VAR = 0
 	}
 	block1TxRec, err := NewTxRecordFromMsgTx(&block1Tx, time.Time{})
 	if err != nil {
@@ -160,6 +160,8 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		
+		
 		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}
