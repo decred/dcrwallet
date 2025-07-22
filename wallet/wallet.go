@@ -3799,6 +3799,7 @@ func (w *Wallet) ListUnspent(ctx context.Context, minconf, maxconf int32, addres
 				Amount:        output.Amount.ToCoin(),
 				Confirmations: int64(confs),
 				Spendable:     spendable,
+				CoinType:      uint8(output.CoinType), // Dual-coin support: include coin type
 			}
 
 			// BUG: this should be a JSON array so that all
