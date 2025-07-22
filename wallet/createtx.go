@@ -164,6 +164,26 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			return err
 		}
 
+		// Dual-coin validation: Ensure all inputs have the same coin type as outputs
+		if len(authoredTx.Tx.TxOut) > 0 && len(authoredTx.Tx.TxIn) > 0 {
+			expectedCoinType := authoredTx.Tx.TxOut[0].CoinType
+			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+			
+			// Validate each input has the same coin type as outputs
+			for i, txIn := range authoredTx.Tx.TxIn {
+				// Look up the previous output being spent
+				prevCredit, err := w.txStore.UnspentOutput(txmgrNs, txIn.PreviousOutPoint, true)
+				if err != nil {
+					return errors.E(errors.Invalid, fmt.Sprintf("failed to lookup input %d previous output: %v", i, err))
+				}
+				
+				if wire.CoinType(prevCredit.CoinType) != expectedCoinType {
+					return errors.E(errors.Invalid, fmt.Sprintf("input %d coin type %d does not match output coin type %d", 
+						i, prevCredit.CoinType, expectedCoinType))
+				}
+			}
+		}
+
 		return nil
 	})
 	if err != nil {

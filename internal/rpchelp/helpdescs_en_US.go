@@ -156,6 +156,7 @@ var helpDescsEnUS = map[string]string{
 	"getbalance--synopsis": "Calculates and returns the balance of all accounts.",
 	"getbalance-minconf":   "Minimum number of block confirmations required before an unspent output's value is included in the balance",
 	"getbalance-account":   "The account name to query the balance for, or \"*\" to consider all accounts (default=\"*\")",
+	"getbalance-cointype":  "Optional coin type to filter by (0=VAR, 1-255=SKA)",
 
 	"getbalanceresult-balances":                       "Balances for all accounts.",
 	"getaccountbalanceresult-accountname":             "Name of account.",
@@ -174,6 +175,35 @@ var helpDescsEnUS = map[string]string{
 	"getbalanceresult-cumulativetotal":                "Total number of coins.",
 	"getbalanceresult-totalunconfirmed":               "Total number of unconfirmed coins.",
 	"getbalanceresult-totalvotingauthority":           "Total number of coins for voting authority.",
+
+	// GetCoinBalanceCmd help.
+	"getcoinbalance--synopsis": "Returns the balance for a specific coin type (VAR or SKA) with detailed breakdown.",
+	"getcoinbalance-cointype":  "Coin type to query balance for (0=VAR, 1-255=SKA)",
+	"getcoinbalance-account":   "Account name to query balance for, or \"*\" for all accounts (default=\"*\")",
+	"getcoinbalance-minconf":   "Minimum number of block confirmations required before an unspent output's value is included in the balance",
+
+	// GetCoinBalanceResult help.
+	"getcoinbalanceresult-cointype":                     "The coin type for which the balance is reported",
+	"getcoinbalanceresult-blockhash":                    "Block hash of the tip block",
+	"getcoinbalanceresult-totalimmaturecoinbaserewards": "Total immature coinbase reward coins",
+	"getcoinbalanceresult-totalimmaturestakegeneration": "Total immature stake generation coins",
+	"getcoinbalanceresult-totallockedbytickets":         "Total coins locked by tickets",
+	"getcoinbalanceresult-totalspendable":               "Total spendable balance for the coin type",
+	"getcoinbalanceresult-totalunconfirmed":             "Total unconfirmed balance",
+	"getcoinbalanceresult-totalvotingauthority":         "Total coins for voting authority",
+	"getcoinbalanceresult-cumulativetotal":              "Total balance including immature and locked coins",
+	"getcoinbalanceresult-balances":                     "Per-account balance breakdown",
+
+	// GetCoinAccountBalanceResult help.
+	"getcoinaccountbalanceresult-accountname":             "Name of the account",
+	"getcoinaccountbalanceresult-cointype":                "Coin type for this account balance (0=VAR, 1-255=SKA)",
+	"getcoinaccountbalanceresult-immaturecoinbaserewards": "Immature coinbase reward coins",
+	"getcoinaccountbalanceresult-immaturestakegeneration": "Immature stake generation coins",
+	"getcoinaccountbalanceresult-lockedbytickets":         "Coins locked by tickets",
+	"getcoinaccountbalanceresult-spendable":               "Spendable balance for this account and coin type",
+	"getcoinaccountbalanceresult-total":                   "Total balance for this account and coin type",
+	"getcoinaccountbalanceresult-unconfirmed":             "Unconfirmed balance",
+	"getcoinaccountbalanceresult-votingauthority":         "Coins for voting authority",
 
 	// GetBalanceToMaintainCmd help.
 	"getbalancetomaintain--synopsis": "Get the current balance to maintain",
@@ -647,6 +677,7 @@ var helpDescsEnUS = map[string]string{
 	"listunspent-maxconf":   "Maximum number of block confirmations required before a transaction output is excluded",
 	"listunspent-addresses": "If set, limits the returned details to unspent outputs received by any of these payment addresses",
 	"listunspent-account":   "If set, only return unspent outputs from this account",
+	"listunspent-cointype":  "Optional coin type to filter by (0=VAR, 1-255=SKA)",
 
 	// ListUnspentResult help.
 	"listunspentresult-txid":          "The transaction hash of the referenced output",
@@ -660,6 +691,19 @@ var helpDescsEnUS = map[string]string{
 	"listunspentresult-spendable":     "Whether the output is entirely controlled by wallet keys/scripts (false for partially controlled multisig outputs or outputs to watch-only addresses)",
 	"listunspentresult-txtype":        "The type of the transaction",
 	"listunspentresult-tree":          "The tree the transaction comes from",
+	"listunspentresult-cointype":      "The coin type of the unspent output (0=VAR, 1-255=SKA)",
+
+	// ListCoinTypesCmd help.
+	"listcointypes--synopsis": "Returns a JSON array of objects representing coin types with non-zero balances in the wallet.",
+	"listcointypes-minconf":   "Minimum number of block confirmations required before a transaction output is considered for balance calculation",
+
+	// ListCoinTypesResult help.
+	"listcointypesresult-cointypes": "Array of coin type information objects",
+
+	// CoinTypeInfo help.
+	"cointypeinfo-cointype": "The coin type number (0=VAR, 1-255=SKA)",
+	"cointypeinfo-name":     "Human-readable name of the coin type",
+	"cointypeinfo-balance":  "Total balance for this coin type",
 
 	// LockAccountCmd help.
 	"lockaccount--synopsis": "Lock an individually-encrypted account",
@@ -754,6 +798,7 @@ var helpDescsEnUS = map[string]string{
 	"sendmany-amounts--value": "Amount to send to the payment address valued in decred",
 	"sendmany-minconf":        "Minimum number of block confirmations required before a transaction output is eligible to be spent",
 	"sendmany-comment":        "Unused",
+	"sendmany-cointype":       "Optional coin type to send (0=VAR, 1-255=SKA)",
 	"sendmany--result0":       "The transaction hash of the sent transaction",
 
 	// SendRawTransactionCmd help.
@@ -770,6 +815,7 @@ var helpDescsEnUS = map[string]string{
 	"sendtoaddress-amount":    "Amount to send to the payment address valued in decred",
 	"sendtoaddress-comment":   "Unused",
 	"sendtoaddress-commentto": "Unused",
+	"sendtoaddress-cointype":  "Optional coin type to send (0=VAR, 1-255=SKA)",
 	"sendtoaddress--result0":  "The transaction hash of the sent transaction",
 
 	// SendToMultisigCmd help.

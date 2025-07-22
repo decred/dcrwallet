@@ -104,6 +104,7 @@ var handlers = map[string]handler{
 	"getaccountaddress":         {fn: (*Server).getAccountAddress},
 	"getaddressesbyaccount":     {fn: (*Server).getAddressesByAccount},
 	"getbalance":                {fn: (*Server).getBalance},
+	"getcoinbalance":            {fn: (*Server).getCoinBalance},
 	"getbestblock":              {fn: (*Server).getBestBlock},
 	"getbestblockhash":          {fn: (*Server).getBestBlockHash},
 	"getblockcount":             {fn: (*Server).getBlockCount},
@@ -136,6 +137,7 @@ var handlers = map[string]handler{
 	"importxpub":                {fn: (*Server).importXpub},
 	"listaccounts":              {fn: (*Server).listAccounts},
 	"listaddresstransactions":   {fn: (*Server).listAddressTransactions},
+	"listcointypes":             {fn: (*Server).listCoinTypes},
 	"listalltransactions":       {fn: (*Server).listAllTransactions},
 	"listlockunspent":           {fn: (*Server).listLockUnspent},
 	"listreceivedbyaccount":     {fn: (*Server).listReceivedByAccount},
@@ -1040,7 +1042,7 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd any) (any, erro
 
 // getBalance handles a getbalance request by returning the balance for an
 // account (wallet), or an error if the requested account does not
-// exist.
+// exist. Supports optional coin type filtering for dual-coin operations.
 func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.GetBalanceCmd)
 	w, ok := s.walletLoader.LoadedWallet()
@@ -1051,6 +1053,14 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 	minConf := int32(*cmd.MinConf)
 	if minConf < 0 {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "minconf must be non-negative")
+	}
+
+	// Validate coin type if specified
+	if cmd.CoinType != nil {
+		coinType := dcrutil.CoinType(*cmd.CoinType)
+		if coinType < 0 || coinType > 255 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		}
 	}
 
 	accountName := "*"
@@ -1064,6 +1074,72 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 	}
 
 	if accountName == "*" {
+		// If coin type is specified, filter by coin type
+		if cmd.CoinType != nil {
+			coinType := dcrutil.CoinType(*cmd.CoinType)
+			allBalances, err := w.AccountBalances(ctx, minConf)
+			if err != nil {
+				return nil, err
+			}
+			
+			// Filter for specified coin type and convert to result format
+			result.Balances = make([]types.GetAccountBalanceResult, 0, len(allBalances))
+			
+			var (
+				totImmatureCoinbase dcrutil.Amount
+				totImmatureStakegen dcrutil.Amount  
+				totLocked           dcrutil.Amount
+				totSpendable        dcrutil.Amount
+				totUnconfirmed      dcrutil.Amount
+				totVotingAuthority  dcrutil.Amount
+				cumTot              dcrutil.Amount
+			)
+			
+			for _, bal := range allBalances {
+				// Check if this account has balances for the requested coin type
+				if coinBal, exists := bal.CoinTypeBalances[coinType]; exists && (coinBal.Total > 0 || coinBal.Unconfirmed > 0) {
+					accountName, err := w.AccountName(ctx, bal.Account)
+					if err != nil {
+						if errors.Is(err, errors.NotExist) {
+							return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+						}
+						return nil, err
+					}
+					
+					totImmatureCoinbase += coinBal.ImmatureCoinbaseRewards
+					totImmatureStakegen += coinBal.ImmatureStakeGeneration
+					totLocked += coinBal.LockedByTickets
+					totSpendable += coinBal.Spendable
+					totUnconfirmed += coinBal.Unconfirmed
+					totVotingAuthority += coinBal.VotingAuthority
+					cumTot += coinBal.Total
+					
+					json := types.GetAccountBalanceResult{
+						AccountName:             accountName,
+						ImmatureCoinbaseRewards: coinBal.ImmatureCoinbaseRewards.ToCoin(),
+						ImmatureStakeGeneration: coinBal.ImmatureStakeGeneration.ToCoin(),
+						LockedByTickets:         coinBal.LockedByTickets.ToCoin(),
+						Spendable:               coinBal.Spendable.ToCoin(),
+						Total:                   coinBal.Total.ToCoin(),
+						Unconfirmed:             coinBal.Unconfirmed.ToCoin(),
+						VotingAuthority:         coinBal.VotingAuthority.ToCoin(),
+					}
+					result.Balances = append(result.Balances, json)
+				}
+			}
+			
+			result.TotalImmatureCoinbaseRewards = totImmatureCoinbase.ToCoin()
+			result.TotalImmatureStakeGeneration = totImmatureStakegen.ToCoin()
+			result.TotalLockedByTickets = totLocked.ToCoin()
+			result.TotalSpendable = totSpendable.ToCoin()
+			result.TotalUnconfirmed = totUnconfirmed.ToCoin()
+			result.TotalVotingAuthority = totVotingAuthority.ToCoin()
+			result.CumulativeTotal = cumTot.ToCoin()
+			
+			return result, nil
+		}
+		
+		// Default behavior (backward compatible): use existing AccountBalances for VAR
 		balances, err := w.AccountBalances(ctx, int32(*cmd.MinConf))
 		if err != nil {
 			return nil, err
@@ -1130,25 +1206,47 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 			return nil, err
 		}
 
-		bal, err := w.AccountBalance(ctx, account, int32(*cmd.MinConf))
-		if err != nil {
-			// Expect account lookup to succeed
-			if errors.Is(err, errors.NotExist) {
-				return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+		// If coin type is specified, use coin-type specific balance for single account
+		if cmd.CoinType != nil {
+			coinType := dcrutil.CoinType(*cmd.CoinType)
+			coinBal, err := w.AccountBalanceByCoinType(ctx, account, coinType, minConf)
+			if err != nil {
+				return nil, err
 			}
-			return nil, err
+			
+			json := types.GetAccountBalanceResult{
+				AccountName:             accountName,
+				ImmatureCoinbaseRewards: coinBal.ImmatureCoinbaseRewards.ToCoin(),
+				ImmatureStakeGeneration: coinBal.ImmatureStakeGeneration.ToCoin(),
+				LockedByTickets:         coinBal.LockedByTickets.ToCoin(),
+				Spendable:               coinBal.Spendable.ToCoin(),
+				Total:                   coinBal.Total.ToCoin(),
+				Unconfirmed:             coinBal.Unconfirmed.ToCoin(),
+				VotingAuthority:         coinBal.VotingAuthority.ToCoin(),
+			}
+			result.Balances = append(result.Balances, json)
+		} else {
+			// Default behavior (backward compatible): use existing AccountBalance for VAR
+			bal, err := w.AccountBalance(ctx, account, int32(*cmd.MinConf))
+			if err != nil {
+				// Expect account lookup to succeed
+				if errors.Is(err, errors.NotExist) {
+					return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+				}
+				return nil, err
+			}
+			json := types.GetAccountBalanceResult{
+				AccountName:             accountName,
+				ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
+				ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
+				LockedByTickets:         bal.LockedByTickets.ToCoin(),
+				Spendable:               bal.Spendable.ToCoin(),
+				Total:                   bal.Total.ToCoin(),
+				Unconfirmed:             bal.Unconfirmed.ToCoin(),
+				VotingAuthority:         bal.VotingAuthority.ToCoin(),
+			}
+			result.Balances = append(result.Balances, json)
 		}
-		json := types.GetAccountBalanceResult{
-			AccountName:             accountName,
-			ImmatureCoinbaseRewards: bal.ImmatureCoinbaseRewards.ToCoin(),
-			ImmatureStakeGeneration: bal.ImmatureStakeGeneration.ToCoin(),
-			LockedByTickets:         bal.LockedByTickets.ToCoin(),
-			Spendable:               bal.Spendable.ToCoin(),
-			Total:                   bal.Total.ToCoin(),
-			Unconfirmed:             bal.Unconfirmed.ToCoin(),
-			VotingAuthority:         bal.VotingAuthority.ToCoin(),
-		}
-		result.Balances = append(result.Balances, json)
 	}
 
 	return result, nil
@@ -3226,12 +3324,20 @@ func (s *Server) listAllTransactions(ctx context.Context, icmd any) (any, error)
 	return w.ListAllTransactions(ctx)
 }
 
-// listUnspent handles the listunspent command.
+// listUnspent handles the listunspent command with optional coin type filtering.
 func (s *Server) listUnspent(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.ListUnspentCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	// Validate coin type if specified
+	if cmd.CoinType != nil {
+		coinType := dcrutil.CoinType(*cmd.CoinType)
+		if coinType < 0 || coinType > 255 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		}
 	}
 
 	var addresses map[string]struct{}
@@ -3251,6 +3357,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd any) (any, error) {
 	if cmd.Account != nil {
 		account = *cmd.Account
 	}
+	
 	result, err := w.ListUnspent(ctx, int32(*cmd.MinConf), int32(*cmd.MaxConf), addresses, account)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
@@ -3258,6 +3365,21 @@ func (s *Server) listUnspent(ctx context.Context, icmd any) (any, error) {
 		}
 		return nil, err
 	}
+
+	// Filter by coin type if specified
+	if cmd.CoinType != nil {
+		requestedCoinType := uint8(*cmd.CoinType)
+		filteredResult := make([]*types.ListUnspentResult, 0)
+		
+		for _, unspent := range result {
+			if unspent.CoinType == requestedCoinType {
+				filteredResult = append(filteredResult, unspent)
+			}
+		}
+		
+		return filteredResult, nil
+	}
+
 	return result, nil
 }
 
@@ -3533,6 +3655,30 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 	return outputs, nil
 }
 
+// makeOutputsWithCoinType creates transaction outputs with specified coin type for dual-coin support.
+func makeOutputsWithCoinType(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params, coinType dcrutil.CoinType) ([]*wire.TxOut, error) {
+	outputs := make([]*wire.TxOut, 0, len(pairs))
+	for addrStr, amt := range pairs {
+		if amt < 0 {
+			return nil, errNeedPositiveAmount
+		}
+		addr, err := decodeAddress(addrStr, chainParams)
+		if err != nil {
+			return nil, err
+		}
+
+		vers, pkScript := addr.PaymentScript()
+
+		outputs = append(outputs, &wire.TxOut{
+			Value:    int64(amt),
+			PkScript: pkScript,
+			Version:  vers,
+			CoinType: wire.CoinType(coinType), // Dual-coin support: specify coin type
+		})
+	}
+	return outputs, nil
+}
+
 // sendPairs creates and sends payment transactions.
 // It returns the transaction hash in string format upon success
 // All errors are returned in dcrjson.RPCError format
@@ -3555,6 +3701,43 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 	if err != nil {
 		return "", err
 	}
+	txSha, err := w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
+	if err != nil {
+		if errors.Is(err, errors.Locked) {
+			return "", errWalletUnlockNeeded
+		}
+		if errors.Is(err, errors.InsufficientBalance) {
+			return "", rpcError(dcrjson.ErrRPCWalletInsufficientFunds, err)
+		}
+		return "", err
+	}
+
+	return txSha.String(), nil
+}
+
+// sendPairsWithCoinType creates and sends payment transactions with coin type support.
+// It extends sendPairs to handle dual-coin transactions (VAR and SKA).
+func (s *Server) sendPairsWithCoinType(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32, coinType dcrutil.CoinType) (string, error) {
+	changeAccount := account
+	if s.cfg.MixingEnabled && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
+		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
+		if err != nil {
+			return "", err
+		}
+		if account == mixAccount {
+			changeAccount, err = w.AccountNumber(ctx, s.cfg.MixChangeAccount)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+
+	outputs, err := makeOutputsWithCoinType(amounts, w.ChainParams(), coinType)
+	if err != nil {
+		return "", err
+	}
+	
+	// Use existing SendOutputs method (coin type is embedded in outputs)
 	txSha, err := w.SendOutputs(ctx, outputs, account, changeAccount, minconf)
 	if err != nil {
 		if errors.Is(err, errors.Locked) {
@@ -4511,12 +4694,21 @@ func (s *Server) sendMany(ctx context.Context, icmd any) (any, error) {
 // transaction spending unspent transaction outputs for a wallet to another
 // payment address.  Leftover inputs not sent to the payment address or a fee
 // for the miner are sent back to a new address in the wallet.  Upon success,
-// the TxID for the created transaction is returned.
+// the TxID for the created transaction is returned. Supports optional coin type.
 func (s *Server) sendToAddress(ctx context.Context, icmd any) (any, error) {
 	cmd := icmd.(*types.SendToAddressCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
+	}
+
+	// Validate coin type if specified
+	var coinType dcrutil.CoinType = dcrutil.CoinTypeVAR // Default to VAR for backward compatibility
+	if cmd.CoinType != nil {
+		coinType = dcrutil.CoinType(*cmd.CoinType)
+		if coinType < 0 || coinType > 255 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+		}
 	}
 
 	// Transaction comments are not yet supported.  Error instead of
@@ -4541,7 +4733,7 @@ func (s *Server) sendToAddress(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// sendtoaddress always spends from the default account, this matches bitcoind
-	return s.sendPairs(ctx, w, pairs, udb.DefaultAccountNum, 1)
+	return s.sendPairsWithCoinType(ctx, w, pairs, udb.DefaultAccountNum, 1, coinType)
 }
 
 // sendToMultiSig handles a sendtomultisig RPC request by creating a new
@@ -5772,4 +5964,182 @@ func (s *Server) getcoinjoinsbyacct(ctx context.Context, icmd any) (any, error) 
 	}
 
 	return acctNameCoinjoinSum, nil
+}
+
+// getCoinBalance handles a getcoinbalance request by returning the balance 
+// for a specific coin type (VAR or SKA) with detailed breakdown.
+func (s *Server) getCoinBalance(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.GetCoinBalanceCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	coinType := dcrutil.CoinType(cmd.CoinType)
+	minConf := int32(1)
+	if cmd.MinConf != nil {
+		minConf = int32(*cmd.MinConf)
+		if minConf < 0 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "minconf must be non-negative")
+		}
+	}
+
+	// Validate coin type range
+	if coinType < 0 || coinType > 255 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between 0 (VAR) and 255 (SKA)")
+	}
+
+	accountName := "*"
+	if cmd.Account != nil {
+		accountName = *cmd.Account
+	}
+
+	blockHash, _ := w.MainChainTip(ctx)
+	
+	if accountName == "*" {
+		// Get total balance for this coin type across all accounts
+		totalBalance, err := w.TotalBalanceByCoinType(ctx, coinType, minConf)
+		if err != nil {
+			return nil, err
+		}
+		
+		// Get per-account breakdown
+		allBalances, err := w.AccountBalances(ctx, minConf)
+		if err != nil {
+			return nil, err
+		}
+		
+		result := types.GetCoinBalanceResult{
+			CoinType:  uint8(coinType),
+			BlockHash: blockHash.String(),
+			TotalImmatureCoinbaseRewards: totalBalance.ImmatureCoinbaseRewards.ToCoin(),
+			TotalImmatureStakeGeneration: totalBalance.ImmatureStakeGeneration.ToCoin(),
+			TotalLockedByTickets:         totalBalance.LockedByTickets.ToCoin(),
+			TotalSpendable:               totalBalance.Spendable.ToCoin(),
+			TotalUnconfirmed:             totalBalance.Unconfirmed.ToCoin(),
+			TotalVotingAuthority:         totalBalance.VotingAuthority.ToCoin(),
+			CumulativeTotal:              totalBalance.Total.ToCoin(),
+		}
+		
+		// Add per-account breakdown
+		result.Balances = make([]types.GetCoinAccountBalanceResult, 0)
+		for _, balance := range allBalances {
+			if coinBalance, exists := balance.CoinTypeBalances[coinType]; exists && coinBalance.Total > 0 {
+				accountName, err := w.AccountName(ctx, balance.Account)
+				if err != nil {
+					if errors.Is(err, errors.NotExist) {
+						return nil, rpcError(dcrjson.ErrRPCInternal.Code, err)
+					}
+					return nil, err
+				}
+				
+				result.Balances = append(result.Balances, types.GetCoinAccountBalanceResult{
+					AccountName:             accountName,
+					CoinType:                uint8(coinType),
+					ImmatureCoinbaseRewards: coinBalance.ImmatureCoinbaseRewards.ToCoin(),
+					ImmatureStakeGeneration: coinBalance.ImmatureStakeGeneration.ToCoin(),
+					LockedByTickets:         coinBalance.LockedByTickets.ToCoin(),
+					Spendable:               coinBalance.Spendable.ToCoin(),
+					Total:                   coinBalance.Total.ToCoin(),
+					Unconfirmed:             coinBalance.Unconfirmed.ToCoin(),
+					VotingAuthority:         coinBalance.VotingAuthority.ToCoin(),
+				})
+			}
+		}
+		
+		return result, nil
+	} else {
+		// Single account query
+		account, err := w.AccountNumber(ctx, accountName)
+		if err != nil {
+			if errors.Is(err, errors.NotExist) {
+				return nil, errAccountNotFound
+			}
+			return nil, err
+		}
+
+		coinBalance, err := w.AccountBalanceByCoinType(ctx, account, coinType, minConf)
+		if err != nil {
+			return nil, err
+		}
+		
+		result := types.GetCoinBalanceResult{
+			CoinType:  uint8(coinType),
+			BlockHash: blockHash.String(),
+			TotalImmatureCoinbaseRewards: coinBalance.ImmatureCoinbaseRewards.ToCoin(),
+			TotalImmatureStakeGeneration: coinBalance.ImmatureStakeGeneration.ToCoin(),
+			TotalLockedByTickets:         coinBalance.LockedByTickets.ToCoin(),
+			TotalSpendable:               coinBalance.Spendable.ToCoin(),
+			TotalUnconfirmed:             coinBalance.Unconfirmed.ToCoin(),
+			TotalVotingAuthority:         coinBalance.VotingAuthority.ToCoin(),
+			CumulativeTotal:              coinBalance.Total.ToCoin(),
+			Balances: []types.GetCoinAccountBalanceResult{{
+				AccountName:             accountName,
+				CoinType:                uint8(coinType),
+				ImmatureCoinbaseRewards: coinBalance.ImmatureCoinbaseRewards.ToCoin(),
+				ImmatureStakeGeneration: coinBalance.ImmatureStakeGeneration.ToCoin(),
+				LockedByTickets:         coinBalance.LockedByTickets.ToCoin(),
+				Spendable:               coinBalance.Spendable.ToCoin(),
+				Total:                   coinBalance.Total.ToCoin(),
+				Unconfirmed:             coinBalance.Unconfirmed.ToCoin(),
+				VotingAuthority:         coinBalance.VotingAuthority.ToCoin(),
+			}},
+		}
+		
+		return result, nil
+	}
+}
+
+// listCoinTypes handles a listcointypes request by returning all coin types
+// that have non-zero balances in the wallet with balance information.
+func (s *Server) listCoinTypes(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.ListCoinTypesCmd)
+	w, ok := s.walletLoader.LoadedWallet()
+	if !ok {
+		return nil, errUnloadedWallet
+	}
+
+	minConf := int32(1)
+	if cmd.MinConf != nil {
+		minConf = int32(*cmd.MinConf)
+		if minConf < 0 {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "minconf must be non-negative")
+		}
+	}
+
+	// Get list of active coin types from wallet
+	coinTypes, err := w.ListCoinTypes(ctx, minConf)
+	if err != nil {
+		return nil, err
+	}
+
+	result := types.ListCoinTypesResult{
+		CoinTypes: make([]types.CoinTypeInfo, 0, len(coinTypes)),
+	}
+
+	// Get balance for each coin type and create info
+	for _, coinType := range coinTypes {
+		balance, err := w.TotalBalanceByCoinType(ctx, coinType, minConf)
+		if err != nil {
+			return nil, err
+		}
+
+		// Generate human-readable name
+		var name string
+		if coinType == dcrutil.CoinTypeVAR {
+			name = "VAR"
+		} else {
+			name = fmt.Sprintf("SKA-%d", coinType)
+		}
+
+		info := types.CoinTypeInfo{
+			CoinType: uint8(coinType),
+			Name:     name,
+			Balance:  balance.Spendable.ToCoin(),
+		}
+
+		result.CoinTypes = append(result.CoinTypes, info)
+	}
+
+	return result, nil
 }

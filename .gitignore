@@ -20,3 +20,6 @@ wallet/udb/*.kv
 
 # Compiled test binaries
 *.test
+
+# Prevent binary files in RPC directories
+internal/rpc/*/dcrwallet

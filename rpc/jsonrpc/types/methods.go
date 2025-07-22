@@ -240,8 +240,9 @@ func NewGetAddressesByAccountCmd(account string) *GetAddressesByAccountCmd {
 
 // GetBalanceCmd defines the getbalance JSON-RPC command.
 type GetBalanceCmd struct {
-	Account *string
-	MinConf *int `jsonrpcdefault:"1"`
+	Account  *string `json:"account"`
+	MinConf  *int    `json:"minconf" jsonrpcdefault:"1"`
+	CoinType *uint8  `json:"cointype,omitempty"` // Optional: specify coin type (0=VAR, 1-255=SKA)
 }
 
 // NewGetBalanceCmd returns a new instance which can be used to issue a
@@ -253,6 +254,15 @@ func NewGetBalanceCmd(account *string, minConf *int) *GetBalanceCmd {
 	return &GetBalanceCmd{
 		Account: account,
 		MinConf: minConf,
+	}
+}
+
+// NewGetBalanceCmdWithCoinType returns a new GetBalanceCmd with coin type specified.
+func NewGetBalanceCmdWithCoinType(account *string, minConf *int, coinType *uint8) *GetBalanceCmd {
+	return &GetBalanceCmd{
+		Account:  account,
+		MinConf:  minConf,
+		CoinType: coinType,
 	}
 }
 
@@ -404,6 +414,38 @@ type GetUnconfirmedBalanceCmd struct {
 func NewGetUnconfirmedBalanceCmd(account *string) *GetUnconfirmedBalanceCmd {
 	return &GetUnconfirmedBalanceCmd{
 		Account: account,
+	}
+}
+
+// GetCoinBalanceCmd defines the getcoinbalance JSON-RPC command for querying
+// balance of a specific coin type (VAR or SKA).
+type GetCoinBalanceCmd struct {
+	CoinType uint8   `json:"cointype"`           // Required: coin type (0=VAR, 1-255=SKA)
+	Account  *string `json:"account,omitempty"`  // Optional: account name ("*" for all accounts)
+	MinConf  *int    `json:"minconf,omitempty" jsonrpcdefault:"1"` // Optional: minimum confirmations
+}
+
+// NewGetCoinBalanceCmd returns a new instance which can be used to issue a
+// getcoinbalance JSON-RPC command.
+func NewGetCoinBalanceCmd(coinType uint8, account *string, minConf *int) *GetCoinBalanceCmd {
+	return &GetCoinBalanceCmd{
+		CoinType: coinType,
+		Account:  account,
+		MinConf:  minConf,
+	}
+}
+
+// ListCoinTypesCmd defines the listcointypes JSON-RPC command for discovering
+// all coin types with non-zero balances in the wallet.
+type ListCoinTypesCmd struct {
+	MinConf *int `json:"minconf,omitempty" jsonrpcdefault:"1"` // Optional: minimum confirmations
+}
+
+// NewListCoinTypesCmd returns a new instance which can be used to issue a
+// listcointypes JSON-RPC command.
+func NewListCoinTypesCmd(minConf *int) *ListCoinTypesCmd {
+	return &ListCoinTypesCmd{
+		MinConf: minConf,
 	}
 }
 
@@ -640,10 +682,11 @@ func NewListTransactionsCmd(account *string, count, from *int, includeWatchOnly 
 
 // ListUnspentCmd defines the listunspent JSON-RPC command.
 type ListUnspentCmd struct {
-	MinConf   *int `jsonrpcdefault:"1"`
-	MaxConf   *int `jsonrpcdefault:"9999999"`
-	Addresses *[]string
-	Account   *string
+	MinConf   *int      `json:"minconf" jsonrpcdefault:"1"`
+	MaxConf   *int      `json:"maxconf" jsonrpcdefault:"9999999"`
+	Addresses *[]string `json:"addresses,omitempty"`
+	Account   *string   `json:"account,omitempty"`
+	CoinType  *uint8    `json:"cointype,omitempty"` // Optional: filter by coin type (0=VAR, 1-255=SKA)
 }
 
 // NewListUnspentCmd returns a new instance which can be used to issue a
@@ -656,6 +699,17 @@ func NewListUnspentCmd(minConf, maxConf *int, addresses *[]string) *ListUnspentC
 		MinConf:   minConf,
 		MaxConf:   maxConf,
 		Addresses: addresses,
+	}
+}
+
+// NewListUnspentCmdWithCoinType returns a new ListUnspentCmd with coin type specified.
+func NewListUnspentCmdWithCoinType(minConf, maxConf *int, addresses *[]string, account *string, coinType *uint8) *ListUnspentCmd {
+	return &ListUnspentCmd{
+		MinConf:   minConf,
+		MaxConf:   maxConf,
+		Addresses: addresses,
+		Account:   account,
+		CoinType:  coinType,
 	}
 }
 
@@ -792,10 +846,11 @@ func NewSendFromCmd(fromAccount, toAddress string, amount float64, minConf *int,
 
 // SendManyCmd defines the sendmany JSON-RPC command.
 type SendManyCmd struct {
-	FromAccount string
-	Amounts     map[string]float64 `jsonrpcusage:"{\"address\":amount,...}"` // In DCR
-	MinConf     *int               `jsonrpcdefault:"1"`
-	Comment     *string
+	FromAccount string             `json:"fromaccount"`
+	Amounts     map[string]float64 `json:"amounts" jsonrpcusage:"{\"address\":amount,...}"` // In DCR
+	MinConf     *int               `json:"minconf" jsonrpcdefault:"1"`
+	Comment     *string            `json:"comment,omitempty"`
+	CoinType    *uint8             `json:"cointype,omitempty"` // Optional: specify coin type (0=VAR, 1-255=SKA)
 }
 
 // NewSendManyCmd returns a new instance which can be used to issue a sendmany
@@ -812,12 +867,24 @@ func NewSendManyCmd(fromAccount string, amounts map[string]float64, minConf *int
 	}
 }
 
+// NewSendManyCmdWithCoinType returns a new SendManyCmd with coin type specified.
+func NewSendManyCmdWithCoinType(fromAccount string, amounts map[string]float64, minConf *int, comment *string, coinType *uint8) *SendManyCmd {
+	return &SendManyCmd{
+		FromAccount: fromAccount,
+		Amounts:     amounts,
+		MinConf:     minConf,
+		Comment:     comment,
+		CoinType:    coinType,
+	}
+}
+
 // SendToAddressCmd defines the sendtoaddress JSON-RPC command.
 type SendToAddressCmd struct {
-	Address   string
-	Amount    float64
-	Comment   *string
-	CommentTo *string
+	Address   string  `json:"address"`
+	Amount    float64 `json:"amount"`
+	Comment   *string `json:"comment,omitempty"`
+	CommentTo *string `json:"commentto,omitempty"`
+	CoinType  *uint8  `json:"cointype,omitempty"` // Optional: specify coin type (0=VAR, 1-255=SKA)
 }
 
 // NewSendToAddressCmd returns a new instance which can be used to issue a
@@ -831,6 +898,17 @@ func NewSendToAddressCmd(address string, amount float64, comment, commentTo *str
 		Amount:    amount,
 		Comment:   comment,
 		CommentTo: commentTo,
+	}
+}
+
+// NewSendToAddressCmdWithCoinType returns a new SendToAddressCmd with coin type specified.
+func NewSendToAddressCmdWithCoinType(address string, amount float64, comment, commentTo *string, coinType *uint8) *SendToAddressCmd {
+	return &SendToAddressCmd{
+		Address:   address,
+		Amount:    amount,
+		Comment:   comment,
+		CommentTo: commentTo,
+		CoinType:  coinType,
 	}
 }
 
@@ -1222,6 +1300,7 @@ func init() {
 		{"getaccountaddress", (*GetAccountAddressCmd)(nil)},
 		{"getaddressesbyaccount", (*GetAddressesByAccountCmd)(nil)},
 		{"getbalance", (*GetBalanceCmd)(nil)},
+		{"getcoinbalance", (*GetCoinBalanceCmd)(nil)},
 		{"getcoinjoinsbyacct", (*GetCoinjoinsByAcctCmd)(nil)},
 		{"getmasterpubkey", (*GetMasterPubkeyCmd)(nil)},
 		{"getmultisigoutinfo", (*GetMultisigOutInfoCmd)(nil)},
@@ -1242,6 +1321,7 @@ func init() {
 		{"importxpub", (*ImportXpubCmd)(nil)},
 		{"listaccounts", (*ListAccountsCmd)(nil)},
 		{"listaddresstransactions", (*ListAddressTransactionsCmd)(nil)},
+		{"listcointypes", (*ListCoinTypesCmd)(nil)},
 		{"listalltransactions", (*ListAllTransactionsCmd)(nil)},
 		{"listlockunspent", (*ListLockUnspentCmd)(nil)},
 		{"listreceivedbyaccount", (*ListReceivedByAccountCmd)(nil)},
