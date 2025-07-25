@@ -45,11 +45,11 @@ func createTestTransactionOutput(value int64, coinType dcrutil.CoinType, height 
 // TestOutputSelectionPolicyCoinTypeFilter tests coin type filtering in OutputSelectionPolicy
 func TestOutputSelectionPolicyCoinTypeFilter(t *testing.T) {
 	testCases := []struct {
-		name              string
-		policyFilter      *dcrutil.CoinType
-		outputCoinType    dcrutil.CoinType
-		shouldInclude     bool
-		description       string
+		name           string
+		policyFilter   *dcrutil.CoinType
+		outputCoinType dcrutil.CoinType
+		shouldInclude  bool
+		description    string
 	}{
 		{
 			name:           "No filter - VAR output",
@@ -131,11 +131,11 @@ func TestCoinTypeIsolation(t *testing.T) {
 	// Here we test the logic principles
 
 	testOutputs := []*TransactionOutput{
-		createTestTransactionOutput(1e8, dcrutil.CoinTypeVAR, 100),    // VAR
-		createTestTransactionOutput(2e8, dcrutil.CoinType(1), 100),    // SKA-1
-		createTestTransactionOutput(3e8, dcrutil.CoinType(2), 100),    // SKA-2
-		createTestTransactionOutput(4e8, dcrutil.CoinTypeVAR, 100),    // VAR
-		createTestTransactionOutput(5e8, dcrutil.CoinType(1), 100),    // SKA-1
+		createTestTransactionOutput(1e8, dcrutil.CoinTypeVAR, 100), // VAR
+		createTestTransactionOutput(2e8, dcrutil.CoinType(1), 100), // SKA-1
+		createTestTransactionOutput(3e8, dcrutil.CoinType(2), 100), // SKA-2
+		createTestTransactionOutput(4e8, dcrutil.CoinTypeVAR, 100), // VAR
+		createTestTransactionOutput(5e8, dcrutil.CoinType(1), 100), // SKA-1
 	}
 
 	// Test filtering by VAR
@@ -149,7 +149,7 @@ func TestCoinTypeIsolation(t *testing.T) {
 	expectedVARValues := []int64{1e8, 4e8}
 	for i, output := range varOutputs {
 		if output.Output.Value != expectedVARValues[i] {
-			t.Errorf("VAR output %d: expected value %d, got %d", 
+			t.Errorf("VAR output %d: expected value %d, got %d",
 				i, expectedVARValues[i], output.Output.Value)
 		}
 		if dcrutil.CoinType(output.Output.CoinType) != dcrutil.CoinTypeVAR {
@@ -168,7 +168,7 @@ func TestCoinTypeIsolation(t *testing.T) {
 	expectedSKA1Values := []int64{2e8, 5e8}
 	for i, output := range ska1Outputs {
 		if output.Output.Value != expectedSKA1Values[i] {
-			t.Errorf("SKA-1 output %d: expected value %d, got %d", 
+			t.Errorf("SKA-1 output %d: expected value %d, got %d",
 				i, expectedSKA1Values[i], output.Output.Value)
 		}
 		if dcrutil.CoinType(output.Output.CoinType) != dcrutil.CoinType(1) {
@@ -251,44 +251,44 @@ func TestInputStructCoinType(t *testing.T) {
 // TestMixedCoinTypeDetection tests detection of mixed coin types in collections
 func TestMixedCoinTypeDetection(t *testing.T) {
 	testCases := []struct {
-		name       string
-		coinTypes  []dcrutil.CoinType
+		name        string
+		coinTypes   []dcrutil.CoinType
 		expectMixed bool
 		description string
 	}{
 		{
-			name:       "All VAR",
-			coinTypes:  []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR},
+			name:        "All VAR",
+			coinTypes:   []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR},
 			expectMixed: false,
 			description: "All VAR should not be considered mixed",
 		},
 		{
-			name:       "All SKA-1",
-			coinTypes:  []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(1), dcrutil.CoinType(1)},
+			name:        "All SKA-1",
+			coinTypes:   []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(1), dcrutil.CoinType(1)},
 			expectMixed: false,
 			description: "All same SKA type should not be considered mixed",
 		},
 		{
-			name:       "VAR and SKA-1",
-			coinTypes:  []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)},
+			name:        "VAR and SKA-1",
+			coinTypes:   []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)},
 			expectMixed: true,
 			description: "VAR and SKA should be considered mixed",
 		},
 		{
-			name:       "SKA-1 and SKA-2",
-			coinTypes:  []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(2)},
+			name:        "SKA-1 and SKA-2",
+			coinTypes:   []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(2)},
 			expectMixed: true,
 			description: "Different SKA types should be considered mixed",
 		},
 		{
-			name:       "Single coin type",
-			coinTypes:  []dcrutil.CoinType{dcrutil.CoinType(1)},
+			name:        "Single coin type",
+			coinTypes:   []dcrutil.CoinType{dcrutil.CoinType(1)},
 			expectMixed: false,
 			description: "Single coin type should not be mixed",
 		},
 		{
-			name:       "Empty collection",
-			coinTypes:  []dcrutil.CoinType{},
+			name:        "Empty collection",
+			coinTypes:   []dcrutil.CoinType{},
 			expectMixed: false,
 			description: "Empty collection should not be mixed",
 		},
@@ -327,18 +327,18 @@ func TestUTXOSelectionByCoinType(t *testing.T) {
 		value    dcrutil.Amount
 		coinType dcrutil.CoinType
 	}{
-		{1e8, dcrutil.CoinTypeVAR},    // 1 VAR
-		{2e8, dcrutil.CoinTypeVAR},    // 2 VAR
-		{3e8, dcrutil.CoinType(1)},    // 3 SKA-1
-		{4e8, dcrutil.CoinType(1)},    // 4 SKA-1
-		{5e8, dcrutil.CoinType(2)},    // 5 SKA-2
+		{1e8, dcrutil.CoinTypeVAR}, // 1 VAR
+		{2e8, dcrutil.CoinTypeVAR}, // 2 VAR
+		{3e8, dcrutil.CoinType(1)}, // 3 SKA-1
+		{4e8, dcrutil.CoinType(1)}, // 4 SKA-1
+		{5e8, dcrutil.CoinType(2)}, // 5 SKA-2
 	}
 
 	// Test VAR selection
 	varTargets := []dcrutil.Amount{1e8, 2.5e8, 3e8}
 	for _, target := range varTargets {
 		selected := selectUTXOsByCoinType(utxos, target, dcrutil.CoinTypeVAR)
-		
+
 		// Verify all selected UTXOs are VAR
 		for _, utxo := range selected {
 			if utxo.coinType != dcrutil.CoinTypeVAR {
@@ -351,7 +351,7 @@ func TestUTXOSelectionByCoinType(t *testing.T) {
 		for _, utxo := range selected {
 			totalSelected += utxo.value
 		}
-		
+
 		if target <= 3e8 && totalSelected < target { // 3e8 is max VAR available
 			t.Errorf("VAR selection didn't meet target: selected %v, target %v", totalSelected, target)
 		}
@@ -361,7 +361,7 @@ func TestUTXOSelectionByCoinType(t *testing.T) {
 	ska1Targets := []dcrutil.Amount{3e8, 6e8, 7e8}
 	for _, target := range ska1Targets {
 		selected := selectUTXOsByCoinType(utxos, target, dcrutil.CoinType(1))
-		
+
 		// Verify all selected UTXOs are SKA-1
 		for _, utxo := range selected {
 			if utxo.coinType != dcrutil.CoinType(1) {
@@ -374,7 +374,7 @@ func TestUTXOSelectionByCoinType(t *testing.T) {
 		for _, utxo := range selected {
 			totalSelected += utxo.value
 		}
-		
+
 		if target <= 7e8 && totalSelected < target { // 7e8 is max SKA-1 available
 			t.Errorf("SKA-1 selection didn't meet target: selected %v, target %v", totalSelected, target)
 		}
@@ -393,9 +393,9 @@ func selectUTXOsByCoinType(utxos []struct {
 		value    dcrutil.Amount
 		coinType dcrutil.CoinType
 	}
-	
+
 	totalSelected := dcrutil.Amount(0)
-	
+
 	// Simple greedy selection
 	for _, utxo := range utxos {
 		if utxo.coinType == coinType && totalSelected < target {
@@ -403,16 +403,16 @@ func selectUTXOsByCoinType(utxos []struct {
 			totalSelected += utxo.value
 		}
 	}
-	
+
 	return selected
 }
 
 // TestOutputSelectionPolicyValidation tests validation of OutputSelectionPolicy
 func TestOutputSelectionPolicyValidation(t *testing.T) {
 	testCases := []struct {
-		name     string
-		policy   OutputSelectionPolicy
-		isValid  bool
+		name        string
+		policy      OutputSelectionPolicy
+		isValid     bool
 		description string
 	}{
 		{
@@ -422,7 +422,7 @@ func TestOutputSelectionPolicyValidation(t *testing.T) {
 				RequiredConfirmations: 1,
 				CoinType:              func() *dcrutil.CoinType { ct := dcrutil.CoinTypeVAR; return &ct }(),
 			},
-			isValid: true,
+			isValid:     true,
 			description: "Standard VAR policy should be valid",
 		},
 		{
@@ -432,7 +432,7 @@ func TestOutputSelectionPolicyValidation(t *testing.T) {
 				RequiredConfirmations: 1,
 				CoinType:              func() *dcrutil.CoinType { ct := dcrutil.CoinType(1); return &ct }(),
 			},
-			isValid: true,
+			isValid:     true,
 			description: "Standard SKA policy should be valid",
 		},
 		{
@@ -442,7 +442,7 @@ func TestOutputSelectionPolicyValidation(t *testing.T) {
 				RequiredConfirmations: 1,
 				CoinType:              nil,
 			},
-			isValid: true,
+			isValid:     true,
 			description: "Policy without coin type filter should be valid",
 		},
 		{
@@ -452,7 +452,7 @@ func TestOutputSelectionPolicyValidation(t *testing.T) {
 				RequiredConfirmations: -1,
 				CoinType:              nil,
 			},
-			isValid: true, // Negative confirmations are handled elsewhere
+			isValid:     true, // Negative confirmations are handled elsewhere
 			description: "Policy with negative confirmations",
 		},
 	}
@@ -462,7 +462,7 @@ func TestOutputSelectionPolicyValidation(t *testing.T) {
 			// In a real implementation, we'd have validation logic
 			// Here we just verify the policy structure is reasonable
 			isValid := validateOutputSelectionPolicy(tc.policy)
-			
+
 			if isValid != tc.isValid {
 				t.Errorf("Policy validation mismatch: got %v, want %v. %s",
 					isValid, tc.isValid, tc.description)

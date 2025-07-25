@@ -207,7 +207,7 @@ func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
 	s := make([]AccountBalance, 0, len(m))
 	for k, v := range m {
 		s = append(s, AccountBalance{
-			Account:      k, 
+			Account:      k,
 			TotalBalance: v,
 			// Initialize empty CoinTypeBalances map for backward compatibility
 			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
@@ -223,23 +223,23 @@ func multiCoinTotalBalances(dbtx walletdb.ReadTx, w *Wallet, accountCoinBalances
 	if err != nil {
 		return err
 	}
-	
+
 	for i := range unspent {
 		output := unspent[i]
 		_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
 		if len(addrs) == 0 {
 			continue
 		}
-		
+
 		outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
 		if err == nil {
 			// Initialize account map if not exists
 			if accountCoinBalances[outputAcct] == nil {
 				accountCoinBalances[outputAcct] = make(map[dcrutil.CoinType]dcrutil.Amount)
 			}
-			
+
 			// Add to coin-type specific balance
-			coinType := dcrutil.CoinType(output.CoinType)
+			coinType := output.CoinType
 			accountCoinBalances[outputAcct][coinType] += output.Amount
 		}
 	}
@@ -249,26 +249,26 @@ func multiCoinTotalBalances(dbtx walletdb.ReadTx, w *Wallet, accountCoinBalances
 // flattenMultiCoinBalanceMap converts multi-coin balance map to AccountBalance slice
 func flattenMultiCoinBalanceMap(accountCoinBalances map[uint32]map[dcrutil.CoinType]dcrutil.Amount) []AccountBalance {
 	s := make([]AccountBalance, 0, len(accountCoinBalances))
-	
+
 	for account, coinBalances := range accountCoinBalances {
 		accountBalance := AccountBalance{
 			Account:          account,
 			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
 		}
-		
+
 		// Calculate total balance and populate coin type balances
 		for coinType, amount := range coinBalances {
 			accountBalance.CoinTypeBalances[coinType] = amount
-			
+
 			// For backward compatibility, aggregate VAR balance as total
 			if coinType == dcrutil.CoinTypeVAR {
 				accountBalance.TotalBalance = amount
 			}
 		}
-		
+
 		s = append(s, accountBalance)
 	}
-	
+
 	return s
 }
 
@@ -539,19 +539,20 @@ type TransactionSummaryOutput struct {
 //     Key 0 = VAR balance, Keys 1-255 = SKA variant balances
 //
 // Example notification data:
-//   AccountBalance{
-//     Account: 0,
-//     TotalBalance: 500000000, // 5 VAR (legacy field)
-//     CoinTypeBalances: map[dcrutil.CoinType]dcrutil.Amount{
-//       0: 500000000,   // 5 VAR
-//       1: 1000000000,  // 10 SKA-1
-//       2: 250000000,   // 2.5 SKA-2
-//     }
-//   }
+//
+//	AccountBalance{
+//	  Account: 0,
+//	  TotalBalance: 500000000, // 5 VAR (legacy field)
+//	  CoinTypeBalances: map[dcrutil.CoinType]dcrutil.Amount{
+//	    0: 500000000,   // 5 VAR
+//	    1: 1000000000,  // 10 SKA-1
+//	    2: 250000000,   // 2.5 SKA-2
+//	  }
+//	}
 type AccountBalance struct {
 	Account      uint32
-	TotalBalance dcrutil.Amount  // VAR total balance (for backward compatibility)
-	
+	TotalBalance dcrutil.Amount // VAR total balance (for backward compatibility)
+
 	// Multi-coin support: breakdown by coin type
 	CoinTypeBalances map[dcrutil.CoinType]dcrutil.Amount
 }

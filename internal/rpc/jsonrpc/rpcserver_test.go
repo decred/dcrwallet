@@ -41,6 +41,7 @@ func TestThrottle(t *testing.T) {
 			t.Fatal(r.err)
 		}
 		got[r.resp.StatusCode]++
+		r.resp.Body.Close()
 
 		if i == 0 {
 			close(busy)

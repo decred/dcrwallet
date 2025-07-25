@@ -180,7 +180,10 @@ func TestUntrustedClientCert(t *testing.T) {
 				errChan <- err
 				return
 			}
-			_, err = s.Client().Do(req)
+			resp, err := s.Client().Do(req)
+			if err == nil {
+				resp.Body.Close()
+			}
 			errChan <- err
 		}()
 

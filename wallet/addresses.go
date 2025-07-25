@@ -490,7 +490,7 @@ func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.Re
 				if rerr == nil {
 					rerr = maybeDBTX.Commit()
 				} else {
-					maybeDBTX.Rollback()
+					_ = maybeDBTX.Rollback()
 				}
 				region.End()
 			}()

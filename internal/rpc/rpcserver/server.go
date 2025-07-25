@@ -683,7 +683,7 @@ func (s *walletServer) ImportPrivateKey(ctx context.Context, req *pb.ImportPriva
 	}
 
 	if req.Rescan {
-		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+		go func() { _ = s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom) }()
 	}
 
 	return &pb.ImportPrivateKeyResponse{}, nil
@@ -708,7 +708,7 @@ func (s *walletServer) ImportExtendedPublicKey(ctx context.Context, req *pb.Impo
 	}
 
 	if req.Rescan {
-		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+		go func() { _ = s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom) }()
 	}
 
 	return &pb.ImportExtendedPublicKeyResponse{}, nil
@@ -758,7 +758,7 @@ func (s *walletServer) ImportScript(ctx context.Context,
 		return nil, translateError(err)
 	}
 	if err == nil && req.Rescan {
-		go s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom)
+		go func() { _ = s.wallet.RescanFromHeight(context.Background(), n, req.ScanFrom) }()
 	}
 
 	p2sh, err := stdaddr.NewAddressScriptHashV0(req.Script, s.wallet.ChainParams())

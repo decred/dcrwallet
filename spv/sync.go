@@ -202,7 +202,7 @@ func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
 	synced := s.atomicWalletSynced.Load() == 1
 	var targetHeight int32
 	if !synced {
-		s.forRemotes(func(rp *p2p.RemotePeer) error {
+		_ = s.forRemotes(func(rp *p2p.RemotePeer) error {
 			if rp.InitialHeight() > targetHeight {
 				targetHeight = rp.InitialHeight()
 			}
@@ -1024,7 +1024,7 @@ func (s *Syncer) checkTSpend(ctx context.Context, tx *wire.MsgTx) bool {
 // all unseen tspend txs, validates them, and adds them to the tspends cache.
 func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 	msg := wire.NewMsgGetInitState()
-	msg.AddTypes(wire.InitStateTSpends)
+	_ = msg.AddTypes(wire.InitStateTSpends)
 
 	initState, err := rp.GetInitState(ctx, msg)
 	if err != nil {
@@ -1060,7 +1060,7 @@ func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 
 	for _, v := range tspendTxs {
 		if s.checkTSpend(ctx, v) {
-			s.wallet.AddTSpend(*v)
+			_ = s.wallet.AddTSpend(*v)
 		}
 	}
 	return nil
@@ -1153,7 +1153,7 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 
 	for _, tx := range txs {
 		if s.checkTSpend(ctx, tx) {
-			s.wallet.AddTSpend(*tx)
+			_ = s.wallet.AddTSpend(*tx)
 		}
 	}
 
@@ -1588,7 +1588,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 // behind the passed tip height.
 func (s *Syncer) disconnectStragglers(height int32) {
 	const stragglerLimit = 6 // How many blocks behind.
-	s.forRemotes(func(rp *p2p.RemotePeer) error {
+	_ = s.forRemotes(func(rp *p2p.RemotePeer) error {
 		// Use the higher of InitialHeight and LastHeight. During
 		// initial sync, InitialHeight will be higher, after initial
 		// sync and when sendheaders was sent, we'll keep receiving

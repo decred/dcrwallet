@@ -147,6 +147,83 @@ func NewCreateNewAccountCmd(account string) *CreateNewAccountCmd {
 	}
 }
 
+// CreateAuthorizedEmissionCmd describes the command and parameters for creating
+// a cryptographically authorized SKA emission transaction with governance-defined parameters.
+type CreateAuthorizedEmissionCmd struct {
+	CoinType        uint8  `json:"cointype"`        // SKA coin type (1-255)
+	EmissionKeyName string `json:"emissionkeyname"` // Name of imported emission private key
+	Passphrase      string `json:"passphrase"`      // Wallet passphrase for key access
+	// NOTE: Emission addresses, amounts, heights, and windows are defined by governance
+	// and retrieved from chain parameters - users cannot specify arbitrary values
+}
+
+// NewCreateAuthorizedEmissionCmd returns a new instance which can be used to issue a
+// createauthorizedemission JSON-RPC command with governance-defined parameters.
+func NewCreateAuthorizedEmissionCmd(coinType uint8, emissionKeyName, passphrase string) *CreateAuthorizedEmissionCmd {
+	return &CreateAuthorizedEmissionCmd{
+		CoinType:        coinType,
+		EmissionKeyName: emissionKeyName,
+		Passphrase:      passphrase,
+	}
+}
+
+// GenerateEmissionKeyCmd defines the generateemissionkey JSON-RPC command for
+// generating new private keys for SKA emission authorization (primary flow).
+type GenerateEmissionKeyCmd struct {
+	KeyName    string `json:"keyname"`            // Unique identifier for this emission key
+	Passphrase string `json:"passphrase"`         // Wallet passphrase for key generation
+	CoinType   *uint8 `json:"cointype,omitempty"` // Optional SKA coin type (1-255) - for user organization only
+}
+
+// NewGenerateEmissionKeyCmd returns a new instance which can be used to issue a
+// generateemissionkey JSON-RPC command.
+func NewGenerateEmissionKeyCmd(keyName, passphrase string) *GenerateEmissionKeyCmd {
+	return &GenerateEmissionKeyCmd{
+		KeyName:    keyName,
+		Passphrase: passphrase,
+		CoinType:   nil,
+	}
+}
+
+// NewGenerateEmissionKeyCmdWithCoinType returns a new instance with cointype parameter.
+func NewGenerateEmissionKeyCmdWithCoinType(coinType uint8, keyName, passphrase string) *GenerateEmissionKeyCmd {
+	return &GenerateEmissionKeyCmd{
+		KeyName:    keyName,
+		Passphrase: passphrase,
+		CoinType:   &coinType,
+	}
+}
+
+// ImportEmissionKeyCmd defines the importemissionkey JSON-RPC command for
+// importing private keys used for SKA emission authorization (emergency/recovery only).
+type ImportEmissionKeyCmd struct {
+	KeyName    string `json:"keyname"`            // Unique identifier for this key
+	PrivateKey string `json:"privatekey"`         // Hex-encoded secp256k1 private key or encrypted format
+	Passphrase string `json:"passphrase"`         // Wallet passphrase for encryption
+	CoinType   *uint8 `json:"cointype,omitempty"` // Optional SKA coin type (1-255) - for user organization only
+}
+
+// NewImportEmissionKeyCmd returns a new instance which can be used to issue an
+// importemissionkey JSON-RPC command.
+func NewImportEmissionKeyCmd(coinType uint8, keyName, privateKey, passphrase string) *ImportEmissionKeyCmd {
+	return &ImportEmissionKeyCmd{
+		KeyName:    keyName,
+		PrivateKey: privateKey,
+		Passphrase: passphrase,
+		CoinType:   &coinType,
+	}
+}
+
+// NewImportEmissionKeyCmdNoCoinType returns a new instance without cointype parameter.
+func NewImportEmissionKeyCmdNoCoinType(keyName, privateKey, passphrase string) *ImportEmissionKeyCmd {
+	return &ImportEmissionKeyCmd{
+		KeyName:    keyName,
+		PrivateKey: privateKey,
+		Passphrase: passphrase,
+		CoinType:   nil,
+	}
+}
+
 // CreateVotingAccountCmd is a type for handling custom marshaling and
 // unmarshalling of createvotingaccount JSON-RPC command.
 type CreateVotingAccountCmd struct {
@@ -420,8 +497,8 @@ func NewGetUnconfirmedBalanceCmd(account *string) *GetUnconfirmedBalanceCmd {
 // GetCoinBalanceCmd defines the getcoinbalance JSON-RPC command for querying
 // balance of a specific coin type (VAR or SKA).
 type GetCoinBalanceCmd struct {
-	CoinType uint8   `json:"cointype"`           // Required: coin type (0=VAR, 1-255=SKA)
-	Account  *string `json:"account,omitempty"`  // Optional: account name ("*" for all accounts)
+	CoinType uint8   `json:"cointype"`                             // Required: coin type (0=VAR, 1-255=SKA)
+	Account  *string `json:"account,omitempty"`                    // Optional: account name ("*" for all accounts)
 	MinConf  *int    `json:"minconf,omitempty" jsonrpcdefault:"1"` // Optional: minimum confirmations
 }
 
@@ -1290,7 +1367,10 @@ func init() {
 		{"consolidate", (*ConsolidateCmd)(nil)},
 		{"createmultisig", (*CreateMultisigCmd)(nil)},
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
+		{"createauthorizedemission", (*CreateAuthorizedEmissionCmd)(nil)},
 		{"createsignature", (*CreateSignatureCmd)(nil)},
+		{"generateemissionkey", (*GenerateEmissionKeyCmd)(nil)},
+		{"importemissionkey", (*ImportEmissionKeyCmd)(nil)},
 		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
 		{"disapprovepercent", (*DisapprovePercentCmd)(nil)},
 		{"discoverusage", (*DiscoverUsageCmd)(nil)},

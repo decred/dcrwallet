@@ -33,7 +33,6 @@ type CryptoKey [KeySize]byte
 
 // Encrypt encrypts the passed data.
 func (ck *CryptoKey) Encrypt(in []byte) ([]byte, error) {
-	const op errors.Op = "cryptokey.Encrypt"
 	var nonce [NonceSize]byte
 	rand.Read(nonce[:])
 	sealed := make([]byte, NonceSize, NonceSize+len(in)+Overhead)
@@ -72,7 +71,6 @@ func (ck *CryptoKey) Zero() {
 
 // GenerateCryptoKey generates a new crypotgraphically random key.
 func GenerateCryptoKey() (*CryptoKey, error) {
-	const op errors.Op = "snacl.GenerateCryptoKey"
 	var key CryptoKey
 	rand.Read(key[:])
 	return &key, nil

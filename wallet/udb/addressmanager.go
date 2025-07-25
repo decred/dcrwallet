@@ -290,6 +290,10 @@ const (
 	// key material such as dervied extended public keys and imported public
 	// keys.
 	CKTPublic
+
+	// CKTEmission specifies the key that is used for encryption of emission
+	// private keys used for SKA coin emission authorization.
+	CKTEmission
 )
 
 // newCryptoKey is used as a way to replace the new crypto key generation
@@ -2575,8 +2579,8 @@ func (m *Manager) redeemScriptForHash160(ns walletdb.ReadBucket, hash160 []byte)
 //
 // This function MUST be called with the manager lock held for reads.
 func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, error) {
-	if keyType == CKTPrivate {
-		// The manager must be unlocked to work with the private keys.
+	if keyType == CKTPrivate || keyType == CKTEmission {
+		// The manager must be unlocked to work with the private keys and emission keys.
 		if m.locked || m.watchingOnly {
 			return nil, errors.E(errors.Locked)
 		}
@@ -2588,6 +2592,9 @@ func (m *Manager) selectCryptoKey(keyType CryptoKeyType) (EncryptorDecryptor, er
 		cryptoKey = m.cryptoKeyPriv
 	case CKTPublic:
 		cryptoKey = m.cryptoKeyPub
+	case CKTEmission:
+		// Emission keys use the same encryption as private keys for security
+		cryptoKey = m.cryptoKeyPriv
 	default:
 		return nil, errors.E(errors.Invalid, errors.Errorf("crypto key kind %d", keyType))
 	}
@@ -3209,4 +3216,74 @@ func createWatchOnly(ns walletdb.ReadWriteBucket, hdPubKey string, pubPassphrase
 	defaultRow := bip0044AccountInfo(acctPubEnc, acctPrivEnc, 0, 0, 0, 0, 0, 0,
 		defaultAccountName, initialVersion)
 	return putBIP0044AccountInfo(ns, DefaultAccountNum, defaultRow)
+}
+
+// StoreEmissionKey stores an emission private key in the wallet database with encryption.
+func (m *Manager) StoreEmissionKey(ns walletdb.ReadWriteBucket, keyName string, privateKey *secp256k1.PrivateKey) error {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	// Serialize the private key
+	privKeyBytes := privateKey.Serialize()
+
+	// Get the crypto key for emission key encryption (while holding lock)
+	cryptoKey, err := m.selectCryptoKey(CKTEmission)
+	if err != nil {
+		return err
+	}
+
+	// Encrypt the private key using the crypto key directly
+	encryptedPrivKey, err := cryptoKey.Encrypt(privKeyBytes)
+	if err != nil {
+		return err
+	}
+
+	// Get or create the emission keys bucket
+	emissionBucket, err := ns.CreateBucketIfNotExists(emissionKeysBucketName)
+	if err != nil {
+		return err
+	}
+
+	// Store the encrypted key with the key name
+	return emissionBucket.Put([]byte(keyName), encryptedPrivKey)
+}
+
+// RetrieveEmissionKey retrieves and decrypts an emission private key from the wallet database.
+func (m *Manager) RetrieveEmissionKey(ns walletdb.ReadBucket, keyName string) (*secp256k1.PrivateKey, error) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	// Get the emission keys bucket
+	emissionBucket := ns.NestedReadBucket(emissionKeysBucketName)
+	if emissionBucket == nil {
+		return nil, errors.E(errors.NotExist, "emission keys bucket does not exist")
+	}
+
+	// Retrieve the encrypted key
+	encryptedPrivKey := emissionBucket.Get([]byte(keyName))
+	if encryptedPrivKey == nil {
+		return nil, errors.E(errors.NotExist, errors.Errorf("emission key %s not found", keyName))
+	}
+
+	// Get the crypto key for emission key decryption (while holding lock)
+	cryptoKey, err := m.selectCryptoKey(CKTEmission)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decrypt the private key using the crypto key directly
+	privKeyBytes, err := cryptoKey.Decrypt(encryptedPrivKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse the private key
+	privateKey := secp256k1.PrivKeyFromBytes(privKeyBytes)
+
+	// Clear sensitive data
+	for i := range privKeyBytes {
+		privKeyBytes[i] = 0
+	}
+
+	return privateKey, nil
 }

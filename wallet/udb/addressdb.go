@@ -260,6 +260,9 @@ var (
 	watchingOnlyName            = []byte("watchonly")
 	slip0044Account0RowName     = []byte("slip0044acct0")
 
+	// Emission key storage names
+	emissionKeysBucketName = []byte("emissionkeys")
+
 	// Used addresses (used bucket).  This was removed by database version 2.
 	usedAddrBucketName = []byte("usedaddrs")
 )

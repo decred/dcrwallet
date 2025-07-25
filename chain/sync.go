@@ -715,7 +715,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		return err
 	}
 	for _, v := range tspends {
-		s.wallet.AddTSpend(*v)
+		_ = s.wallet.AddTSpend(*v)
 	}
 	log.Tracef("TSpends in mempool: %v", len(tspends))
 

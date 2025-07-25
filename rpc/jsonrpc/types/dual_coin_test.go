@@ -192,7 +192,6 @@ func TestSendToAddressCmdWithCoinType(t *testing.T) {
 	}
 }
 
-
 // TestListUnspentResultWithCoinType tests the extended ListUnspentResult with CoinType field
 func TestListUnspentResultWithCoinType(t *testing.T) {
 	result := &ListUnspentResult{
@@ -230,14 +229,13 @@ func TestListUnspentResultWithCoinType(t *testing.T) {
 	}
 }
 
-
 // TestCommandConstructors tests the command constructor functions with CoinType
 func TestCommandConstructors(t *testing.T) {
 	t.Run("NewGetBalanceCmd with CoinType", func(t *testing.T) {
 		cmd := NewGetBalanceCmd(stringPtr("default"), intPtr(6))
 		// Manually set CoinType to test the structure
 		cmd.CoinType = uint8Ptr(1)
-		
+
 		if *cmd.Account != "default" {
 			t.Errorf("Account = %s, want default", *cmd.Account)
 		}
@@ -255,7 +253,7 @@ func TestCommandConstructors(t *testing.T) {
 		// Manually set CoinType to test the structure
 		cmd.CoinType = uint8Ptr(2)
 		cmd.Account = stringPtr("default")
-		
+
 		if *cmd.MinConf != 1 {
 			t.Errorf("MinConf = %d, want 1", *cmd.MinConf)
 		}
@@ -272,9 +270,9 @@ func TestCommandConstructors(t *testing.T) {
 
 	t.Run("NewSendToAddressCmd with CoinType", func(t *testing.T) {
 		cmd := NewSendToAddressCmd("SsWKp7wtdTZYabYFYSc9cnxhwFEjA5g4pFc", 1.5, nil, nil)
-		// Manually set CoinType to test the structure  
+		// Manually set CoinType to test the structure
 		cmd.CoinType = uint8Ptr(1)
-		
+
 		if cmd.Address != "SsWKp7wtdTZYabYFYSc9cnxhwFEjA5g4pFc" {
 			t.Errorf("Address = %s, want SsWKp7wtdTZYabYFYSc9cnxhwFEjA5g4pFc", cmd.Address)
 		}

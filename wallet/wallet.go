@@ -791,7 +791,7 @@ func (w *Wallet) MainChainTip(ctx context.Context) (hash chainhash.Hash, height 
 	// should be saved in memory.  This will speed up access to it, and means
 	// there won't need to be an ignored error here for ergonomic access to the
 	// hash and height.
-	walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+	_ = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		hash, height = w.txStore.MainChainTip(dbtx)
 		return nil
 	})
@@ -1901,7 +1901,7 @@ func (w *Wallet) ChangePublicPassphrase(ctx context.Context, old, new []byte) er
 // Balances type alias for udb.Balances to maintain backward compatibility
 type Balances = udb.Balances
 
-// CoinBalance type alias for udb.CoinBalance to maintain backward compatibility  
+// CoinBalance type alias for udb.CoinBalance to maintain backward compatibility
 type CoinBalance = udb.CoinBalance
 
 // AccountBalance returns the balance breakdown for a single account.
@@ -1956,47 +1956,48 @@ func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balance
 // the account is invalid or database access fails.
 //
 // Example:
-//   varBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinTypeVAR, 1)
-//   skaBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(1), 6)
+//
+//	varBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinTypeVAR, 1)
+//	skaBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(1), 6)
 func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalanceByCoinType"
-	
+
 	// Validate coin type range
 	if coinType < 0 || coinType > 255 {
 		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
 	}
-	
+
 	// Get full account balance
 	balance, err := w.AccountBalance(ctx, account, confirms)
 	if err != nil {
 		return CoinBalance{}, errors.E(op, err)
 	}
-	
+
 	// Return specific coin type balance
 	if coinBalance, exists := balance.CoinTypeBalances[coinType]; exists {
 		return coinBalance, nil
 	}
-	
+
 	// Return empty balance if coin type not found
 	return CoinBalance{CoinType: coinType}, nil
 }
 
-// AccountBalancesByCoinType returns balance breakdowns for all accounts 
+// AccountBalancesByCoinType returns balance breakdowns for all accounts
 // filtered by specific coin type.
 func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) ([]CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalancesByCoinType"
-	
+
 	// Validate coin type range
 	if coinType < 0 || coinType > 255 {
 		return nil, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
 	}
-	
+
 	// Get all account balances
 	balances, err := w.AccountBalances(ctx, confirms)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	
+
 	var coinBalances []CoinBalance
 	for _, balance := range balances {
 		if coinBalance, exists := balance.CoinTypeBalances[coinType]; exists {
@@ -2006,7 +2007,7 @@ func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil
 			coinBalances = append(coinBalances, CoinBalance{CoinType: coinType})
 		}
 	}
-	
+
 	return coinBalances, nil
 }
 
@@ -2023,24 +2024,25 @@ func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil
 // Returns error if database access fails.
 //
 // Example:
-//   totalVAR, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinTypeVAR, 1)
-//   totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinType(1), 6)
+//
+//	totalVAR, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinTypeVAR, 1)
+//	totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinType(1), 6)
 func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.TotalBalanceByCoinType"
-	
+
 	// Validate coin type range
 	if coinType < 0 || coinType > 255 {
 		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
 	}
-	
+
 	coinBalances, err := w.AccountBalancesByCoinType(ctx, coinType, confirms)
 	if err != nil {
 		return CoinBalance{}, errors.E(op, err)
 	}
-	
+
 	var total CoinBalance
 	total.CoinType = coinType
-	
+
 	for _, balance := range coinBalances {
 		total.ImmatureCoinbaseRewards += balance.ImmatureCoinbaseRewards
 		total.ImmatureStakeGeneration += balance.ImmatureStakeGeneration
@@ -2050,7 +2052,7 @@ func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.Co
 		total.VotingAuthority += balance.VotingAuthority
 		total.Unconfirmed += balance.Unconfirmed
 	}
-	
+
 	return total, nil
 }
 
@@ -2066,16 +2068,17 @@ func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.Co
 // database access fails.
 //
 // Example:
-//   activeCoins, err := wallet.ListCoinTypes(ctx, 1)
-//   // Result might be: [0, 1, 5] representing VAR, SKA-1, and SKA-5
+//
+//	activeCoins, err := wallet.ListCoinTypes(ctx, 1)
+//	// Result might be: [0, 1, 5] representing VAR, SKA-1, and SKA-5
 func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.CoinType, error) {
 	const op errors.Op = "wallet.ListCoinTypes"
-	
+
 	balances, err := w.AccountBalances(ctx, confirms)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	
+
 	coinTypesMap := make(map[dcrutil.CoinType]bool)
 	for _, balance := range balances {
 		for coinType, coinBalance := range balance.CoinTypeBalances {
@@ -2085,12 +2088,12 @@ func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.C
 			}
 		}
 	}
-	
+
 	var coinTypes []dcrutil.CoinType
 	for coinType := range coinTypesMap {
 		coinTypes = append(coinTypes, coinType)
 	}
-	
+
 	return coinTypes, nil
 }
 
@@ -2157,8 +2160,8 @@ func (w *Wallet) SignHashes(ctx context.Context, hashes [][]byte, addr stdaddr.A
 func (w *Wallet) SignMessage(ctx context.Context, msg string, addr stdaddr.Address) (sig []byte, err error) {
 	const op errors.Op = "wallet.SignMessage"
 	var buf bytes.Buffer
-	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
-	wire.WriteVarString(&buf, 0, msg)
+	_ = wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
+	_ = wire.WriteVarString(&buf, 0, msg)
 	messageHash := chainhash.HashB(buf.Bytes())
 	var privKey *secp256k1.PrivateKey
 	var done func()
@@ -2187,8 +2190,8 @@ func VerifyMessage(msg string, addr stdaddr.Address, sig []byte, params stdaddr.
 	// Validate the signature - this just shows that it was valid for any pubkey
 	// at all. Whether the pubkey matches is checked below.
 	var buf bytes.Buffer
-	wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
-	wire.WriteVarString(&buf, 0, msg)
+	_ = wire.WriteVarString(&buf, 0, "Decred Signed Message:\n")
+	_ = wire.WriteVarString(&buf, 0, msg)
 	expectedMessageHash := chainhash.HashB(buf.Bytes())
 	pk, wasCompressed, err := ecdsa.RecoverCompact(sig, expectedMessageHash)
 	if err != nil {
@@ -3296,7 +3299,7 @@ func (w *Wallet) GetTicketsPrecise(ctx context.Context, rpc *dcrd.RPC,
 			if err != nil {
 				return false, err
 			}
-			header.FromBytes(headerBytes)
+			_ = header.FromBytes(headerBytes)
 			return f(tickets, header)
 		}
 
@@ -3370,7 +3373,7 @@ func (w *Wallet) GetTickets(ctx context.Context,
 			if err != nil {
 				return false, err
 			}
-			header.FromBytes(headerBytes)
+			_ = header.FromBytes(headerBytes)
 			return f(tickets, header)
 		}
 
@@ -5967,4 +5970,34 @@ func (w *Wallet) ProcessedTickets(ctx context.Context) ([]*VSPTicket, error) {
 	}
 
 	return managedTickets, nil
+}
+
+// StoreEmissionKey stores an emission private key in the wallet database.
+// This is a public method that can be called from RPC handlers.
+func (w *Wallet) StoreEmissionKey(ctx context.Context, keyName string, privateKey *secp256k1.PrivateKey) error {
+	const op errors.Op = "wallet.StoreEmissionKey"
+	return walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		ns := dbtx.ReadWriteBucket(waddrmgrNamespaceKey)
+		if ns == nil {
+			return errors.E(op, errors.Invalid, "address manager namespace not found")
+		}
+		return w.manager.StoreEmissionKey(ns, keyName, privateKey)
+	})
+}
+
+// RetrieveEmissionKey retrieves an emission private key from the wallet database.
+// This is a public method that can be called from RPC handlers.
+func (w *Wallet) RetrieveEmissionKey(ctx context.Context, keyName string) (*secp256k1.PrivateKey, error) {
+	const op errors.Op = "wallet.RetrieveEmissionKey"
+	var privateKey *secp256k1.PrivateKey
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		ns := dbtx.ReadBucket(waddrmgrNamespaceKey)
+		if ns == nil {
+			return errors.E(op, errors.Invalid, "address manager namespace not found")
+		}
+		var err error
+		privateKey, err = w.manager.RetrieveEmissionKey(ns, keyName)
+		return err
+	})
+	return privateKey, err
 }

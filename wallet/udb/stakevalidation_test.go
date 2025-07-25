@@ -160,8 +160,7 @@ func TestStakeInvalidationOfTip(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		
-		
+
 		if bal.Total != dcrutil.Amount(block1Tx.TxOut[0].Value) {
 			t.Errorf("Wrong balance: expected %v got %v", dcrutil.Amount(block1Tx.TxOut[0].Value), bal)
 		}

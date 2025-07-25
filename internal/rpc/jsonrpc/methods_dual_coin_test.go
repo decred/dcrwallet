@@ -88,19 +88,6 @@ func TestMakeOutputsWithCoinType(t *testing.T) {
 	}
 }
 
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
-func intPtr(i int) *int {
-	return &i
-}
-
-func uint8Ptr(u uint8) *uint8 {
-	return &u
-}
-
 // testChainParams returns test chain parameters
 func testChainParams() *chaincfg.Params {
 	return chaincfg.SimNetParams()

@@ -67,6 +67,33 @@ type CreateSignatureResult struct {
 	PublicKey string `json:"publickey"`
 }
 
+// CreateAuthorizedEmissionResult models the data returned from the createauthorizedemission
+// command.
+type CreateAuthorizedEmissionResult struct {
+	Transaction     string `json:"transaction"`     // Hex-encoded signed transaction
+	TransactionHash string `json:"transactionhash"` // Transaction hash
+	Nonce           uint64 `json:"nonce"`           // Nonce used in this emission
+	TotalAmount     int64  `json:"totalamount"`     // Total amount being emitted
+	CoinType        uint8  `json:"cointype"`        // Coin type being emitted
+}
+
+// GenerateEmissionKeyResult models the data returned from the generateemissionkey command.
+type GenerateEmissionKeyResult struct {
+	Success             bool   `json:"success"`             // Whether the key was successfully generated
+	CoinType            uint8  `json:"cointype,omitempty"`  // Optional coin type for user reference
+	KeyName             string `json:"keyname"`             // Name identifier for the generated key
+	PublicKey           string `json:"publickey"`           // Hex-encoded public key for governance proposals
+	EncryptedPrivateKey string `json:"encryptedprivatekey"` // AES-256-GCM encrypted private key for backup
+}
+
+// ImportEmissionKeyResult models the data returned from the importemissionkey command.
+type ImportEmissionKeyResult struct {
+	Success   bool   `json:"success"`   // Whether the key was successfully imported
+	CoinType  uint8  `json:"cointype"`  // Coin type the key was imported for
+	KeyName   string `json:"keyname"`   // Name identifier for the imported key
+	PublicKey string `json:"publickey"` // Hex-encoded public key for verification
+}
+
 // GetPeerInfoResult models the data returned from the getpeerinfo command.
 type GetPeerInfoResult struct {
 	ID             int32  `json:"id"`
@@ -419,29 +446,29 @@ type AccountUnlockedResult struct {
 // GetCoinBalanceResult models the data returned from the getcoinbalance command.
 // This provides detailed balance information for a specific coin type.
 type GetCoinBalanceResult struct {
-	CoinType                     uint8   `json:"cointype"`                          // The coin type (0=VAR, 1-255=SKA)
-	BlockHash                    string  `json:"blockhash"`                         // Current block hash
-	TotalImmatureCoinbaseRewards float64 `json:"totalimmaturecoinbaserewards"`      // Total immature coinbase rewards
-	TotalImmatureStakeGeneration float64 `json:"totalimmaturestakegeneration"`      // Total immature stake generation
-	TotalLockedByTickets         float64 `json:"totallockedbytickets"`              // Total locked by tickets
-	TotalSpendable               float64 `json:"totalspendable"`                    // Total spendable balance
-	TotalUnconfirmed             float64 `json:"totalunconfirmed"`                  // Total unconfirmed balance
-	TotalVotingAuthority         float64 `json:"totalvotingauthority"`              // Total voting authority
-	CumulativeTotal              float64 `json:"cumulativetotal"`                   // Cumulative total balance
-	Balances                     []GetCoinAccountBalanceResult `json:"balances"` // Per-account breakdown
+	CoinType                     uint8                         `json:"cointype"`                     // The coin type (0=VAR, 1-255=SKA)
+	BlockHash                    string                        `json:"blockhash"`                    // Current block hash
+	TotalImmatureCoinbaseRewards float64                       `json:"totalimmaturecoinbaserewards"` // Total immature coinbase rewards
+	TotalImmatureStakeGeneration float64                       `json:"totalimmaturestakegeneration"` // Total immature stake generation
+	TotalLockedByTickets         float64                       `json:"totallockedbytickets"`         // Total locked by tickets
+	TotalSpendable               float64                       `json:"totalspendable"`               // Total spendable balance
+	TotalUnconfirmed             float64                       `json:"totalunconfirmed"`             // Total unconfirmed balance
+	TotalVotingAuthority         float64                       `json:"totalvotingauthority"`         // Total voting authority
+	CumulativeTotal              float64                       `json:"cumulativetotal"`              // Cumulative total balance
+	Balances                     []GetCoinAccountBalanceResult `json:"balances"`                     // Per-account breakdown
 }
 
 // GetCoinAccountBalanceResult models per-account balance data within GetCoinBalanceResult.
 type GetCoinAccountBalanceResult struct {
-	AccountName             string  `json:"accountname"`              // Account name
-	CoinType                uint8   `json:"cointype"`                 // The coin type (0=VAR, 1-255=SKA)
-	ImmatureCoinbaseRewards float64 `json:"immaturecoinbaserewards"`  // Immature coinbase rewards
-	ImmatureStakeGeneration float64 `json:"immaturestakegeneration"`  // Immature stake generation
-	LockedByTickets         float64 `json:"lockedbytickets"`          // Locked by tickets
-	Spendable               float64 `json:"spendable"`                // Spendable balance
-	Total                   float64 `json:"total"`                    // Total balance
-	Unconfirmed             float64 `json:"unconfirmed"`              // Unconfirmed balance
-	VotingAuthority         float64 `json:"votingauthority"`          // Voting authority
+	AccountName             string  `json:"accountname"`             // Account name
+	CoinType                uint8   `json:"cointype"`                // The coin type (0=VAR, 1-255=SKA)
+	ImmatureCoinbaseRewards float64 `json:"immaturecoinbaserewards"` // Immature coinbase rewards
+	ImmatureStakeGeneration float64 `json:"immaturestakegeneration"` // Immature stake generation
+	LockedByTickets         float64 `json:"lockedbytickets"`         // Locked by tickets
+	Spendable               float64 `json:"spendable"`               // Spendable balance
+	Total                   float64 `json:"total"`                   // Total balance
+	Unconfirmed             float64 `json:"unconfirmed"`             // Unconfirmed balance
+	VotingAuthority         float64 `json:"votingauthority"`         // Voting authority
 }
 
 // ListCoinTypesResult models the data returned from the listcointypes command.
@@ -452,7 +479,7 @@ type ListCoinTypesResult struct {
 
 // CoinTypeInfo provides information about a specific coin type.
 type CoinTypeInfo struct {
-	CoinType uint8   `json:"cointype"`    // The coin type number (0=VAR, 1-255=SKA)
-	Name     string  `json:"name"`        // Human-readable name (e.g., "VAR", "SKA-1", "SKA-2")
-	Balance  float64 `json:"balance"`     // Total spendable balance for this coin type
+	CoinType uint8   `json:"cointype"` // The coin type number (0=VAR, 1-255=SKA)
+	Name     string  `json:"name"`     // Human-readable name (e.g., "VAR", "SKA-1", "SKA-2")
+	Balance  float64 `json:"balance"`  // Total spendable balance for this coin type
 }

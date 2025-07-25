@@ -235,7 +235,7 @@ func repair() error {
 	}
 
 	var cfsetHash chainhash.Hash
-	cfsetHash.SetBytes(hasher.Sum(nil))
+	_ = cfsetHash.SetBytes(hasher.Sum(nil))
 	fmt.Printf("Hash of cf data sent: %s\n", cfsetHash)
 	fmt.Printf("Height: %d\n", height-1)
 

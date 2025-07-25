@@ -3467,12 +3467,12 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		ab, ok := accountBalances[thisAcct]
 		if !ok {
 			ab = &Balances{
-				Account: thisAcct,
+				Account:          thisAcct,
 				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
-		
+
 		// Ensure coin type balance entry exists
 		if _, exists := ab.CoinTypeBalances[coinType]; !exists {
 			ab.CoinTypeBalances[coinType] = CoinBalance{
@@ -3482,7 +3482,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 
 		// Get current coin type balance for modification
 		coinBalance := ab.CoinTypeBalances[coinType]
-		
+
 		switch opcode {
 		case txscript.OP_TGEN:
 			// Or add another type of balance?
@@ -3567,7 +3567,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		default:
 			log.Warnf("Unhandled opcode: %v", opcode)
 		}
-		
+
 		// Store updated coin balance back to map
 		ab.CoinTypeBalances[coinType] = coinBalance
 	}
@@ -3602,25 +3602,25 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		ab, ok := accountBalances[thisAcct]
 		if !ok {
 			ab = &Balances{
-				Account: thisAcct,
+				Account:          thisAcct,
 				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
-		
+
 		// Extract coin type from unmined credit
 		coinType := fetchRawUnminedCreditCoinType(v)
-		
+
 		// Ensure coin type balance entry exists
 		if _, exists := ab.CoinTypeBalances[coinType]; !exists {
 			ab.CoinTypeBalances[coinType] = CoinBalance{
 				CoinType: coinType,
 			}
 		}
-		
+
 		// Get current coin type balance for modification
 		coinBalance := ab.CoinTypeBalances[coinType]
-		
+
 		// Skip ticket outputs, as only SSGen can spend these.
 		opcode := fetchRawUnminedCreditTagOpCode(v)
 
@@ -3684,7 +3684,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		default:
 			log.Warnf("Unhandled unconfirmed opcode %v: %v", opcode, v)
 		}
-		
+
 		// Store updated coin balance back to map
 		ab.CoinTypeBalances[coinType] = coinBalance
 	}
@@ -3735,7 +3735,7 @@ type CoinBalance struct {
 // categories. Extended to support multiple coin types while maintaining
 // backward compatibility with existing VAR-only operations.
 type Balances struct {
-	Account                 uint32
+	Account uint32
 	// VAR balance fields (maintained for backward compatibility)
 	ImmatureCoinbaseRewards dcrutil.Amount
 	ImmatureStakeGeneration dcrutil.Amount
@@ -3744,9 +3744,9 @@ type Balances struct {
 	Total                   dcrutil.Amount
 	VotingAuthority         dcrutil.Amount
 	Unconfirmed             dcrutil.Amount
-	
+
 	// Multi-coin support: breakdown by coin type
-	CoinTypeBalances        map[dcrutil.CoinType]CoinBalance
+	CoinTypeBalances map[dcrutil.CoinType]CoinBalance
 }
 
 // AccountBalance returns a Balances struct for some given account at

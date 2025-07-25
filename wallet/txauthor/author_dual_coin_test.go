@@ -54,30 +54,30 @@ func TestVARTransactionCreation(t *testing.T) {
 	// Create VAR inputs (CoinType = 0)
 	varUnspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e8)
 	varOutputs := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e6)
-	
+
 	relayFee := dcrutil.Amount(1e3)
 	inputSource := makeInputSourceWithCoinType(varUnspents)
 	changeSource := AuthorTestChangeSource{}
-	
+
 	// Create transaction
 	authoredTx, err := txauthor.NewUnsignedTransaction(varOutputs, relayFee, inputSource, changeSource, 100000)
 	if err != nil {
 		t.Fatalf("Failed to create VAR transaction: %v", err)
 	}
-	
+
 	// Verify transaction has fee (VAR transactions should have fees)
-	expectedFee := txrules.FeeForSerializeSize(relayFee, 
+	expectedFee := txrules.FeeForSerializeSize(relayFee,
 		txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, varOutputs, txsizes.P2PKHPkScriptSize))
-	
-	if authoredTx.TotalInput < dcrutil.Amount(1e6) + expectedFee {
-		t.Errorf("VAR transaction should include fees. Got total input %v, expected at least %v", 
-			authoredTx.TotalInput, dcrutil.Amount(1e6) + expectedFee)
+
+	if authoredTx.TotalInput < dcrutil.Amount(1e6)+expectedFee {
+		t.Errorf("VAR transaction should include fees. Got total input %v, expected at least %v",
+			authoredTx.TotalInput, dcrutil.Amount(1e6)+expectedFee)
 	}
-	
+
 	// Verify all outputs are VAR coin type
 	for i, out := range authoredTx.Tx.TxOut {
 		if out.CoinType != wire.CoinType(dcrutil.CoinTypeVAR) {
-			t.Errorf("Output %d has wrong coin type: got %v, want %v", 
+			t.Errorf("Output %d has wrong coin type: got %v, want %v",
 				i, out.CoinType, wire.CoinType(dcrutil.CoinTypeVAR))
 		}
 	}
@@ -87,42 +87,42 @@ func TestVARTransactionCreation(t *testing.T) {
 func TestSKATransactionCreation(t *testing.T) {
 	// Test different SKA coin types
 	skaTypes := []wire.CoinType{
-		wire.CoinType(dcrutil.CoinType(1)), // SKA-1
-		wire.CoinType(dcrutil.CoinType(2)), // SKA-2
+		wire.CoinType(dcrutil.CoinType(1)),   // SKA-1
+		wire.CoinType(dcrutil.CoinType(2)),   // SKA-2
 		wire.CoinType(dcrutil.CoinType(255)), // SKA-255
 	}
-	
+
 	for _, coinType := range skaTypes {
 		t.Run(string(rune(coinType)), func(t *testing.T) {
 			// Create SKA inputs and outputs with exact matching amounts
 			amount := dcrutil.Amount(1e6)
 			skaUnspents := p2pkhOutputsWithCoinType(coinType, amount)
 			skaOutputs := p2pkhOutputsWithCoinType(coinType, amount)
-			
+
 			relayFee := dcrutil.Amount(1e3) // Should be ignored for SKA
 			inputSource := makeInputSourceWithCoinType(skaUnspents)
 			changeSource := AuthorTestChangeSource{}
-			
+
 			// Create transaction
 			authoredTx, err := txauthor.NewUnsignedTransaction(skaOutputs, relayFee, inputSource, changeSource, 100000)
 			if err != nil {
 				t.Fatalf("Failed to create SKA transaction: %v", err)
 			}
-			
+
 			// Verify transaction has zero fees (inputs should exactly equal outputs for SKA)
 			if authoredTx.TotalInput != amount {
-				t.Errorf("SKA transaction should have zero fees. Got total input %v, expected %v", 
+				t.Errorf("SKA transaction should have zero fees. Got total input %v, expected %v",
 					authoredTx.TotalInput, amount)
 			}
-			
+
 			// Verify all outputs are correct SKA coin type
 			for i, out := range authoredTx.Tx.TxOut {
 				if out.CoinType != coinType {
-					t.Errorf("Output %d has wrong coin type: got %v, want %v", 
+					t.Errorf("Output %d has wrong coin type: got %v, want %v",
 						i, out.CoinType, coinType)
 				}
 			}
-			
+
 			// Verify no change output (exact matching for SKA)
 			if authoredTx.ChangeIndex != -1 {
 				t.Error("SKA transaction should not have change output when inputs exactly match outputs")
@@ -138,16 +138,16 @@ func TestMixedCoinRejection(t *testing.T) {
 		{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
 		{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinType(1))}, // SKA-1
 	}
-	
+
 	// Create inputs
 	unspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 2e6)
 	inputSource := makeInputSourceWithCoinType(unspents)
 	changeSource := AuthorTestChangeSource{}
 	relayFee := dcrutil.Amount(1e3)
-	
+
 	// This should work in txauthor (validation happens at higher level)
 	_, err := txauthor.NewUnsignedTransaction(mixedOutputs, relayFee, inputSource, changeSource, 100000)
-	
+
 	// Note: Mixed coin validation happens in wallet.NewUnsignedTransaction, not in txauthor
 	// This test verifies that txauthor itself can handle mixed outputs (validation is elsewhere)
 	if err != nil {
@@ -165,32 +165,32 @@ func TestDualCoinChangeOutput(t *testing.T) {
 		{"SKA-1 change", wire.CoinType(dcrutil.CoinType(1))},
 		{"SKA-2 change", wire.CoinType(dcrutil.CoinType(2))},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create transaction that will produce change
 			unspents := p2pkhOutputsWithCoinType(tc.coinType, 1e8) // Large input
 			outputs := p2pkhOutputsWithCoinType(tc.coinType, 1e6)  // Small output
-			
+
 			relayFee := dcrutil.Amount(1e3)
 			if tc.coinType != wire.CoinType(dcrutil.CoinTypeVAR) {
 				relayFee = 0 // SKA transactions have zero fees
 			}
-			
+
 			inputSource := makeInputSourceWithCoinType(unspents)
 			changeSource := AuthorTestChangeSource{}
-			
+
 			authoredTx, err := txauthor.NewUnsignedTransaction(outputs, relayFee, inputSource, changeSource, 100000)
 			if err != nil {
 				t.Fatalf("Failed to create transaction: %v", err)
 			}
-			
+
 			// Should have change output
 			if authoredTx.ChangeIndex == -1 {
 				t.Error("Expected change output but none was created")
 				return
 			}
-			
+
 			// Verify change output has correct coin type
 			changeOutput := authoredTx.Tx.TxOut[authoredTx.ChangeIndex]
 			if changeOutput.CoinType != tc.coinType {
@@ -206,24 +206,24 @@ func TestSKAZeroFeeValidation(t *testing.T) {
 	// Create SKA transaction with high relay fee (should be ignored)
 	skaUnspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinType(1)), 1e6)
 	skaOutputs := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinType(1)), 1e6)
-	
+
 	highRelayFee := dcrutil.Amount(1e5) // Very high fee that should be ignored
 	inputSource := makeInputSourceWithCoinType(skaUnspents)
 	changeSource := AuthorTestChangeSource{}
-	
+
 	authoredTx, err := txauthor.NewUnsignedTransaction(skaOutputs, highRelayFee, inputSource, changeSource, 100000)
 	if err != nil {
 		t.Fatalf("Failed to create SKA transaction: %v", err)
 	}
-	
+
 	// Verify transaction has zero effective fee (inputs = outputs exactly)
 	totalOutputValue := dcrutil.Amount(0)
 	for _, out := range authoredTx.Tx.TxOut {
 		totalOutputValue += dcrutil.Amount(out.Value)
 	}
-	
+
 	if authoredTx.TotalInput != totalOutputValue {
-		t.Errorf("SKA transaction should have zero fees. Input: %v, Output total: %v", 
+		t.Errorf("SKA transaction should have zero fees. Input: %v, Output total: %v",
 			authoredTx.TotalInput, totalOutputValue)
 	}
 }
@@ -232,11 +232,11 @@ func TestSKAZeroFeeValidation(t *testing.T) {
 func TestEmptyOutputsHandling(t *testing.T) {
 	unspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e6)
 	emptyOutputs := []*wire.TxOut{} // No outputs
-	
+
 	inputSource := makeInputSourceWithCoinType(unspents)
 	changeSource := AuthorTestChangeSource{}
 	relayFee := dcrutil.Amount(1e3)
-	
+
 	_, err := txauthor.NewUnsignedTransaction(emptyOutputs, relayFee, inputSource, changeSource, 100000)
 	// Note: Empty outputs might be allowed at txauthor level - validation happens elsewhere
 	// This test just verifies the behavior is consistent

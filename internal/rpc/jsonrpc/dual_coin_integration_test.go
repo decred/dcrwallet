@@ -30,40 +30,40 @@ func testWalletConfig() *wallet.Config {
 // setupTestWallet creates a test wallet with some initial state
 func setupTestWallet(ctx context.Context, t *testing.T) (*wallet.Wallet, func()) {
 	cfg := testWalletConfig()
-	
+
 	f, err := os.CreateTemp(t.TempDir(), "dcrwallet.integtest")
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
-	
+
 	db, err := wallet.CreateDB("bdb", f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	cleanup := func() {
 		db.Close()
 		os.Remove(f.Name())
 	}
-	
+
 	// Use test seed for reproducible testing
 	seed := []byte("test seed for dual coin integration testing")
-	
-	err = wallet.Create(ctx, db, []byte(wallet.InsecurePubPassphrase), 
+
+	err = wallet.Create(ctx, db, []byte(wallet.InsecurePubPassphrase),
 		[]byte("testpass"), seed, cfg.Params)
 	if err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
-	
+
 	cfg.DB = db
 	w, err := wallet.Open(ctx, cfg)
 	if err != nil {
 		cleanup()
 		t.Fatal(err)
 	}
-	
+
 	return w, cleanup
 }
 
@@ -80,7 +80,7 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 	ctx := context.Background()
 	w, cleanup := setupTestRPCHandler(ctx, t)
 	defer cleanup()
-	
+
 	// Unlock wallet for testing
 	timeout := make(chan time.Time, 1)
 	timeout <- time.Now().Add(time.Second * 30)
@@ -88,10 +88,10 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unlock wallet: %v", err)
 	}
-	
+
 	// Test that we can call the wallet methods directly
 	// This simulates what the RPC methods would do internally
-	
+
 	tests := []struct {
 		name     string
 		coinType uint8
@@ -117,7 +117,7 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 			wantErr:  true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test basic validation
@@ -127,7 +127,7 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 				}
 				return
 			}
-			
+
 			// Test wallet balance retrieval
 			// This tests the core functionality without full RPC layer
 			balance, err := w.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(tt.coinType), tt.minConf)
@@ -135,13 +135,13 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 				t.Errorf("Unexpected error getting balance: %v", err)
 				return
 			}
-			
+
 			if !tt.wantErr {
 				// Balance should be non-negative (0 for empty test wallet)
 				if balance.Spendable < 0 {
 					t.Error("Balance should be non-negative")
 				}
-				
+
 				t.Logf("Coin type %d balance: %v", tt.coinType, balance.Spendable)
 			}
 		})
@@ -153,7 +153,7 @@ func TestListCoinTypesIntegration(t *testing.T) {
 	ctx := context.Background()
 	w, cleanup := setupTestRPCHandler(ctx, t)
 	defer cleanup()
-	
+
 	// Unlock wallet for testing
 	timeout := make(chan time.Time, 1)
 	timeout <- time.Now().Add(time.Second * 30)
@@ -161,7 +161,7 @@ func TestListCoinTypesIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unlock wallet: %v", err)
 	}
-	
+
 	// Test coin type listing functionality
 	tests := []struct {
 		name    string
@@ -184,7 +184,7 @@ func TestListCoinTypesIntegration(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test basic validation
@@ -194,17 +194,17 @@ func TestListCoinTypesIntegration(t *testing.T) {
 				}
 				return
 			}
-			
+
 			// Test that we can list balances for different coin types
 			coinTypes := []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1), dcrutil.CoinType(2)}
-			
+
 			for _, coinType := range coinTypes {
 				balance, err := w.AccountBalanceByCoinType(ctx, 0, coinType, tt.minConf)
 				if err != nil && !tt.wantErr {
 					t.Errorf("Unexpected error getting balance for coin type %d: %v", coinType, err)
 					return
 				}
-				
+
 				if !tt.wantErr {
 					// Verify coin type name formatting
 					var expectedName string
@@ -213,9 +213,9 @@ func TestListCoinTypesIntegration(t *testing.T) {
 					} else {
 						expectedName = fmt.Sprintf("SKA-%d", coinType)
 					}
-					
+
 					t.Logf("Coin type %d (%s) balance: %v", coinType, expectedName, balance.Spendable)
-					
+
 					// Balance should be non-negative
 					if balance.Spendable < 0 {
 						t.Errorf("Balance for coin type %d should be non-negative", coinType)
@@ -231,7 +231,7 @@ func TestDualCoinRPCMethodsBasic(t *testing.T) {
 	ctx := context.Background()
 	w, cleanup := setupTestRPCHandler(ctx, t)
 	defer cleanup()
-	
+
 	// Unlock wallet for testing
 	timeout := make(chan time.Time, 1)
 	timeout <- time.Now().Add(time.Second * 30)
@@ -239,7 +239,7 @@ func TestDualCoinRPCMethodsBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to unlock wallet: %v", err)
 	}
-	
+
 	t.Run("basic dual coin functionality", func(t *testing.T) {
 		// Test that wallet supports multiple coin types
 		coinTypes := []dcrutil.CoinType{
@@ -248,22 +248,22 @@ func TestDualCoinRPCMethodsBasic(t *testing.T) {
 			dcrutil.CoinType(2),
 			dcrutil.CoinType(255),
 		}
-		
+
 		for _, coinType := range coinTypes {
 			balance, err := w.AccountBalanceByCoinType(ctx, 0, coinType, 1)
 			if err != nil {
 				t.Errorf("Failed to get balance for coin type %d: %v", coinType, err)
 				continue
 			}
-			
+
 			// All coin types should return valid (non-negative) balances
 			if balance.Spendable < 0 {
 				t.Errorf("Coin type %d returned negative balance: %v", coinType, balance.Spendable)
 			}
-			
+
 			t.Logf("Coin type %d balance: %v", coinType, balance.Spendable)
 		}
-		
+
 		// Test account balances by coin type
 		accounts := []uint32{0, 1} // default account and account 1
 		for _, account := range accounts {
@@ -274,7 +274,7 @@ func TestDualCoinRPCMethodsBasic(t *testing.T) {
 					t.Logf("Account %d, coin type %d: %v (expected for new wallet)", account, coinType, err)
 					continue
 				}
-				
+
 				t.Logf("Account %d, coin type %d balance: %v", account, coinType, balance.Spendable)
 			}
 		}

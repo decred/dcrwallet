@@ -730,7 +730,7 @@ const (
 	// creditValueSize is the total size of a credit value in bytes.
 	// Updated for dual-coin support to add 1 byte for CoinType.
 	creditValueSize = 95
-	
+
 	// coinTypeBytePosition is the byte position within the credit value
 	// where the CoinType is stored (VAR=0, SKA=1-255).
 	coinTypeBytePosition = 94
@@ -794,7 +794,7 @@ func valueUnspentCredit(cred *credit, scrType scriptType, scrLoc uint32,
 	}
 
 	v[coinTypeBytePosition] = byte(cred.coinType) // Store CoinType at end of record
-	
+
 	v[81] = byte(scrType)
 	v[81] |= accountExistsMask
 	byteOrder.PutUint32(v[82:86], scrLoc)
@@ -917,16 +917,16 @@ func fetchRawCreditCoinType(v []byte) dcrutil.CoinType {
 	if len(v) < creditValueSize { // Need full credit size to read CoinType
 		return dcrutil.CoinTypeVAR // Default to VAR for older credits
 	}
-	
+
 	coinType := dcrutil.CoinType(v[coinTypeBytePosition]) // Read CoinType from end of record
-	
+
 	// Validate coin type range - corrupted data could have invalid values
 	if coinType > 255 {
 		// Log warning but return VAR as safe fallback for corrupted data
 		// TODO: Consider adding proper logging infrastructure
 		return dcrutil.CoinTypeVAR
 	}
-	
+
 	return coinType
 }
 
@@ -1590,7 +1590,7 @@ func fetchRawUnminedCreditAccount(v []byte) (uint32, error) {
 }
 
 // fetchRawUnminedCreditCoinType returns the CoinType for an unmined credit.
-// For backward compatibility, defaults to VAR (0) since unmined credits 
+// For backward compatibility, defaults to VAR (0) since unmined credits
 // currently don't store coin type (this will be enhanced in future versions).
 func fetchRawUnminedCreditCoinType(v []byte) dcrutil.CoinType {
 	// TODO: In future versions, we should extend unmined credit structure

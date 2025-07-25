@@ -76,7 +76,7 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 			}
 
 			// Filter by coin type if specified in policy
-			if policy.CoinType != nil && dcrutil.CoinType(output.CoinType) != *policy.CoinType {
+			if policy.CoinType != nil && output.CoinType != *policy.CoinType {
 				continue
 			}
 

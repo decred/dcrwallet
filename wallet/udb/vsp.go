@@ -126,7 +126,7 @@ func GetVSPTicketsByFeeStatus(dbtx walletdb.ReadTx, feeStatus int) (map[chainhas
 		ticket := deserializeVSPTicket(v)
 		if int(ticket.FeeTxStatus) == feeStatus {
 			var hash chainhash.Hash
-			hash.SetBytes(k)
+			_ = hash.SetBytes(k)
 			tickets[hash] = ticket
 		}
 		return nil

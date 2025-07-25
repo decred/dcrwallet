@@ -92,7 +92,7 @@ func TestCreditSerialization(t *testing.T) {
 	t.Run("backward compatibility", func(t *testing.T) {
 		// Old serialized data (less than 10 bytes)
 		oldData := make([]byte, 9)
-		
+
 		// Should default to VAR
 		gotCoinType := fetchRawCreditCoinType(oldData)
 		if gotCoinType != dcrutil.CoinTypeVAR {

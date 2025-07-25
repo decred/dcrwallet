@@ -242,7 +242,7 @@ func Update(ctx context.Context, db DB, f func(tx ReadWriteTx) error) (err error
 	panicked := true
 	defer func() {
 		if panicked || err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return
 		}
 

@@ -100,13 +100,13 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	}
 	changeScriptSize := fetchChange.ScriptSize()
 	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
-	
+
 	// Dual-coin fee logic: Detect coin type from outputs
 	var isSKATransaction bool
 	if len(outputs) > 0 {
 		isSKATransaction = dcrutil.CoinType(outputs[0].CoinType) != dcrutil.CoinTypeVAR
 	}
-	
+
 	// SKA transactions have zero fees, VAR transactions use normal fees
 	var targetFee dcrutil.Amount
 	if isSKATransaction {
@@ -129,7 +129,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		scriptSizes = append(scriptSizes, inputDetail.RedeemScriptSizes...)
 
 		maxSignedSize = txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
-		
+
 		// Calculate fee based on coin type
 		var maxRequiredFee dcrutil.Amount
 		if isSKATransaction {
@@ -137,7 +137,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		} else {
 			maxRequiredFee = txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 		}
-		
+
 		remainingAmount := inputDetail.Amount - targetAmount
 		if remainingAmount < maxRequiredFee {
 			targetFee = maxRequiredFee
@@ -158,26 +158,26 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		}
 		changeIndex := -1
 		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
-		
+
 		// For dust amount check, use appropriate fee rate based on coin type
 		dustFeeRate := relayFeePerKb
 		if isSKATransaction {
 			dustFeeRate = 0 // SKA transactions don't use fees for dust calculation
 		}
-		
+
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
 			changeScriptSize, dustFeeRate) {
 			if len(changeScript) > txscript.MaxScriptElementSize {
 				return nil, errors.E(errors.Invalid, "script size exceed maximum bytes "+
 					"pushable to the stack")
 			}
-			
+
 			// Set the coin type for the change output to match the transaction
 			var changeCoinType wire.CoinType = wire.CoinType(dcrutil.CoinTypeVAR) // Default to VAR
 			if len(outputs) > 0 {
 				changeCoinType = outputs[0].CoinType
 			}
-			
+
 			change := &wire.TxOut{
 				Value:    int64(changeAmount),
 				Version:  changeScriptVersion,

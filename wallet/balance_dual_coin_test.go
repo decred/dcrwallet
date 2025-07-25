@@ -75,9 +75,9 @@ func TestCoinBalanceStructure(t *testing.T) {
 // TestBalancesStructureMultiCoin tests the extended Balances struct
 func TestBalancesStructureMultiCoin(t *testing.T) {
 	balance := udb.Balances{
-		Account:     0,
-		Spendable:   1e8, // VAR balance for backward compatibility
-		Total:       1e8,
+		Account:          0,
+		Spendable:        1e8, // VAR balance for backward compatibility
+		Total:            1e8,
 		CoinTypeBalances: make(map[dcrutil.CoinType]udb.CoinBalance),
 	}
 
@@ -135,7 +135,7 @@ func TestAccountBalanceNotificationStructure(t *testing.T) {
 
 	// Test backward compatibility
 	if accountBalance.TotalBalance != 1e8 {
-		t.Errorf("Legacy total balance: got %v, want %v", 
+		t.Errorf("Legacy total balance: got %v, want %v",
 			accountBalance.TotalBalance, 1e8)
 	}
 
@@ -178,7 +178,7 @@ func TestFlattenBalanceMapBackwardCompatibility(t *testing.T) {
 
 	for _, accountBalance := range flattened {
 		expectedAmount := legacyBalanceMap[accountBalance.Account]
-		
+
 		// Check legacy total balance
 		if accountBalance.TotalBalance != expectedAmount {
 			t.Errorf("Account %d total balance: got %v, want %v",
@@ -219,7 +219,7 @@ func TestMultiCoinBalanceMapFlattening(t *testing.T) {
 			t.Errorf("Account 0 total balance (VAR): got %v, want %v",
 				account0.TotalBalance, 1e8)
 		}
-		
+
 		if len(account0.CoinTypeBalances) != 2 {
 			t.Errorf("Account 0: expected 2 coin types, got %d",
 				len(account0.CoinTypeBalances))
@@ -259,23 +259,23 @@ func TestCoinTypeIsolationInBalances(t *testing.T) {
 	if varBalance.Total != 1e8 {
 		t.Errorf("VAR total should be isolated: got %v, want %v", varBalance.Total, 1e8)
 	}
-	
+
 	if ska1Balance.Total != 5e7 {
 		t.Errorf("SKA-1 total should be isolated: got %v, want %v", ska1Balance.Total, 5e7)
 	}
-	
+
 	if ska255Balance.Total != 1e6 {
 		t.Errorf("SKA-255 total should be isolated: got %v, want %v", ska255Balance.Total, 1e6)
 	}
 
 	// Verify coin types are correctly set
 	if varBalance.CoinType != dcrutil.CoinTypeVAR {
-		t.Errorf("VAR coin type mismatch: got %v, want %v", 
+		t.Errorf("VAR coin type mismatch: got %v, want %v",
 			varBalance.CoinType, dcrutil.CoinTypeVAR)
 	}
-	
+
 	if ska1Balance.CoinType != dcrutil.CoinType(1) {
-		t.Errorf("SKA-1 coin type mismatch: got %v, want %v", 
+		t.Errorf("SKA-1 coin type mismatch: got %v, want %v",
 			ska1Balance.CoinType, dcrutil.CoinType(1))
 	}
 }
@@ -284,15 +284,15 @@ func TestCoinTypeIsolationInBalances(t *testing.T) {
 func TestUnminedCreditCoinTypeDefaulting(t *testing.T) {
 	// This tests the fetchRawUnminedCreditCoinType function
 	// Since unmined credits don't store coin type yet, it should default to VAR
-	
+
 	// The function should return VAR (0) by default
 	// Note: This function is internal to udb package, so we test the expected behavior
 	// In the actual implementation, it defaults to VAR
 	expectedCoinType := dcrutil.CoinTypeVAR
-	
+
 	// This test documents the expected behavior - unmined credits default to VAR
 	t.Logf("Unmined credits should default to coin type VAR (%v)", expectedCoinType)
-	
+
 	// Verify our expectation
 	if expectedCoinType != dcrutil.CoinTypeVAR {
 		t.Errorf("Expected unmined credit default coin type to be VAR (%v), got %v",
@@ -305,8 +305,8 @@ func TestBalanceBackwardCompatibility(t *testing.T) {
 	// Create a balance with both legacy and new fields populated
 	balance := udb.Balances{
 		Account:   0,
-		Spendable: 1e8,  // Legacy VAR balance
-		Total:     1e8,  // Legacy VAR total
+		Spendable: 1e8, // Legacy VAR balance
+		Total:     1e8, // Legacy VAR total
 		CoinTypeBalances: map[dcrutil.CoinType]udb.CoinBalance{
 			dcrutil.CoinTypeVAR: {
 				CoinType:  dcrutil.CoinTypeVAR,
@@ -323,12 +323,12 @@ func TestBalanceBackwardCompatibility(t *testing.T) {
 
 	// Legacy fields should match VAR coin balance
 	varBalance := balance.CoinTypeBalances[dcrutil.CoinTypeVAR]
-	
+
 	if balance.Spendable != varBalance.Spendable {
 		t.Errorf("Legacy spendable should match VAR coin balance: legacy=%v, var=%v",
 			balance.Spendable, varBalance.Spendable)
 	}
-	
+
 	if balance.Total != varBalance.Total {
 		t.Errorf("Legacy total should match VAR coin balance: legacy=%v, var=%v",
 			balance.Total, varBalance.Total)

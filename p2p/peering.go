@@ -238,7 +238,7 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, c net.Conn) (*wire.MsgVersion, e
 		return nil, err
 	}
 	v := wire.NewMsgVersion(la, ra, nonce, 0)
-	v.AddUserAgent(uaName, uaVersion)
+	_ = v.AddUserAgent(uaName, uaVersion)
 	v.ProtocolVersion = int32(pver)
 	v.DisableRelayTx = lp.disableRelayTx
 	return v, nil
@@ -300,7 +300,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	}
 
 	// Mark this as a good address.
-	lp.amgr.Good(na)
+	_ = lp.amgr.Good(na)
 
 	if lp.amgr.NeedMoreAddresses() {
 		err = rp.Addrs(ctx)
@@ -604,7 +604,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 	rp.initHeight = rversion.LastBlock
 	rp.services = rversion.Services
 	rp.ua = rversion.UserAgent
-	c.SetReadDeadline(time.Time{})
+	_ = c.SetReadDeadline(time.Time{})
 
 	// Negotiate protocol down to compatible version
 	if uint32(rversion.ProtocolVersion) < minPver {
@@ -630,7 +630,7 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 	na *addrmgr.NetAddress) (*RemotePeer, error) {
 
 	// Mark the connection attempt.
-	lp.amgr.Attempt(na)
+	_ = lp.amgr.Attempt(na)
 
 	// Dial with a timeout of 10 seconds.
 	dialCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
@@ -640,7 +640,7 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 		return nil, err
 	}
 
-	lp.amgr.Connected(na)
+	_ = lp.amgr.Connected(na)
 
 	// Handshake with a timeout of 5s.
 	handshakeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

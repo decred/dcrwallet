@@ -76,6 +76,14 @@ var helpDescsEnUS = map[string]string{
 		"The wallet must be unlocked for this request to succeed.",
 	"createnewaccount-account": "Name of the new account",
 
+	// CreateAuthorizedEmissionCmd help.
+	"createauthorizedemission--synopsis": "Creates a cryptographically authorized SKA emission transaction using governance-defined parameters.\n" +
+		"The wallet must be unlocked for this request to succeed.",
+	"createauthorizedemission-cointype":        "SKA coin type to emit (1-255)",
+	"createauthorizedemission-emissionkeyname": "Name of the imported emission private key",
+	"createauthorizedemission-passphrase":      "Wallet passphrase for key access",
+	"createauthorizedemission--result0":        "Hex-encoded bytes of the signed emission transaction",
+
 	// CreateRawTransactionCmd help.
 	"createrawtransaction--synopsis": "Returns a new transaction spending the provided inputs and sending to the provided addresses.\n" +
 		"The transaction inputs are not signed in the created transaction.\n" +
@@ -135,6 +143,14 @@ var helpDescsEnUS = map[string]string{
 	"fundrawtransactionoptions-changeaddress": "Provide a change address rather than deriving one from the funding account",
 	"fundrawtransactionresult-hex":            "Funded transaction in hex encoding",
 	"fundrawtransactionresult-fee":            "Absolute fee of funded transaction",
+
+	// GenerateEmissionKeyCmd help.
+	"generateemissionkey--synopsis": "Generates a new private key for SKA emission authorization.\n" +
+		"The wallet must be unlocked for this request to succeed.",
+	"generateemissionkey-keyname":    "Unique identifier for this emission key",
+	"generateemissionkey-passphrase": "Wallet passphrase for key generation",
+	"generateemissionkey-cointype":   "Optional SKA coin type (1-255) for organization",
+	"generateemissionkey--result0":   "The public key corresponding to the generated private key",
 
 	// GetAccountAddressCmd help.
 	"getaccountaddress--synopsis": "DEPRECATED -- Returns the most recent external payment address for an account that has not been seen publicly.\n" +
@@ -540,6 +556,15 @@ var helpDescsEnUS = map[string]string{
 	"importcfiltersv2--synopsis":   "Imports a list of v2 cfilters into the wallet. Does not perform validation on the filters",
 	"importcfiltersv2-startheight": "The starting block height for this list of cfilters",
 	"importcfiltersv2-filters":     "The list of hex-encoded cfilters",
+
+	// ImportEmissionKeyCmd help.
+	"importemissionkey--synopsis": "Imports a private key for SKA emission authorization (emergency/recovery only).\n" +
+		"The wallet must be unlocked for this request to succeed.",
+	"importemissionkey-keyname":    "Unique identifier for this emission key",
+	"importemissionkey-privatekey": "Hex-encoded secp256k1 private key or encrypted format",
+	"importemissionkey-passphrase": "Wallet passphrase for key encryption",
+	"importemissionkey-cointype":   "Optional SKA coin type (1-255) for organization",
+	"importemissionkey--result0":   "The public key corresponding to the imported private key",
 
 	// ImportPrivKeyCmd help.
 	"importprivkey--synopsis": "Imports a WIF-encoded private key to the 'imported' account.",

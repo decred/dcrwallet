@@ -115,7 +115,7 @@ func TestCreditCoinTypeSeparation(t *testing.T) {
 		t.Errorf("VAR total = %v, want %v", varTotal, expectedVarTotal)
 	}
 
-	// Validate SKA total  
+	// Validate SKA total
 	skaTotal := dcrutil.Amount(0)
 	for _, credit := range skaCredits {
 		skaTotal += credit.Amount
@@ -137,8 +137,8 @@ func TestNewCreditRecord(t *testing.T) {
 				PkScript: []byte{0x76, 0xa9, 0x14}, // Mock P2PKH script
 			},
 			{
-				Value:    int64(200000000), 
-				CoinType: wire.CoinType(1), // SKA-1
+				Value:    int64(200000000),
+				CoinType: wire.CoinType(1),   // SKA-1
 				PkScript: []byte{0xa9, 0x14}, // Mock P2SH script
 			},
 		},
@@ -154,7 +154,7 @@ func TestNewCreditRecord(t *testing.T) {
 	for index, expectedCoinType := range []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)} {
 		// This simulates what happens in newCreditRecord function
 		extractedCoinType := dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType)
-		
+
 		if extractedCoinType != expectedCoinType {
 			t.Errorf("Output %d: extracted CoinType = %v, want %v", index, extractedCoinType, expectedCoinType)
 		}
@@ -210,7 +210,7 @@ func TestCreditDatabaseIntegration(t *testing.T) {
 
 			// Test fetchRawCreditCoinType deserialization
 			deserializedCoinType := fetchRawCreditCoinType(serialized)
-			
+
 			if deserializedCoinType != tc.coinType {
 				t.Errorf("Serialization round-trip failed: got %v, want %v", deserializedCoinType, tc.coinType)
 			}
@@ -236,7 +236,7 @@ func TestDualCoinTransactionValidation(t *testing.T) {
 			description: "All VAR inputs and outputs",
 		},
 		{
-			name:        "pure SKA-1 transaction", 
+			name:        "pure SKA-1 transaction",
 			inputTypes:  []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(1)},
 			outputTypes: []dcrutil.CoinType{dcrutil.CoinType(1)},
 			valid:       true,
@@ -262,7 +262,7 @@ func TestDualCoinTransactionValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Simulate transaction validation logic
 			valid := validateCoinTypeSeparation(tt.inputTypes, tt.outputTypes)
-			
+
 			if valid != tt.valid {
 				t.Errorf("Transaction validation = %v, want %v for %s", valid, tt.valid, tt.description)
 			}
