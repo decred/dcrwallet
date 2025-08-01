@@ -449,6 +449,7 @@ var helpDescsEnUS = map[string]string{
 	"getreceivedbyaddress--synopsis": "Returns the total amount received by a single address, including spent outputs.",
 	"getreceivedbyaddress-address":   "Payment address which received outputs to include in total",
 	"getreceivedbyaddress-minconf":   "Minimum number of block confirmations required before an output's value is included in the total",
+	"getreceivedbyaddress-cointype":  "Coin type to filter results (0=VAR, 1-255=SKA coin types)",
 	"getreceivedbyaddress--result0":  "The total received amount valued in decred",
 
 	// GetStakeInfo help.
@@ -528,6 +529,7 @@ var helpDescsEnUS = map[string]string{
 
 	// GetWalletFeeCmd help.
 	"getwalletfee--synopsis": "Get currently set transaction fee for the wallet",
+	"getwalletfee-cointype":  "Coin type to get fee for (0=VAR, 1-255=SKA coin types)",
 	"getwalletfee--result0":  "Current tx fee (in DCR)",
 
 	// HelpCmd help.
@@ -905,6 +907,7 @@ var helpDescsEnUS = map[string]string{
 	// SetTxFeeCmd help.
 	"settxfee--synopsis": "Modify the fee per kB of the serialized tx size used each time more fee is required for an authored transaction.",
 	"settxfee-amount":    "The new fee per kB of the serialized tx size valued in decred",
+	"settxfee-cointype":  "Coin type to set fee for (0=VAR, 1-255=SKA coin types)",
 	"settxfee--result0":  "The boolean 'true'",
 
 	// SetVoteChoice help.

@@ -3085,12 +3085,26 @@ func (s *Server) getVoteChoices(ctx context.Context, icmd any) (any, error) {
 
 // getWalletFee returns the currently set tx fee for the requested wallet
 func (s *Server) getWalletFee(ctx context.Context, icmd any) (any, error) {
+	cmd := icmd.(*types.GetWalletFeeCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
 		return nil, errUnloadedWallet
 	}
 
-	return w.RelayFee().ToCoin(), nil
+	// Default to VAR (coin type 0) if not specified
+	coinType := 0
+	if cmd.CoinType != nil {
+		coinType = *cmd.CoinType
+	}
+
+	// Return appropriate fee based on coin type
+	switch dcrutil.CoinType(coinType) {
+	case dcrutil.CoinTypeVAR:
+		return w.RelayFee().ToCoin(), nil
+	default:
+		// SKA or other coin types
+		return w.SKARelayFee().ToCoin(), nil
+	}
 }
 
 // These generators create the following global variables in this package:
@@ -5043,7 +5057,21 @@ func (s *Server) setTxFee(ctx context.Context, icmd any) (any, error) {
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
 	}
-	w.SetRelayFee(relayFee)
+
+	// Default to VAR (coin type 0) if not specified
+	coinType := 0
+	if cmd.CoinType != nil {
+		coinType = *cmd.CoinType
+	}
+
+	// Set appropriate fee based on coin type
+	switch dcrutil.CoinType(coinType) {
+	case dcrutil.CoinTypeVAR:
+		w.SetRelayFee(relayFee)
+	default:
+		// SKA or other coin types
+		w.SetSKARelayFee(relayFee)
+	}
 
 	// A boolean true result is returned upon success.
 	return true, nil

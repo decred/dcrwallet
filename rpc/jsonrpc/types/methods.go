@@ -552,12 +552,22 @@ func NewGetVoteChoicesCmd(tickethash *string) *GetVoteChoicesCmd {
 }
 
 // GetWalletFeeCmd defines the getwalletfee JSON-RPC command.
-type GetWalletFeeCmd struct{}
+type GetWalletFeeCmd struct {
+	CoinType *int `jsonrpcdefault:"0"`
+}
 
 // NewGetWalletFeeCmd returns a new instance which can be used to issue a
 // getwalletfee JSON-RPC command.
 func NewGetWalletFeeCmd() *GetWalletFeeCmd {
 	return &GetWalletFeeCmd{}
+}
+
+// NewGetWalletFeeCmdWithCoinType returns a new instance which can be used to issue a
+// getwalletfee JSON-RPC command with a specific coin type.
+func NewGetWalletFeeCmdWithCoinType(coinType int) *GetWalletFeeCmd {
+	return &GetWalletFeeCmd{
+		CoinType: &coinType,
+	}
 }
 
 // ImportPrivKeyCmd defines the importprivkey JSON-RPC command.
@@ -1114,7 +1124,8 @@ func NewSetTSpendPolicyCmd(hash string, policy string, ticket *string) *SetTSpen
 
 // SetTxFeeCmd defines the settxfee JSON-RPC command.
 type SetTxFeeCmd struct {
-	Amount float64 // In DCR
+	Amount   float64 // In DCR
+	CoinType *int    `jsonrpcdefault:"0"`
 }
 
 // NewSetTxFeeCmd returns a new instance which can be used to issue a settxfee
@@ -1122,6 +1133,15 @@ type SetTxFeeCmd struct {
 func NewSetTxFeeCmd(amount float64) *SetTxFeeCmd {
 	return &SetTxFeeCmd{
 		Amount: amount,
+	}
+}
+
+// NewSetTxFeeCmdWithCoinType returns a new instance which can be used to issue a
+// settxfee JSON-RPC command with a specific coin type.
+func NewSetTxFeeCmdWithCoinType(amount float64, coinType int) *SetTxFeeCmd {
+	return &SetTxFeeCmd{
+		Amount:   amount,
+		CoinType: &coinType,
 	}
 }
 

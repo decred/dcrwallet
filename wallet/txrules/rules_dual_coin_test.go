@@ -32,14 +32,14 @@ func TestFeeForSerializeSizeDualCoin(t *testing.T) {
 		{
 			name:        "SKA-1 transaction",
 			coinType:    dcrutil.CoinType(1),
-			expectedFee: 0, // Zero fee
-			description: "SKA transactions should have zero fees",
+			expectedFee: txrules.FeeForSerializeSize(relayFeePerKb, txSize), // Same calculation as VAR
+			description: "SKA-1 transactions pay fees in SKA-1 coins using same calculation",
 		},
 		{
 			name:        "SKA-255 transaction",
 			coinType:    dcrutil.CoinType(255),
-			expectedFee: 0, // Zero fee
-			description: "All SKA types should have zero fees",
+			expectedFee: txrules.FeeForSerializeSize(relayFeePerKb, txSize), // Same calculation as VAR
+			description: "SKA-255 transactions pay fees in SKA-255 coins using same calculation",
 		},
 	}
 
@@ -88,7 +88,7 @@ func TestIsDustAmountDualCoin(t *testing.T) {
 			expectedDust: true,
 			description:  "Zero VAR amount should be dust",
 		},
-		// SKA tests - simplified dust logic (only check > 0)
+		// SKA tests - same dust logic as VAR since SKA also pays fees
 		{
 			name:         "SKA normal amount",
 			amount:       dcrutil.Amount(1e6),
@@ -98,10 +98,10 @@ func TestIsDustAmountDualCoin(t *testing.T) {
 		},
 		{
 			name:         "SKA small amount",
-			amount:       dcrutil.Amount(1), // Would be dust for VAR but not SKA
+			amount:       dcrutil.Amount(1), // Should be dust for SKA same as VAR
 			coinType:     dcrutil.CoinType(1),
-			expectedDust: false,
-			description:  "Small SKA amount should not be dust (no fee-based dust)",
+			expectedDust: true,
+			description:  "Small SKA amount should be dust (same fee-based dust as VAR)",
 		},
 		{
 			name:         "SKA zero amount",
@@ -176,12 +176,12 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 		{
 			name: "SKA small output",
 			output: &wire.TxOut{
-				Value:    int64(1), // Would be dust for VAR
+				Value:    int64(1), // Should be dust for SKA same as VAR
 				CoinType: wire.CoinType(dcrutil.CoinType(1)),
 				PkScript: make([]byte, scriptSize),
 			},
-			expectedDust: false,
-			description:  "Small SKA output should not be dust (no fee-based dust)",
+			expectedDust: true,
+			description:  "Small SKA output should be dust (same fee-based dust as VAR)",
 		},
 		{
 			name: "SKA zero output",
@@ -232,8 +232,8 @@ func TestVARFeeCalculation(t *testing.T) {
 	}
 }
 
-// TestSKANoFeeLogic verifies SKA has no fee requirements
-func TestSKANoFeeLogic(t *testing.T) {
+// TestSKAFeeLogic verifies SKA transactions pay fees in their own coin type
+func TestSKAFeeLogic(t *testing.T) {
 	relayFeePerKb := dcrutil.Amount(1e4) // High fee rate
 
 	skaTypes := []dcrutil.CoinType{
@@ -250,10 +250,15 @@ func TestSKANoFeeLogic(t *testing.T) {
 			t.Run(string(rune(coinType))+"/size"+string(rune(size)), func(t *testing.T) {
 				fee := txrules.FeeForSerializeSizeDualCoin(relayFeePerKb, size, coinType)
 
-				// SKA should always have zero fees regardless of size or relay fee
-				if fee != 0 {
-					t.Errorf("SKA-%d fee should be zero for size %d, got %v",
-						coinType, size, fee)
+				// SKA should pay fees just like VAR (fee is paid in the same coin type as transaction)
+				expectedFee := relayFeePerKb * dcrutil.Amount(size) / 1000
+				if expectedFee == 0 && relayFeePerKb > 0 {
+					expectedFee = relayFeePerKb
+				}
+				
+				if fee != expectedFee {
+					t.Errorf("SKA-%d fee should be %v for size %d, got %v",
+						coinType, expectedFee, size, fee)
 				}
 			})
 		}
@@ -285,8 +290,8 @@ func TestDustEdgeCases(t *testing.T) {
 			amount:       dcrutil.Amount(1000),
 			scriptSize:   1000, // Very large script
 			coinType:     dcrutil.CoinType(1),
-			expectedDust: false, // SKA ignores script size for dust
-			description:  "SKA with large script should not be dust",
+			expectedDust: true, // SKA should have same dust logic as VAR
+			description:  "SKA with large script should be dust due to high cost (same as VAR)",
 		},
 		{
 			name:         "Zero relay fee VAR",

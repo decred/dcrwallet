@@ -138,6 +138,8 @@ type Wallet struct {
 
 	relayFee                   dcrutil.Amount
 	relayFeeMu                 sync.Mutex
+	skaRelayFee                dcrutil.Amount
+	skaRelayFeeMu              sync.Mutex
 	allowHighFees              bool
 	disableCoinTypeUpgrades    bool
 	recentlyPublished          map[chainhash.Hash]struct{}
@@ -777,6 +779,31 @@ func (w *Wallet) SetRelayFee(relayFee dcrutil.Amount) {
 	w.relayFeeMu.Lock()
 	w.relayFee = relayFee
 	w.relayFeeMu.Unlock()
+}
+
+// SKARelayFee returns the current minimum relay fee (per kB of serialized
+// transaction) used when constructing SKA transactions.
+func (w *Wallet) SKARelayFee() dcrutil.Amount {
+	w.skaRelayFeeMu.Lock()
+	skaRelayFee := w.skaRelayFee
+	w.skaRelayFeeMu.Unlock()
+	return skaRelayFee
+}
+
+// SetSKARelayFee sets a new minimum relay fee (per kB of serialized
+// transaction) used when constructing SKA transactions.
+func (w *Wallet) SetSKARelayFee(skaRelayFee dcrutil.Amount) {
+	w.skaRelayFeeMu.Lock()
+	w.skaRelayFee = skaRelayFee
+	w.skaRelayFeeMu.Unlock()
+}
+
+// RelayFeeForCoinType returns the appropriate relay fee for the specified coin type.
+func (w *Wallet) RelayFeeForCoinType(coinType dcrutil.CoinType) dcrutil.Amount {
+	if coinType == dcrutil.CoinTypeVAR {
+		return w.RelayFee()
+	}
+	return w.SKARelayFee()
 }
 
 // InitialHeight is the wallet's tip height prior to syncing with the network.
@@ -4731,9 +4758,28 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address,
 // transaction hash upon success
 func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.SendOutputs"
-	relayFee := w.RelayFee()
+	
+	// Determine the primary coin type from outputs for coin-type-aware fee calculation
+	coinType := txrules.GetPrimaryCoinTypeFromOutputs(outputs)
+	
+	// Calculate appropriate fee rate based on coin type
+	var txFeeRate dcrutil.Amount
+	if coinType == dcrutil.CoinTypeVAR {
+		// VAR transactions use the configured relay fee
+		txFeeRate = w.RelayFee()
+	} else {
+		// SKA and other coin types: use chain-specific fee rates
+		if w.chainParams.SKAMinRelayTxFee > 0 {
+			txFeeRate = dcrutil.Amount(w.chainParams.SKAMinRelayTxFee)
+		} else {
+			// Fallback to VAR fee rate if no SKA rate is configured
+			txFeeRate = w.RelayFee()
+		}
+	}
+	
+	// Validate outputs with appropriate fee rate
 	for _, output := range outputs {
-		err := txrules.CheckOutput(output, relayFee)
+		err := txrules.CheckOutput(output, txFeeRate)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -4745,7 +4791,7 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 		changeAccount:      changeAccount,
 		minconf:            minconf,
 		randomizeChangeIdx: true,
-		txFee:              relayFee,
+		txFee:              txFeeRate,
 		dontSignTx:         false,
 		isTreasury:         false,
 	}
@@ -5678,6 +5724,12 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 	// Amounts
 	w.relayFee = cfg.RelayFee
+	// Initialize SKA relay fee from chain parameters
+	if w.chainParams.SKAMinRelayTxFee > 0 {
+		w.skaRelayFee = dcrutil.Amount(w.chainParams.SKAMinRelayTxFee)
+	} else {
+		w.skaRelayFee = cfg.RelayFee // Fallback to VAR fee if no SKA fee configured
+	}
 
 	// Record current tip as initialHeight.
 	_, w.initialHeight = w.MainChainTip(ctx)
