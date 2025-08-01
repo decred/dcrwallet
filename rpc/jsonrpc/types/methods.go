@@ -421,8 +421,9 @@ func NewGetReceivedByAccountCmd(account string, minConf *int) *GetReceivedByAcco
 
 // GetReceivedByAddressCmd defines the getreceivedbyaddress JSON-RPC command.
 type GetReceivedByAddressCmd struct {
-	Address string
-	MinConf *int `jsonrpcdefault:"1"`
+	Address  string
+	MinConf  *int `jsonrpcdefault:"1"`
+	CoinType *int `jsonrpcdefault:"0"`
 }
 
 // NewGetReceivedByAddressCmd returns a new instance which can be used to issue
@@ -432,8 +433,18 @@ type GetReceivedByAddressCmd struct {
 // for optional parameters will use the default value.
 func NewGetReceivedByAddressCmd(address string, minConf *int) *GetReceivedByAddressCmd {
 	return &GetReceivedByAddressCmd{
-		Address: address,
-		MinConf: minConf,
+		Address:  address,
+		MinConf:  minConf,
+		CoinType: nil,
+	}
+}
+
+// NewGetReceivedByAddressCmdWithCoinType returns a new instance with coin type specified.
+func NewGetReceivedByAddressCmdWithCoinType(address string, minConf *int, coinType *int) *GetReceivedByAddressCmd {
+	return &GetReceivedByAddressCmd{
+		Address:  address,
+		MinConf:  minConf,
+		CoinType: coinType,
 	}
 }
 

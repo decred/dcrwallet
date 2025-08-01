@@ -2682,7 +2682,13 @@ func (s *Server) getReceivedByAddress(ctx context.Context, icmd any) (any, error
 	if err != nil {
 		return nil, err
 	}
-	total, err := w.TotalReceivedForAddr(ctx, addr, int32(*cmd.MinConf))
+	// Use coin type filter, defaulting to VAR (0) if not specified
+	coinType := uint8(0)
+	if cmd.CoinType != nil {
+		coinType = uint8(*cmd.CoinType)
+	}
+
+	total, err := w.TotalReceivedForAddr(ctx, addr, int32(*cmd.MinConf), coinType)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet

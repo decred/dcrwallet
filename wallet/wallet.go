@@ -4674,20 +4674,24 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 
 // TotalReceivedForAddr iterates through a wallet's transaction history,
 // returning the total amount of decred received for a single wallet
-// address.
-func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address, minConf int32) (dcrutil.Amount, error) {
+// address, optionally filtered by coin type (defaults to VAR/0).
+func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address, minConf int32, coinType ...uint8) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.TotalReceivedForAddr"
+
+	// Default to VAR (coin type 0) if no coin type specified
+	filterCoinType := uint8(0)
+	if len(coinType) > 0 {
+		filterCoinType = coinType[0]
+	}
+
 	var amount dcrutil.Amount
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
-
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
-
 		var (
 			addrStr    = addr.String()
 			stopHeight int32
 		)
-
 		if minConf > 0 {
 			stopHeight = tipHeight - minConf + 1
 		} else {
@@ -4697,8 +4701,13 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address,
 			for i := range details {
 				detail := &details[i]
 				for _, cred := range detail.Credits {
-					pkVersion := detail.MsgTx.TxOut[cred.Index].Version
-					pkScript := detail.MsgTx.TxOut[cred.Index].PkScript
+					txOut := detail.MsgTx.TxOut[cred.Index]
+					// Check if this output matches the requested coin type
+					if uint8(txOut.CoinType) != filterCoinType {
+						continue
+					}
+					pkVersion := txOut.Version
+					pkScript := txOut.PkScript
 					_, addrs := stdscript.ExtractAddrs(pkVersion, pkScript, w.chainParams)
 					for _, a := range addrs { // no addresses means non-standard credit, ignored
 						if addrStr == a.String() {
