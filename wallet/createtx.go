@@ -93,10 +93,6 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 
 	const op errors.Op = "wallet.NewUnsignedTransaction"
 
-	ignoreInput := func(op *wire.OutPoint) bool {
-		_, ok := w.lockedOutpoints[outpoint{op.Hash, op.Index}]
-		return ok
-	}
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
@@ -104,7 +100,6 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 	var changeSourceUpdates []func(walletdb.ReadWriteTx) error
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
 		if account != udb.ImportedAddrAccount {
 			lastAcct, err := w.manager.LastAccount(addrmgrNs)
@@ -116,37 +111,6 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 		}
 
-		// Dual-coin validation: Ensure all outputs use the same coin type
-		var txCoinType *wire.CoinType
-		for i, output := range outputs {
-			if i == 0 {
-				txCoinType = &output.CoinType
-			} else if output.CoinType != *txCoinType {
-				return errors.E(errors.Invalid, fmt.Sprintf("cannot mix different coin types in transaction: output %d has coin type %d, but output 0 has coin type %d", i, output.CoinType, *txCoinType))
-			}
-		}
-
-		if inputSource == nil {
-			sourceImpl := w.txStore.MakeInputSource(dbtx, account,
-				minConf, tipHeight, ignoreInput)
-			switch algo {
-			case OutputSelectionAlgorithmDefault:
-				inputSource = sourceImpl.SelectInputs
-			case OutputSelectionAlgorithmAll:
-				// Wrap the source with one that always fetches the max amount
-				// available and ignores insufficient balance issues.
-				inputSource = func(dcrutil.Amount) (*txauthor.InputDetail, error) {
-					inputDetail, err := sourceImpl.SelectInputs(dcrutil.MaxAmount)
-					if errors.Is(err, errors.InsufficientBalance) {
-						err = nil
-					}
-					return inputDetail, err
-				}
-			default:
-				return errors.E(errors.Invalid,
-					errors.Errorf("unknown output selection algorithm %v", algo))
-			}
-		}
 
 		if changeSource == nil {
 			changeSource = &p2PKHChangeSource{
@@ -157,8 +121,11 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 		}
 
+		// Calculate relay fee based on transaction coin type
+		actualRelayFee := relayFeePerKb
+
 		var err error
-		authoredTx, err = txauthor.NewUnsignedTransaction(outputs, relayFeePerKb,
+		authoredTx, err = txauthor.NewUnsignedTransaction(outputs, actualRelayFee,
 			inputSource, changeSource, w.chainParams.MaxTxSize)
 		if err != nil {
 			return err
@@ -453,8 +420,17 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
-		inputSource := w.txStore.MakeInputSource(dbtx, a.account,
-			a.minconf, tipHeight, ignoreInput)
+		
+		// Determine coin type from outputs for coin-type-aware UTXO selection
+		var inputSource udb.InputSource
+		if len(a.outputs) > 0 {
+			txCoinType := dcrutil.CoinType(a.outputs[0].CoinType)
+			inputSource = w.txStore.MakeInputSourceWithCoinType(dbtx, a.account,
+				a.minconf, tipHeight, ignoreInput, txCoinType)
+		} else {
+			inputSource = w.txStore.MakeInputSource(dbtx, a.account,
+				a.minconf, tipHeight, ignoreInput)
+		}
 		var changeSource txauthor.ChangeSource
 		if a.isTreasury {
 			changeSource = &p2PKHTreasuryChangeSource{
@@ -474,8 +450,15 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 				gapPolicy: gapPolicyWrap,
 			}
 		}
+
+		// Calculate relay fee based on transaction coin type
+		actualTxFee := a.txFee
+		if len(a.outputs) > 0 {
+			actualTxFee = w.RelayFeeForCoinType(dcrutil.CoinType(a.outputs[0].CoinType))
+		}
+
 		var err error
-		atx, err = txauthor.NewUnsignedTransaction(a.outputs, a.txFee,
+		atx, err = txauthor.NewUnsignedTransaction(a.outputs, actualTxFee,
 			inputSource.SelectInputs, changeSource,
 			w.chainParams.MaxTxSize)
 		if err != nil {

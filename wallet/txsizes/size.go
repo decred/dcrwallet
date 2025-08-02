@@ -131,26 +131,39 @@ func sumOutputSerializeSizes(outputs []*wire.TxOut) (serializeSize int) {
 // additional change output if changeScriptSize is greater than 0. Passing 0
 // does not add a change output.
 func EstimateSerializeSize(scriptSizes []int, txOuts []*wire.TxOut, changeScriptSize int) int {
-	// Generate and sum up the estimated sizes of the inputs.
-	txInsSize := 0
-	for _, size := range scriptSizes {
-		txInsSize += EstimateInputSize(size)
-	}
-
 	inputCount := len(scriptSizes)
 	outputCount := len(txOuts)
 	changeSize := 0
-	if changeScriptSize > 0 {
+	if changeScriptSize != 0 {
 		changeSize = EstimateOutputSize(changeScriptSize)
 		outputCount++
 	}
 
-	// 12 additional bytes are for version, locktime and expiry.
-	return 12 + (2 * wire.VarIntSerializeSize(uint64(inputCount))) +
-		wire.VarIntSerializeSize(uint64(outputCount)) +
-		txInsSize +
-		sumOutputSerializeSizes(txOuts) +
-		changeSize
+	// Calculate size for TxSerializeFull format (prefix + witness)
+	// This matches the format used in wire.MsgTx.SerializeSize() for TxSerializeFull
+
+	// Base: Version 4 bytes + LockTime 4 bytes + Expiry 4 bytes = 12 bytes
+	// Plus varint sizes for input count (x2) and output count
+	baseSize := 12 + wire.VarIntSerializeSize(uint64(inputCount)) +
+		wire.VarIntSerializeSize(uint64(inputCount)) +
+		wire.VarIntSerializeSize(uint64(outputCount))
+
+	// Calculate prefix input sizes (without witness data)
+	prefixInputsSize := 0
+	for range scriptSizes {
+		prefixInputsSize += EstimateInputPrefixSize()
+	}
+
+	// Calculate witness input sizes (signature scripts)
+	witnessInputsSize := 0
+	for _, scriptSize := range scriptSizes {
+		witnessInputsSize += EstimateInputWitnessSize(scriptSize)
+	}
+
+	// Calculate output sizes (includes CoinType field for dual-coin)
+	outputsSize := sumOutputSerializeSizes(txOuts) + changeSize
+
+	return baseSize + prefixInputsSize + witnessInputsSize + outputsSize
 }
 
 // EstimateSerializeSizeFromScriptSizes returns a worst case serialize size
@@ -208,4 +221,23 @@ func EstimateInputSize(scriptSize int) int {
 //   - the supplied script size
 func EstimateOutputSize(scriptSize int) int {
 	return 8 + 1 + 2 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize
+}
+
+// EstimateInputPrefixSize returns the serialize size estimate for a tx input prefix
+//   - 32 bytes previous tx
+//   - 4 bytes output index
+//   - 1 byte tree
+//   - 4 bytes sequence
+func EstimateInputPrefixSize() int {
+	return 32 + 4 + 1 + 4
+}
+
+// EstimateInputWitnessSize returns the serialize size estimate for a tx input witness
+//   - 8 bytes amount
+//   - 4 bytes block height
+//   - 4 bytes block index
+//   - the compact int representation of the script size
+//   - the supplied script size
+func EstimateInputWitnessSize(scriptSize int) int {
+	return 8 + 4 + 4 + wire.VarIntSerializeSize(uint64(scriptSize)) + scriptSize
 }

@@ -83,7 +83,7 @@ func TestVARTransactionCreation(t *testing.T) {
 	}
 }
 
-// TestSKATransactionCreation tests SKA transaction creation without fees
+// TestSKATransactionCreation tests regular SKA transaction creation with fees
 func TestSKATransactionCreation(t *testing.T) {
 	// Test different SKA coin types
 	skaTypes := []wire.CoinType{
@@ -94,12 +94,13 @@ func TestSKATransactionCreation(t *testing.T) {
 
 	for _, coinType := range skaTypes {
 		t.Run(string(rune(coinType)), func(t *testing.T) {
-			// Create SKA inputs and outputs with exact matching amounts
-			amount := dcrutil.Amount(1e6)
-			skaUnspents := p2pkhOutputsWithCoinType(coinType, amount)
-			skaOutputs := p2pkhOutputsWithCoinType(coinType, amount)
+			// Create SKA inputs with enough for outputs + fees
+			outputAmount := dcrutil.Amount(1e6)
+			inputAmount := dcrutil.Amount(1e6 + 1000) // Extra for fees
+			skaUnspents := p2pkhOutputsWithCoinType(coinType, inputAmount)
+			skaOutputs := p2pkhOutputsWithCoinType(coinType, outputAmount)
 
-			relayFee := dcrutil.Amount(1e3) // Should be ignored for SKA
+			relayFee := dcrutil.Amount(1e3) // Should be used for regular SKA transactions
 			inputSource := makeInputSourceWithCoinType(skaUnspents)
 			changeSource := AuthorTestChangeSource{}
 
@@ -109,10 +110,13 @@ func TestSKATransactionCreation(t *testing.T) {
 				t.Fatalf("Failed to create SKA transaction: %v", err)
 			}
 
-			// Verify transaction has zero fees (inputs should exactly equal outputs for SKA)
-			if authoredTx.TotalInput != amount {
-				t.Errorf("SKA transaction should have zero fees. Got total input %v, expected %v",
-					authoredTx.TotalInput, amount)
+			// Verify transaction has fees (regular SKA transactions should include fees)
+			expectedFee := txrules.FeeForSerializeSize(relayFee, 
+				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, skaOutputs, txsizes.P2PKHPkScriptSize))
+			
+			if authoredTx.TotalInput < outputAmount + expectedFee {
+				t.Errorf("SKA transaction should include fees. Got total input %v, expected at least %v",
+					authoredTx.TotalInput, outputAmount + expectedFee)
 			}
 
 			// Verify all outputs are correct SKA coin type
@@ -121,11 +125,6 @@ func TestSKATransactionCreation(t *testing.T) {
 					t.Errorf("Output %d has wrong coin type: got %v, want %v",
 						i, out.CoinType, coinType)
 				}
-			}
-
-			// Verify no change output (exact matching for SKA)
-			if authoredTx.ChangeIndex != -1 {
-				t.Error("SKA transaction should not have change output when inputs exactly match outputs")
 			}
 		})
 	}
@@ -173,9 +172,7 @@ func TestDualCoinChangeOutput(t *testing.T) {
 			outputs := p2pkhOutputsWithCoinType(tc.coinType, 1e6)  // Small output
 
 			relayFee := dcrutil.Amount(1e3)
-			if tc.coinType != wire.CoinType(dcrutil.CoinTypeVAR) {
-				relayFee = 0 // SKA transactions have zero fees
-			}
+			// Both VAR and SKA transactions have fees (except emission transactions)
 
 			inputSource := makeInputSourceWithCoinType(unspents)
 			changeSource := AuthorTestChangeSource{}
@@ -201,31 +198,19 @@ func TestDualCoinChangeOutput(t *testing.T) {
 	}
 }
 
-// TestSKAZeroFeeValidation tests that SKA transactions have zero fees
-func TestSKAZeroFeeValidation(t *testing.T) {
-	// Create SKA transaction with high relay fee (should be ignored)
-	skaUnspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinType(1)), 1e6)
-	skaOutputs := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinType(1)), 1e6)
-
-	highRelayFee := dcrutil.Amount(1e5) // Very high fee that should be ignored
-	inputSource := makeInputSourceWithCoinType(skaUnspents)
-	changeSource := AuthorTestChangeSource{}
-
-	authoredTx, err := txauthor.NewUnsignedTransaction(skaOutputs, highRelayFee, inputSource, changeSource, 100000)
-	if err != nil {
-		t.Fatalf("Failed to create SKA transaction: %v", err)
-	}
-
-	// Verify transaction has zero effective fee (inputs = outputs exactly)
-	totalOutputValue := dcrutil.Amount(0)
-	for _, out := range authoredTx.Tx.TxOut {
-		totalOutputValue += dcrutil.Amount(out.Value)
-	}
-
-	if authoredTx.TotalInput != totalOutputValue {
-		t.Errorf("SKA transaction should have zero fees. Input: %v, Output total: %v",
-			authoredTx.TotalInput, totalOutputValue)
-	}
+// TestSKAEmissionZeroFeeValidation tests that SKA emission transactions have zero fees
+// Note: This is a placeholder test since creating actual emission transactions 
+// requires specific blockchain context that's not available in unit tests
+func TestSKAEmissionZeroFeeValidation(t *testing.T) {
+	t.Skip("SKA emission transaction testing requires blockchain context - tested in integration tests")
+	
+	// This test would verify that wire.IsSKAEmissionTransaction() returns true
+	// for emission transactions and that those transactions have zero fees
+	// However, creating valid emission transactions requires:
+	// 1. Specific block height context
+	// 2. Valid emission signatures  
+	// 3. Proper UTXO chain state
+	// These are better tested in integration tests with actual blockchain state
 }
 
 // TestEmptyOutputsHandling tests edge case of empty outputs

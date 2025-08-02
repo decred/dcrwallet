@@ -4762,20 +4762,8 @@ func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account
 	// Determine the primary coin type from outputs for coin-type-aware fee calculation
 	coinType := txrules.GetPrimaryCoinTypeFromOutputs(outputs)
 	
-	// Calculate appropriate fee rate based on coin type
-	var txFeeRate dcrutil.Amount
-	if coinType == dcrutil.CoinTypeVAR {
-		// VAR transactions use the configured relay fee
-		txFeeRate = w.RelayFee()
-	} else {
-		// SKA and other coin types: use chain-specific fee rates
-		if w.chainParams.SKAMinRelayTxFee > 0 {
-			txFeeRate = dcrutil.Amount(w.chainParams.SKAMinRelayTxFee)
-		} else {
-			// Fallback to VAR fee rate if no SKA rate is configured
-			txFeeRate = w.RelayFee()
-		}
-	}
+	// Calculate appropriate fee rate based on coin type using user-configured fees
+	txFeeRate := w.RelayFeeForCoinType(coinType)
 	
 	// Validate outputs with appropriate fee rate
 	for _, output := range outputs {
