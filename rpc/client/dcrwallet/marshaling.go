@@ -62,6 +62,16 @@ func marshalTx(tx *wire.MsgTx) json.Marshaler {
 	})
 }
 
+func marshalOutpointsToString(outpoints []wire.OutPoint) json.Marshaler {
+	return marshalJSONFunc(func() ([]byte, error) {
+		strings := make([]string, len(outpoints))
+		for i, o := range outpoints {
+			strings[i] = o.String()
+		}
+		return json.Marshal(strings)
+	})
+}
+
 func unmarshalOutpoints(ops *[]*wire.OutPoint) json.Unmarshaler {
 	f := unmarshalJSONFunc(func(j []byte) error {
 		var array []dcrdtypes.TransactionInput
