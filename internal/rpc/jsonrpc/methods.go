@@ -4111,7 +4111,7 @@ func (s *Server) redeemMultiSigOut(ctx context.Context, icmd any) (any, error) {
 	return types.RedeemMultiSigOutResult(srtTyped), nil
 }
 
-// redeemMultisigOuts receives a script hash (in the form of a
+// redeemMultiSigOuts receives a script hash (in the form of a
 // script hash address), looks up all the unspent outpoints associated
 // with that address, then generates a list of partially signed
 // transactions spending to either an address specified or internal
