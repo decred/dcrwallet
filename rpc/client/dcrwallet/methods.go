@@ -174,6 +174,18 @@ func (c *Client) SendToAddress(ctx context.Context, address stdaddr.Address, amo
 	return res, err
 }
 
+// SpendOutputs creates, signs and publishes a transaction that spends the
+// specified outputs belonging to an account, pays a list of address/amount
+// pairs, with any change returned to the specified account.
+//
+// NOTE: This function requires to the wallet to be unlocked.  See the
+// WalletPassphrase function for more details.
+func (c *Client) SpendOutputs(ctx context.Context, fromAccount string, previousOutpoints []wire.OutPoint, amounts []types.AddressAmountPair) (*chainhash.Hash, error) {
+	var res *chainhash.Hash
+	err := c.Call(ctx, "spendoutputs", unmarshalHash(&res), fromAccount, marshalOutpointsToString(previousOutpoints), amounts)
+	return res, err
+}
+
 // SendFrom sends the passed amount to the given address using the provided
 // account as a source of funds.  Only funds with the default number of minimum
 // confirmations will be used.
