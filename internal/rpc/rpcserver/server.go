@@ -3440,7 +3440,7 @@ func (s *votingServer) SetTSpendPolicy(ctx context.Context, req *pb.SetTSpendPol
 	return resp, err
 }
 
-// treasuryPolicies returns voting policies for treasury spends for all keys in an array
+// TreasuryPolicies returns voting policies for treasury spends for all keys in an array
 func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPoliciesRequest) (*pb.TreasuryPoliciesResponse, error) {
 	policies := s.wallet.TreasuryKeyPolicies()
 	resp := &pb.TreasuryPoliciesResponse{
@@ -3469,7 +3469,7 @@ func (s *votingServer) TreasuryPolicies(ctx context.Context, req *pb.TreasuryPol
 	return resp, nil
 }
 
-// setTreasuryPolicy saves the voting policy for treasury spends by a particular
+// SetTreasuryPolicy saves the voting policy for treasury spends by a particular
 // key, and optionally, setting the key policy used by a specific ticket.
 //
 // If a VSP host is configured in the application settings, the voting
