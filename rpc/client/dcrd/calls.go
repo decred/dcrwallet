@@ -103,6 +103,10 @@ func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitse
 	// is reached at approx 441000 addresses.
 	const batchSize = 400000
 
+	// The batch size must be a multiple of 8 (otherwise bits in the
+	// appended bitset would be misalligned).
+	var _ [batchSize % 8]struct{} = [0]struct{}{}
+
 	var bits bitset.Bytes
 	for batch := range slices.Chunk(addrs, batchSize) {
 		addrArray, err := json.Marshal(addrSliceToStrings(batch))
