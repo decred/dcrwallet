@@ -104,7 +104,7 @@ func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitse
 	const batchSize = 400000
 
 	// The batch size must be a multiple of 8 (otherwise bits in the
-	// appended bitset would be misalligned).
+	// appended bitset would be misaligned).
 	var _ [batchSize % 8]struct{} = [0]struct{}{}
 
 	var bits bitset.Bytes
