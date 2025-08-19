@@ -1,6 +1,6 @@
 module decred.org/dcrwallet/v5
 
-go 1.23
+go 1.24
 
 require (
 	decred.org/cspp/v2 v2.4.0
