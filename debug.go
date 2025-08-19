@@ -1,4 +1,4 @@
-// Copyright (c) 2024 The Decred developers
+// Copyright (c) 2024-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -10,8 +10,8 @@
 //    without breaking builds with the older toolchains.
 // 2. If a go.work is used, the godebug directives in go.mod will be ignored.
 
-//go:build go1.24
+//go:build go1.25
 
-//go:debug default=go1.24
+//go:debug default=go1.25
 
 package main
