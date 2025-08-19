@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -96,15 +97,28 @@ func (r *RPC) ExistsLiveTicket(ctx context.Context, ticket *chainhash.Hash) (boo
 // existsaddress index to be enabled.
 func (r *RPC) UsedAddresses(ctx context.Context, addrs []stdaddr.Address) (bitset.Bytes, error) {
 	const op errors.Op = "dcrd.UsedAddresses"
-	addrArray, err := json.Marshal(addrSliceToStrings(addrs))
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
+
+	// Limit the amount of addresses in a single request because dcrd RPC server
+	// has a hard-coded read limit of 16MB per request. In practice this limit
+	// is reached at approx 441000 addresses.
+	const batchSize = 400000
+
 	var bits bitset.Bytes
-	err = exists(ctx, r, "existsaddresses", &bits, addrArray)
-	if err != nil {
-		return nil, errors.E(op, err)
+	for batch := range slices.Chunk(addrs, batchSize) {
+		addrArray, err := json.Marshal(addrSliceToStrings(batch))
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		var batchBits bitset.Bytes
+		err = exists(ctx, r, "existsaddresses", &batchBits, addrArray)
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
+		bits = append(bits, batchBits...)
 	}
+
 	return bits, nil
 }
 
