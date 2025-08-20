@@ -12,6 +12,8 @@ import (
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/rand"
+	"github.com/decred/dcrd/dcrutil/v4"
+	"github.com/decred/dcrd/wire"
 )
 
 func randomBytes(len int) []byte {
@@ -74,6 +76,229 @@ func TestSetBirthState(t *testing.T) {
 				bs.SetFromTime != test.birthState.SetFromTime {
 				t.Fatalf("want birthday state %+v not equal to got %+v",
 					test.birthState, bs)
+			}
+		})
+	}
+}
+
+func TestMissingCFiltersHeight(t *testing.T) {
+	ctx := context.Background()
+	db, _, s, err := cloneDB(ctx, t, "mgr_watching_only.kv")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fakeFilter := [16]byte{}
+
+	g := makeBlockGenerator()
+	b1H := g.generate(dcrutil.BlockValid)
+	b2H := g.generate(dcrutil.BlockValid)
+	b3H := g.generate(dcrutil.BlockValid)
+	b4H := g.generate(dcrutil.BlockValid)
+	b5H := g.generate(dcrutil.BlockValid)
+	headerData := makeHeaderDataSlice(b1H, b2H, b3H, b4H, b5H)
+	filters := emptyFilters(5)
+
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		err = insertMainChainHeaders(s, dbtx, headerData, filters)
+		if err != nil {
+			return err
+		}
+		// Delete filters for block 3 and 4.
+		ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+		b3Hash := b3H.BlockHash()
+		if err := ns.NestedReadWriteBucket(bucketCFilters).Delete(b3Hash[:]); err != nil {
+			return err
+		}
+		b4Hash := b4H.BlockHash()
+		if err := ns.NestedReadWriteBucket(bucketCFilters).Delete(b4Hash[:]); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name            string
+		missingNo, from int32
+		wantErr         bool
+		do              func()
+	}{{
+		name:      "ok from 0",
+		missingNo: 3,
+	}, {
+		name:      "ok from mid",
+		from:      4,
+		missingNo: 4,
+	}, {
+		name: "ok from 1 after adding",
+		from: 1,
+		do: func() {
+			if err := walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+				ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+				b3Hash := b3H.BlockHash()
+				err := putRawCFilter(ns, b3Hash[:], fakeFilter[:])
+				if err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		missingNo: 4,
+	}, {
+		name: "error once all filters full",
+		do: func() {
+			if err := walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+				ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
+				b4Hash := b4H.BlockHash()
+				err := putRawCFilter(ns, b4Hash[:], fakeFilter[:])
+				if err != nil {
+					return err
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+		},
+		wantErr: true,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var missingNo int32
+			if test.do != nil {
+				test.do()
+			}
+			err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+				var err error
+				missingNo, err = MissingCFiltersHeight(dbtx, test.from)
+				return err
+			})
+			if test.wantErr {
+				if err == nil {
+					t.Fatal("wanted error but got none")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if missingNo != test.missingNo {
+				t.Fatalf("wanted missing number %v but got %v", test.missingNo, missingNo)
+			}
+		})
+	}
+}
+
+func TestAfterBirthday(t *testing.T) {
+	t.Parallel()
+
+	baseTime := time.Unix(1000000, 0)
+	baseHeight := uint32(500)
+
+	tests := []struct {
+		name        string
+		bs          *BirthdayState
+		header      *wire.BlockHeader
+		wantAfter   bool
+	}{{
+		name: "height based - header at birthday height",
+		bs: &BirthdayState{
+			Height:      baseHeight,
+			SetFromTime: false,
+		},
+		header: &wire.BlockHeader{
+			Height: baseHeight,
+		},
+		wantAfter: true,
+	}, {
+		name: "height based - header after birthday height",
+		bs: &BirthdayState{
+			Height:      baseHeight,
+			SetFromTime: false,
+		},
+		header: &wire.BlockHeader{
+			Height: baseHeight + 100,
+		},
+		wantAfter: true,
+	}, {
+		name: "height based - header before birthday height",
+		bs: &BirthdayState{
+			Height:      baseHeight,
+			SetFromTime: false,
+		},
+		header: &wire.BlockHeader{
+			Height: baseHeight - 1,
+		},
+		wantAfter: false,
+	}, {
+		name: "time based - header after birthday time",
+		bs: &BirthdayState{
+			Time:        baseTime,
+			SetFromTime: true,
+		},
+		header: &wire.BlockHeader{
+			Timestamp: baseTime.Add(time.Hour),
+		},
+		wantAfter: true,
+	}, {
+		name: "time based - header at birthday time",
+		bs: &BirthdayState{
+			Time:        baseTime,
+			SetFromTime: true,
+		},
+		header: &wire.BlockHeader{
+			Timestamp: baseTime,
+		},
+		wantAfter: false,
+	}, {
+		name: "time based - header before birthday time",
+		bs: &BirthdayState{
+			Time:        baseTime,
+			SetFromTime: true,
+		},
+		header: &wire.BlockHeader{
+			Timestamp: baseTime.Add(-time.Hour),
+		},
+		wantAfter: false,
+	}, {
+		name: "SetFromHeight true uses height comparison",
+		bs: &BirthdayState{
+			Height:        baseHeight,
+			Time:          baseTime,
+			SetFromHeight: true,
+			SetFromTime:   false,
+		},
+		header: &wire.BlockHeader{
+			Height:    baseHeight + 1,
+			Timestamp: baseTime.Add(-time.Hour), // before time but after height
+		},
+		wantAfter: true,
+	}, {
+		name: "SetFromTime takes precedence",
+		bs: &BirthdayState{
+			Height:        baseHeight,
+			Time:          baseTime,
+			SetFromHeight: true,
+			SetFromTime:   true,
+		},
+		header: &wire.BlockHeader{
+			Height:    baseHeight + 100, // after height
+			Timestamp: baseTime.Add(-time.Hour), // but before time
+		},
+		wantAfter: false,
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			got := test.bs.AfterBirthday(test.header)
+			if got != test.wantAfter {
+				t.Errorf("AfterBirthday() = %v, want %v", got, test.wantAfter)
 			}
 		})
 	}

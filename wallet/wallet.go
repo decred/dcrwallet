@@ -1292,9 +1292,14 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
+		var fromHeight int32
+		birthday := udb.BirthState(dbtx)
+		if birthday != nil {
+			fromHeight = int32(birthday.Height)
+		}
 		missing = w.txStore.IsMissingMainChainCFilters(dbtx)
 		if missing {
-			height, err = w.txStore.MissingCFiltersHeight(dbtx)
+			height, err = udb.MissingCFiltersHeight(dbtx, fromHeight)
 		}
 		return err
 	})
@@ -1318,7 +1323,7 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 		var hashes []chainhash.Hash
 		var get []*chainhash.Hash
 		var cont bool
-		err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
 			ns := dbtx.ReadBucket(wtxmgrNamespaceKey)
 			var err error
 			missing = w.txStore.IsMissingMainChainCFilters(dbtx)
@@ -1331,7 +1336,16 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 			}
 			_, _, err = w.txStore.CFilterV2(dbtx, &hash)
 			if err == nil {
-				height += span
+				// If there is a gap for some reason, continue from the end of the gap.
+				height, err = udb.MissingCFiltersHeight(dbtx, height)
+				if err != nil {
+					if errors.Is(err, errors.NotExist) {
+						// We have all the filters.
+						missing = false
+						return w.txStore.SetMissingMainChainCFilters(dbtx, true)
+					}
+					return err
+				}
 				cont = true
 				return nil
 			}
@@ -1391,24 +1405,26 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 		}
 
 		err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			_, _, err := w.txStore.CFilterV2(dbtx, get[len(get)-1])
-			if err == nil {
-				cont = true
-				return nil
+			if err := w.txStore.InsertMissingCFilters(dbtx, get, filters); err != nil {
+				return err
 			}
-			return w.txStore.InsertMissingCFilters(dbtx, get, filters)
+			missing = w.txStore.IsMissingMainChainCFilters(dbtx)
+			return nil
 		})
 		if err != nil {
 			return err
 		}
-		if cont {
-			continue
+		endHeight := height + int32(len(filters)) - 1
+		if progress != nil {
+			progress <- MissingCFilterProgress{BlockHeightStart: height, BlockHeightEnd: endHeight}
+		}
+		log.Infof("Fetched cfilters for blocks %v-%v", height, endHeight)
+
+		if !missing {
+			return nil
 		}
 
-		if progress != nil {
-			progress <- MissingCFilterProgress{BlockHeightStart: height, BlockHeightEnd: height + span - 1}
-		}
-		log.Infof("Fetched cfilters for blocks %v-%v", height, height+span-1)
+		height = endHeight + 1
 	}
 }
 
