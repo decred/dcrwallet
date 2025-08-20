@@ -400,8 +400,9 @@ SplitPoints:
 	}
 
 	var change *wire.TxOut
+	var updates []func(walletdb.ReadWriteTx) error
 	if changeValue > 0 {
-		persist := w.persistReturnedChild(ctx, nil)
+		persist := w.deferPersistReturnedChild(ctx, &updates)
 		const accountName = "" // not used, so can be faked.
 		addr, err := w.nextAddress(ctx, op, persist,
 			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
@@ -414,6 +415,17 @@ SplitPoints:
 			PkScript: changeScript,
 			Version:  version,
 		}
+	}
+	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+		for _, f := range updates {
+			if err := f(dbtx); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	log.Infof("Mixing output %v (%v)", output, amount)
