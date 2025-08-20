@@ -198,8 +198,8 @@ func (s *Store) MainChainTip(dbtx walletdb.ReadTx) (chainhash.Hash, int32) {
 // If the block is already inserted and part of the main chain, an errors.Exist
 // error is returned.
 //
-// The main chain tip may not be extended unless compact filters have been saved
-// for all existing main chain blocks.
+// The main chain may be extended without cfilters if this block is before the
+// wallet birthday. If the filter is nil it will not be saved to the database.
 func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockHeader, blockHash *chainhash.Hash, f *gcs2.FilterV2) error {
 	height := int32(header.Height)
 	if height < 1 {
@@ -266,9 +266,12 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockH
 		return err
 	}
 
-	// Save the compact filter.
-	bcf2Key := blockcf2.Key(&header.MerkleRoot)
-	return putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, f.Bytes()))
+	// Save the compact filter if we have it.
+	if f != nil {
+		bcf2Key := blockcf2.Key(&header.MerkleRoot)
+		return putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, f.Bytes()))
+	}
+	return nil
 }
 
 // ProcessedTxsBlockMarker returns the hash of the block which records the last
@@ -402,19 +405,37 @@ func (s *Store) IsMissingMainChainCFilters(dbtx walletdb.ReadTx) bool {
 	return len(v) != 1 || v[0] == 0
 }
 
+// SetMissingMainChainCFilters sets whether we have all of the main chain
+// cfilters. Should be used to set missing to false if the wallet birthday is
+// moved back in time.
+func (s *Store) SetMissingMainChainCFilters(dbtx walletdb.ReadWriteTx, have bool) error {
+	haveB := []byte{0}
+	if have {
+		haveB = []byte{1}
+	}
+	err := dbtx.ReadWriteBucket(wtxmgrBucketKey).Put(rootHaveCFilters, haveB)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
 // MissingCFiltersHeight returns the first main chain block height
 // with a missing cfilter.  Errors with NotExist when all main chain
 // blocks record cfilters.
-func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
+func MissingCFiltersHeight(dbtx walletdb.ReadTx, fromHeight int32) (int32, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	c := ns.NestedReadBucket(bucketBlocks).ReadCursor()
 	defer c.Close()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
+	for k, v := c.Seek(keyBlockRecord(fromHeight)); k != nil; k, v = c.Next() {
 		hash := extractRawBlockRecordHash(v)
 		_, _, err := fetchRawCFilter2(ns, hash)
-		if errors.Is(err, errors.NotExist) {
-			height := int32(byteOrder.Uint32(k))
-			return height, nil
+		if err != nil {
+			if errors.Is(err, errors.NotExist) {
+				height := int32(byteOrder.Uint32(k))
+				return height, nil
+			}
+			return 0, errors.E(errors.IO, err)
 		}
 	}
 	return 0, errors.E(errors.NotExist)
@@ -442,42 +463,37 @@ func (s *Store) InsertMissingCFilters(dbtx walletdb.ReadWriteTx, blockHashes []*
 	}
 
 	for i, blockHash := range blockHashes {
-		// Ensure that blockHashes are ordered and that all previous cfilters in the
-		// main chain are known.
-		ok := i == 0 && *blockHash == s.chainParams.GenesisHash
-		var bcf2Key [gcs2.KeySize]byte
-		if !ok {
-			header := existsBlockHeader(ns, blockHash[:])
-			if header == nil {
-				return errors.E(errors.NotExist, errors.Errorf("missing header for block %v", blockHash))
-			}
-			parentHash := extractBlockHeaderParentHash(header)
-			merkleRoot := extractBlockHeaderMerkleRoot(header)
-			merkleRootHash, err := chainhash.NewHash(merkleRoot)
-			if err != nil {
-				return errors.E(errors.Invalid, errors.Errorf("invalid stored header %v", blockHash))
-			}
-			bcf2Key = blockcf2.Key(merkleRootHash)
-			if i == 0 {
-				_, _, err := fetchRawCFilter2(ns, parentHash)
-				ok = err == nil
-			} else {
-				ok = bytes.Equal(parentHash, blockHashes[i-1][:])
-			}
+		// Ensure that blockHashes are ordered.
+		header := existsBlockHeader(ns, blockHash[:])
+		if header == nil {
+			return errors.E(errors.NotExist, errors.Errorf("missing header for block %v", blockHash))
 		}
+		ok := i == 0 && *blockHash == s.chainParams.GenesisHash
 		if !ok {
-			return errors.E(errors.Invalid, "block hashes are not ordered or previous cfilters are missing")
+			parentHash := extractBlockHeaderParentHash(header)
+			if i != 0 {
+				if !bytes.Equal(parentHash, blockHashes[i-1][:]) {
+					return errors.E(errors.Invalid, "block hashes are not ordered")
+				}
+			}
 		}
 
 		// Record cfilter for this block
-		err := putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, filters[i].Bytes()))
+		merkleRoot := extractBlockHeaderMerkleRoot(header)
+		merkleRootHash, err := chainhash.NewHash(merkleRoot)
+		if err != nil {
+			return errors.E(errors.Invalid, errors.Errorf("invalid stored header %v", blockHash))
+		}
+		bcf2Key := blockcf2.Key(merkleRootHash)
+		err = putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, filters[i].Bytes()))
 		if err != nil {
 			return err
 		}
 	}
 
 	// Mark all main chain cfilters as saved if the last block hash is the main
-	// chain tip.
+	// chain tip. Even if this is not the head block, all cfilters may be saved
+	// at this point. The caller may need to check and set rootHaveCFilters.
 	tip, _ := s.MainChainTip(dbtx)
 	if bytes.Equal(tip[:], blockHashes[len(blockHashes)-1][:]) {
 		err := ns.Put(rootHaveCFilters, []byte{1})
