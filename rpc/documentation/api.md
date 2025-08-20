@@ -1109,6 +1109,8 @@ ___
 The `ImportPrivateKey` method imports a private key in Wallet Import Format
 (WIF) encoding to a wallet account.  A rescan may optionally be started to
 search for transactions involving the private key's associated payment address.
+If the private key deals with transactions before the wallet birthday, if set,
+a rescan must be performed to download missing cfilters.
 
 **Request:** `ImportPrivateKeyRequest`
 
@@ -1144,7 +1146,9 @@ ___
 
 The `ImportScript` method imports a script into the wallet.  A rescan may
 optionally be started to search for transactions involving the script, either
-as an output or in a P2SH input.
+as an output or in a P2SH input. If the script deals with transactions before
+the wallet birthday, if set, a rescan must be performed to download missing
+cfilters.
 
 **Request:** `ImportScriptRequest`
 
@@ -1190,7 +1194,9 @@ seed for a hierarchical deterministic private key that is imported into the
 wallet with the supplied name and locked with the supplied password. Addresses
 derived from this account MUST NOT be sent any funds. They are solely for the
 use of creating stake submission scripts. A rescan may optionally be started to
-search for tickets using submission scripts derived from this account.
+search for tickets using submission scripts derived from this account. If tickets
+would exist before the wallet birthday, if set, a rescan must be performed to
+download missing cfilters.
 
 **Request:** `ImportVotingAccountFromSeedRequest`
 
@@ -2689,7 +2695,10 @@ or account must be unlocked.
 #### `BirthBlock`
 
 The `BirthBlock` method returns the wallets birthday block if set. Rescans
-should generally be started from after this block.
+should generally be started from after this block. If a birthday is set cfilters
+from before the birthday may not be downloaded. A rescan from height will move
+the birthday to the rescan height and download all missing cfilters from that
+height.
 
 **Request:** `BirthBlockRequest`
 

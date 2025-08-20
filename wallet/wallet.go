@@ -1300,9 +1300,14 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		var err error
+		var fromHeight int32
+		birthday := udb.BirthState(dbtx)
+		if birthday != nil {
+			fromHeight = int32(birthday.Height)
+		}
 		missing = w.txStore.IsMissingMainChainCFilters(dbtx)
 		if missing {
-			height, err = w.txStore.MissingCFiltersHeight(dbtx)
+			height, err = udb.MissingCFiltersHeight(dbtx, fromHeight)
 		}
 		return err
 	})
@@ -1339,8 +1344,16 @@ func (w *Wallet) fetchMissingCFilters(ctx context.Context, n NetworkBackend, pro
 			}
 			_, _, err = w.txStore.CFilterV2(dbtx, &hash)
 			if err == nil {
-				height += span
-				cont = true
+				// If there is a gap for some reason, continue from the end of the gap.
+				height += 1
+				missingHeight, err := udb.MissingCFiltersHeight(dbtx, height)
+				if err != nil {
+					return err
+				}
+				if height != missingHeight {
+					height = missingHeight
+					cont = true
+				}
 				return nil
 			}
 			storage = storage[:cap(storage)]

@@ -1660,6 +1660,30 @@ func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 		return res
 	}
 
+	birthday, err := s.wallet.BirthState(ctx)
+	if err != nil {
+		return err
+	}
+	// If a birthday is set, it will likely not be found yet. Watch for it
+	// and do not download cfilters before it.
+	var afterBirthday func(h *wire.BlockHeader) bool
+	switch {
+	case birthday == nil:
+		afterBirthday = func(*wire.BlockHeader) bool {
+			return true
+		}
+	case birthday.SetFromTime:
+		afterBirthday = func(h *wire.BlockHeader) bool {
+			return h.Timestamp.After(birthday.Time)
+		}
+	default:
+		// Birthday was set and already found. Can happen if sync was
+		// stopped and started again after the birthday was found.
+		afterBirthday = func(h *wire.BlockHeader) bool {
+			return h.Height >= birthday.Height
+		}
+	}
+
 	// Stage 1: fetch headers.
 	headersChan := make(chan *headersBatch)
 	g.Go(func() error {
@@ -1735,6 +1759,9 @@ func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 			s.sidechainMu.Lock()
 			var missingCfilter []*wallet.BlockNode
 			for i := range batch.bestChain {
+				if !afterBirthday(batch.bestChain[i].Header) {
+					continue
+				}
 				if batch.bestChain[i].FilterV2 == nil {
 					missingCfilter = batch.bestChain[i:]
 					break

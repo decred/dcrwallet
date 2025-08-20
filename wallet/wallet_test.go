@@ -230,3 +230,55 @@ func TestSetBirthStateAndScan(t *testing.T) {
 		})
 	}
 }
+
+func TestRescanFromHeight(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w, teardown := testWallet(ctx, t, &cfg, nil)
+	defer teardown()
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+		t.Logf("Generated block %v name %q", b.Hash, name)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	tests := []struct {
+		name string
+		bs   *udb.BirthdayState
+	}{{
+		name: "ok no birthday",
+	}, {
+		name: "ok birthday",
+		bs: &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        5,
+		},
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.bs != nil {
+				err := w.SetBirthState(ctx, test.bs)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+			err := w.RescanFromHeight(ctx, mockNetwork{}, 0)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
