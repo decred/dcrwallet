@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1927,9 +1927,9 @@ func (w *Wallet) AccountBalance(ctx context.Context, account uint32, confirms in
 	return balance, nil
 }
 
-// AccountBalances returns the balance breakdowns for a each account.
+// AccountBalances returns the balance breakdown for every account.
 func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balances, error) {
-	const op errors.Op = "wallet.CalculateAccountBalances"
+	const op errors.Op = "wallet.AccountBalances"
 	var balances []Balances
 	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
