@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016-2019 The Decred developers
+// Copyright (c) 2016-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -65,7 +65,7 @@ const (
 	//   - OP_CHECKSIG
 	P2PKHPkScriptSize = 1 + 1 + 1 + 20 + 1 + 1
 
-	// P2PKHPkTreasruryScriptSize is the size of a transaction output
+	// P2PKHPkTreasuryScriptSize is the size of a transaction output
 	// script that pays stake change to a compressed pubkey hash.  This is
 	// used when a user sends coins to the treasury via OP_TADD.  It is
 	// calculated as:
@@ -77,7 +77,7 @@ const (
 	//   - 20 bytes pubkey hash
 	//   - OP_EQUALVERIFY
 	//   - OP_CHECKSIG
-	P2PKHPkTreasruryScriptSize = 1 + 1 + 1 + 1 + 20 + 1 + 1
+	P2PKHPkTreasuryScriptSize = 1 + 1 + 1 + 1 + 20 + 1 + 1
 
 	// P2SHPkScriptSize is the size of a transaction output script that
 	// pays to a script hash.  It is calculated as:
