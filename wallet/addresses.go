@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020 The Decred developers
+// Copyright (c) 2017-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -974,7 +974,7 @@ func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
 // ScriptSize returns the treasury change script size. This function is
 // required for the change source interface.
 func (src *p2PKHTreasuryChangeSource) ScriptSize() int {
-	return txsizes.P2PKHPkTreasruryScriptSize
+	return txsizes.P2PKHPkTreasuryScriptSize
 }
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]stdaddr.Address, error) {
