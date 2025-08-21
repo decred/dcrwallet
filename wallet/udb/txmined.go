@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -2921,22 +2921,6 @@ func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr stda
 	return mscs, nil
 }
 
-type minimalCredit struct {
-	txRecordKey []byte
-	index       uint32
-	Amount      int64
-	tree        int8
-	unmined     bool
-}
-
-// byUtxoAmount defines the methods needed to satisify sort.Interface to
-// sort a slice of Utxos by their amount.
-type byUtxoAmount []*minimalCredit
-
-func (u byUtxoAmount) Len() int           { return len(u) }
-func (u byUtxoAmount) Less(i, j int) bool { return u[i].Amount < u[j].Amount }
-func (u byUtxoAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
-
 // confirmed checks whether a transaction at height txHeight has met minConf
 // confirmations for a blockchain at height curHeight.
 func confirmed(minConf, txHeight, curHeight int32) bool {
@@ -3016,52 +3000,6 @@ func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte,
 	v := existsRawTxRecord(ns, k)
 	idx := extractRawCreditIndex(credKey)
 	return fetchRawTxRecordPkScript(k, v, idx, scrLoc, scrLen)
-}
-
-// minimalCreditToCredit looks up a minimal credit's data and prepares a Credit
-// from this data.
-func (s *Store) minimalCreditToCredit(ns walletdb.ReadBucket, mc *minimalCredit) (*Credit, error) {
-	var cred *Credit
-
-	switch mc.unmined {
-	case false: // Mined transactions.
-		opHash, err := chainhash.NewHash(mc.txRecordKey[0:32])
-		if err != nil {
-			return nil, err
-		}
-
-		var block Block
-		err = readUnspentBlock(mc.txRecordKey[32:68], &block)
-		if err != nil {
-			return nil, err
-		}
-
-		var op wire.OutPoint
-		op.Hash = *opHash
-		op.Index = mc.index
-
-		cred, err = s.outputCreditInfo(ns, op, &block)
-		if err != nil {
-			return nil, err
-		}
-
-	case true: // Unmined transactions.
-		opHash, err := chainhash.NewHash(mc.txRecordKey[0:32])
-		if err != nil {
-			return nil, err
-		}
-
-		var op wire.OutPoint
-		op.Hash = *opHash
-		op.Index = mc.index
-
-		cred, err = s.outputCreditInfo(ns, op, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return cred, nil
 }
 
 // InputSource provides a method (SelectInputs) to incrementally select unspent
