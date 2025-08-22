@@ -2649,10 +2649,6 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		}
 	}
 
-	// set limit. If it is not informed by the request it is used 0, which
-	// is defaulted to 20.
-	limit := int(req.Limit)
-
 	tb := ticketbuyer.New(w, ticketbuyer.Config{
 		BuyTickets:         true,
 		Account:            req.Account,
@@ -2665,7 +2661,7 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 		ChangeAccount:      changeAccount,
 		MixedAccountBranch: mixedAccountBranch,
 		TicketSplitAccount: mixedSplitAccount,
-		Limit:              limit,
+		Limit:              int(req.Limit),
 	})
 
 	if len(req.Passphrase) > 0 {
