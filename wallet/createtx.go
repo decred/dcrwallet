@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -38,12 +38,6 @@ import (
 
 const (
 	revocationFeeLimit = 1 << 14
-
-	// maxStandardTxSize is the maximum size allowed for transactions that
-	// are considered standard and will therefore be relayed and considered
-	// for mining.
-	// TODO: import from dcrd.
-	maxStandardTxSize = 100000
 
 	// sanityVerifyFlags are the flags used to enable and disable features of
 	// the txscript engine used for sanity checking of transactions signed by
@@ -841,37 +835,52 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 		PkScript: pkScript,
 		Version:  vers,
 	})
+
+	// On non-mainnet networks the maximum transaction size is simply the
+	// maximum size permitted at the protocol level.
+	//
+	// On mainnet the max tx size is further limited by standardness rules
+	// (larger txs are permitted at the protocol level but they will not be
+	// relayed or considered for mining).
 	maximumTxSize := w.chainParams.MaxTxSize
 	if w.chainParams.Net == wire.MainNet {
+		// TODO: Import from dcrd.
+		const maxStandardTxSize = 100000
 		maximumTxSize = maxStandardTxSize
 	}
 
 	// Add the txins using all the eligible outputs.
 	totalAdded := dcrutil.Amount(0)
 	scriptSizes := make([]int, 0, maxNumIns)
+	var szEst int
 	forSigning := make([]Input, 0, maxNumIns)
 	count := 0
 	for _, e := range eligible {
 		if count >= maxNumIns {
 			break
 		}
-		// Add the size of a wire.OutPoint
-		if msgtx.SerializeSize() > maximumTxSize {
+
+		// Estimate the new size. Break if adding another input will breach
+		// the max allowed tx size.
+		scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHSigScriptSize)
+		newSzEst := txsizes.EstimateSerializeSize(scriptSizes, msgtx.TxOut, 0)
+		if newSzEst > maximumTxSize {
 			break
 		}
+
+		// Update the size estimate then proceed to add the new input.
+		szEst = newSzEst
 
 		txIn := wire.NewTxIn(&e.OutPoint, e.PrevOut.Value, nil)
 		msgtx.AddTxIn(txIn)
 		totalAdded += dcrutil.Amount(e.PrevOut.Value)
 		forSigning = append(forSigning, e)
-		scriptSizes = append(scriptSizes, txsizes.RedeemP2PKHSigScriptSize)
 		count++
 	}
 
 	// Get an initial fee estimate based on the number of selected inputs
 	// and added outputs, with no change.
 	feeRate := w.RelayFee()
-	szEst := txsizes.EstimateSerializeSize(scriptSizes, msgtx.TxOut, 0)
 	feeEst := txrules.FeeForSerializeSize(feeRate, szEst)
 
 	msgtx.TxOut[0].Value = int64(totalAdded - feeEst)
