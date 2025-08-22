@@ -458,81 +458,88 @@ type bip0044AccountData struct {
 	albInternal addressBuffer
 }
 
-// persistReturnedChildFunc is the function used by nextAddress to update the
-// database with the child index of a returned address.  It is used to abstract
-// the correct database access required depending on the caller context.
-// Possible implementations can open a new database write transaction, use an
-// already open database transaction, or defer the update until a later time
-// when a write can be performed.
-type persistReturnedChildFunc func(account, branch, child uint32) error
+type accountBranchChild struct {
+	account, branch, child uint32
+}
 
-// persistReturnedChild returns a synchronous persistReturnedChildFunc which
-// causes the DB update to occur before nextAddress returns.
-//
-// The returned function may be called either inside of a DB update (in which
-// case maybeDBTX must be the non-nil transaction object) or not in any
-// transaction at all (in which case it must be nil and the method opens a
-// transaction).  It must never be called while inside a db view as this results
-// in a deadlock situation.
-func (w *Wallet) persistReturnedChild(ctx context.Context, maybeDBTX walletdb.ReadWriteTx) persistReturnedChildFunc {
-	return func(account, branch, child uint32) (rerr error) {
-		// Write the returned child index to the database, opening a write
-		// transaction as necessary.
-		if maybeDBTX == nil {
-			var err error
-			defer trace.StartRegion(ctx, "db.Update").End()
-			maybeDBTX, err = w.db.BeginReadWriteTx()
-			if err != nil {
-				return err
-			}
-			region := trace.StartRegion(ctx, "db.ReadWriteTx")
-			defer func() {
-				if rerr == nil {
-					rerr = maybeDBTX.Commit()
-				} else {
-					maybeDBTX.Rollback()
-				}
-				region.End()
-			}()
+type accountBranchChildUpdates []accountBranchChild
+
+func (s accountBranchChildUpdates) UpdateDB(ctx context.Context, w *Wallet, maybeDBTX walletdb.ReadWriteTx) (rerr error) {
+	if len(s) == 0 {
+		return nil
+	}
+
+	if maybeDBTX == nil {
+		var err error
+		defer trace.StartRegion(ctx, "db.Update").End()
+		maybeDBTX, err = w.db.BeginReadWriteTx()
+		if err != nil {
+			return err
 		}
-		ns := maybeDBTX.ReadWriteBucket(waddrmgrNamespaceKey)
+		region := trace.StartRegion(ctx, "db.ReadWriteTx")
+		defer func() {
+			if rerr == nil {
+				rerr = maybeDBTX.Commit()
+			} else {
+				maybeDBTX.Rollback()
+			}
+			region.End()
+		}()
+	}
+
+	ns := maybeDBTX.ReadWriteBucket(waddrmgrNamespaceKey)
+	for i := range s {
+		account := s[i].account
+		branch := s[i].branch
+		child := s[i].child
 		err := w.manager.SyncAccountToAddrIndex(ns, account, child, branch)
 		if err != nil {
 			return err
 		}
-		return w.manager.MarkReturnedChildIndex(maybeDBTX, account, branch, child)
 	}
-}
-
-// deferPersistReturnedChild returns a persistReturnedChildFunc that is not
-// immediately written to the database.  Instead, an update function is appended
-// to the updates slice.  This allows all updates to be run under a single
-// database update later and allows deferred child persistence even when
-// generating addresess in a view (as long as the update is called after).
-//
-// This is preferable to running updates asynchronously using goroutines as it
-// allows the updates to not be performed if a later error occurs and the child
-// indexes should not be written.  It also allows the updates to be grouped
-// together in a single atomic transaction.
-func (w *Wallet) deferPersistReturnedChild(ctx context.Context, updates *[]func(walletdb.ReadWriteTx) error) persistReturnedChildFunc {
-	// These vars are closed-over by the update function and modified by the
-	// returned persist function.
-	var account, branch, child uint32
-	update := func(tx walletdb.ReadWriteTx) error {
-		persist := w.persistReturnedChild(ctx, tx)
-		return persist(account, branch, child)
-	}
-	*updates = append(*updates, update)
-	return func(a, b, c uint32) error {
-		account, branch, child = a, b, c
-		return nil
-	}
+	return nil
 }
 
 // nextAddress returns the next address of an account branch.
-func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
+func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
+	updates *accountBranchChildUpdates, maybeDBTX walletdb.ReadWriteTx,
 	accountName string, account, branch uint32,
-	callOpts ...NextAddressCallOption) (stdaddr.Address, error) {
+	callOpts ...NextAddressCallOption) (a stdaddr.Address, rerr error) {
+
+	if updates != nil && maybeDBTX != nil {
+		return nil, errors.E(op, errors.Bug, "nextAddress must not provide both a slice "+
+			"to defer db updates and an open write transaction)")
+	}
+
+	// If no DB updates are being deferred until after the nextAddress
+	// call (i.e. it is the responsibility of nextAddress to open the DB
+	// transaction), open the transaction before acquiring the address
+	// bufferes mutex.  This is the correct locking order for the address
+	// buffers mutex and any DB mutexes that are locked during a
+	// transaction.
+	if updates == nil && maybeDBTX == nil {
+		// Provide a local updates slice for appending below, leaving
+		// maybeDBTX nil.
+		updatesSlice := make(accountBranchChildUpdates, 0, 1)
+		updates = &updatesSlice
+
+		dbtx, err := w.db.BeginReadWriteTx()
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+		defer func() {
+			if rerr != nil {
+				return
+			}
+			err := updates.UpdateDB(ctx, w, dbtx)
+			if err != nil {
+				rerr = err
+				dbtx.Rollback()
+			} else {
+				rerr = dbtx.Commit()
+			}
+		}()
+	}
 
 	var opts nextAddressCallOptions // TODO: zero values for now, add to wallet config later.
 	for _, c := range callOpts {
@@ -611,10 +618,19 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
-		// Write the returned child index to the database.
-		err = persist(account, branch, childIndex)
-		if err != nil {
-			return nil, errors.E(op, err)
+		// Write the returned child index to the database, or defer
+		// the update for a later transaction.
+		if updates != nil {
+			*updates = append(*updates, accountBranchChild{account, branch, childIndex})
+		} else if maybeDBTX != nil {
+			updates := make(accountBranchChildUpdates, 1) // shadows
+			updates[0] = accountBranchChild{account, branch, childIndex}
+			err := updates.UpdateDB(ctx, w, maybeDBTX)
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
+		} else {
+			return nil, errors.E(op, errors.Bug, "no method to update DB with addresses")
 		}
 		alb.cursor++
 		addr := &xpubAddress{
@@ -634,13 +650,16 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op, persist persistR
 // and persists that idx in the database. This address is never used on chain,
 // but is used when signing messages sent to a vspd.
 func (w *Wallet) signingAddressAtIdx(ctx context.Context, op errors.Op,
-	persist persistReturnedChildFunc, account, childIdx uint32) (stdaddr.Address, error) {
+	account, childIdx uint32) (stdaddr.Address, error) {
+
 	addr, err := w.AddressAtIdx(ctx, account, 0, childIdx)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 	// Write the returned child index to the database.
-	err = persist(account, 0, childIdx)
+	updates := make(accountBranchChildUpdates, 1)
+	updates[0] = accountBranchChild{account, 0, childIdx}
+	err = updates.UpdateDB(ctx, w, nil)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -733,7 +752,7 @@ func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpt
 	}
 
 	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
+	return w.nextAddress(ctx, op, nil, nil,
 		accountName, account, udb.ExternalBranch, callOpts...)
 }
 
@@ -747,7 +766,7 @@ func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpt
 	}
 
 	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, w.persistReturnedChild(ctx, nil),
+	return w.nextAddress(ctx, op, nil, nil,
 		accountName, account, udb.InternalBranch, callOpts...)
 }
 
@@ -772,8 +791,8 @@ func (w *Wallet) notVotingAcct(ctx context.Context, op errors.Op, account uint32
 	return nil
 }
 
-func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist persistReturnedChildFunc,
-	accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *accountBranchChildUpdates,
+	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
 
 	// Imported voting accounts must not be used for change.
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
@@ -787,7 +806,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, persist, accountName, account, udb.InternalBranch, withGapPolicy(gap))
+	return w.nextAddress(ctx, op, updates, maybeDBTX, accountName, account, udb.InternalBranch, withGapPolicy(gap))
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
@@ -797,7 +816,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, persist per
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (stdaddr.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
 	accountName, _ := w.AccountName(ctx, account)
-	return w.newChangeAddress(ctx, op, w.persistReturnedChild(ctx, nil), accountName, account, gapPolicyWrap)
+	return w.newChangeAddress(ctx, op, nil, nil, accountName, account, gapPolicyWrap)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -920,7 +939,8 @@ func (w *Wallet) ImportedAddresses(ctx context.Context, account string) (_ []Kno
 }
 
 type p2PKHChangeSource struct {
-	persist   persistReturnedChildFunc
+	updates   *accountBranchChildUpdates
+	dbtx      walletdb.ReadWriteTx
 	account   uint32
 	wallet    *Wallet
 	ctx       context.Context
@@ -929,7 +949,7 @@ type p2PKHChangeSource struct {
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 	const accountName = "" // not returned, so can be faked.
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist,
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", nil, src.dbtx,
 		accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
@@ -945,7 +965,8 @@ func (src *p2PKHChangeSource) ScriptSize() int {
 // p2PKHTreasuryChangeSource is the change source that shall be used when there
 // is change on an OP_TADD treasury send.
 type p2PKHTreasuryChangeSource struct {
-	persist   persistReturnedChildFunc
+	updates   *accountBranchChildUpdates
+	dbtx      walletdb.ReadWriteTx
 	account   uint32
 	wallet    *Wallet
 	ctx       context.Context
@@ -956,7 +977,7 @@ type p2PKHTreasuryChangeSource struct {
 // interface.
 func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
 	const accountName = "" // not returned, so can be faked.
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.persist,
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", nil, src.dbtx,
 		accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err

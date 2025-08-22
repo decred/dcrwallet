@@ -1674,15 +1674,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	if err != nil {
 		return nil, err
 	}
-	err = walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-		for _, update := range a.changeSourceUpdates {
-			err := update(dbtx)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	err = a.changeSourceUpdates.UpdateDB(ctx, w, nil)
 	if err != nil {
 		return nil, err
 	}

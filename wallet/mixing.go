@@ -53,12 +53,11 @@ func (w *Wallet) makeGen(ctx context.Context, account, branch uint32) mixclient.
 
 	gen := func(mcount uint32) (wire.MixVect, error) {
 		gen := make(wire.MixVect, mcount)
-		var updates []func(walletdb.ReadWriteTx) error
+		updates := make(accountBranchChildUpdates, 0, mcount)
 
 		for i := uint32(0); i < mcount; i++ {
-			persist := w.deferPersistReturnedChild(ctx, &updates)
 			const accountName = "" // not used, so can be faked.
-			mixAddr, err := w.nextAddress(ctx, op, persist,
+			mixAddr, err := w.nextAddress(ctx, op, &updates, nil,
 				accountName, account, branch, WithGapPolicyIgnore())
 			if err != nil {
 				return nil, err
@@ -69,19 +68,8 @@ func (w *Wallet) makeGen(ctx context.Context, account, branch uint32) mixclient.
 			}
 			gen[i] = *hash160er.Hash160()
 		}
-
-		err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
-			for _, f := range updates {
-				if err := f(dbtx); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
-		return gen, nil
+		err := updates.UpdateDB(ctx, w, nil)
+		return gen, err
 	}
 	return mixclient.GenFunc(gen)
 }
@@ -401,9 +389,9 @@ SplitPoints:
 
 	var change *wire.TxOut
 	if changeValue > 0 {
-		persist := w.persistReturnedChild(ctx, nil)
+		updates := make(accountBranchChildUpdates, 0, 1)
 		const accountName = "" // not used, so can be faked.
-		addr, err := w.nextAddress(ctx, op, persist,
+		addr, err := w.nextAddress(ctx, op, &updates, nil,
 			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
 		if err != nil {
 			return errors.E(op, err)
@@ -413,6 +401,10 @@ SplitPoints:
 			Value:    int64(changeValue),
 			PkScript: changeScript,
 			Version:  version,
+		}
+		err = updates.UpdateDB(ctx, w, nil)
+		if err != nil {
+			return err
 		}
 	}
 
