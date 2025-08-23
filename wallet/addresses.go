@@ -508,7 +508,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 
 	if updates != nil && maybeDBTX != nil {
 		return nil, errors.E(op, errors.Bug, "nextAddress must not provide both a slice "+
-			"to defer db updates and an open write transaction)")
+			"to defer db updates and an open write transaction")
 	}
 
 	// If no DB updates are being deferred until after the nextAddress
