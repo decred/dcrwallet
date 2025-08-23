@@ -266,9 +266,12 @@ func (s *Store) ExtendMainChain(ns walletdb.ReadWriteBucket, header *wire.BlockH
 		return err
 	}
 
-	// Save the compact filter.
-	bcf2Key := blockcf2.Key(&header.MerkleRoot)
-	return putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, f.Bytes()))
+	if f != nil {
+		// Save the compact filter.
+		bcf2Key := blockcf2.Key(&header.MerkleRoot)
+		return putRawCFilter(ns, blockHash[:], valueRawCFilter2(bcf2Key, f.Bytes()))
+	}
+	return nil
 }
 
 // ProcessedTxsBlockMarker returns the hash of the block which records the last
@@ -402,14 +405,29 @@ func (s *Store) IsMissingMainChainCFilters(dbtx walletdb.ReadTx) bool {
 	return len(v) != 1 || v[0] == 0
 }
 
+// SetMissingMainChainCFilters sets whether we have all of the main chain
+// cfilters. Should be used to set missing to false if the wallet birthday is
+// moved back in time.
+func (s *Store) SetMissingMainChainCFilters(dbtx walletdb.ReadWriteTx, have bool) error {
+	haveB := []byte{0}
+	if have {
+		haveB = []byte{1}
+	}
+	err := dbtx.ReadWriteBucket(wtxmgrBucketKey).Put(rootHaveCFilters, haveB)
+	if err != nil {
+		return errors.E(errors.IO, err)
+	}
+	return nil
+}
+
 // MissingCFiltersHeight returns the first main chain block height
 // with a missing cfilter.  Errors with NotExist when all main chain
 // blocks record cfilters.
-func (s *Store) MissingCFiltersHeight(dbtx walletdb.ReadTx) (int32, error) {
+func MissingCFiltersHeight(dbtx walletdb.ReadTx, fromHeight int32) (int32, error) {
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	c := ns.NestedReadBucket(bucketBlocks).ReadCursor()
 	defer c.Close()
-	for k, v := c.First(); k != nil; k, v = c.Next() {
+	for k, v := c.Seek(keyBlockRecord(fromHeight)); k != nil; k, v = c.Next() {
 		hash := extractRawBlockRecordHash(v)
 		_, _, err := fetchRawCFilter2(ns, hash)
 		if errors.Is(err, errors.NotExist) {
