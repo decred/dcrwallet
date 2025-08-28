@@ -996,6 +996,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	}
 	w.addressBuffersMu.Unlock()
 
+	var addrCount atomic.Uint64
 	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) error {
 		if start == 0 && w.watchLast != 0 && end-w.gapLimit > w.watchLast {
 			start = end - w.gapLimit - w.watchLast
@@ -1026,7 +1027,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 					addrs = append(addrs, addr)
 				}
 
-				count += uint64(len(addrs))
+				addrCount.Add(uint64(len(addrs)))
 				return n.LoadTxFilter(ctx, false, addrs, nil)
 			})
 		}
@@ -1057,7 +1058,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	}
 	w.addressBuffersMu.Unlock()
 
-	return count, nil
+	return addrCount.Load(), nil
 }
 
 // CoinType returns the active BIP0044 coin type. For watching-only wallets,
