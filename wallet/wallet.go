@@ -1016,15 +1016,15 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 			groupStop := min(end+1, start+step)
 			errGroup.Go(func() error {
 				for child := groupStart; child < groupStop; child++ {
-				addr, err := deriveChildAddress(branchKey, child, w.chainParams)
-				if errors.Is(err, hdkeychain.ErrInvalidChild) {
-					continue
-				}
-				if err != nil {
+					addr, err := deriveChildAddress(branchKey, child, w.chainParams)
+					if errors.Is(err, hdkeychain.ErrInvalidChild) {
+						continue
+					}
+					if err != nil {
 						return err
+					}
+					addrs = append(addrs, addr)
 				}
-				addrs = append(addrs, addr)
-			}
 
 				count += uint64(len(addrs))
 				return n.LoadTxFilter(ctx, false, addrs, nil)
@@ -1040,8 +1040,8 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 			return 0, err
 		}
 		err = loadBranchAddrs(hd.internalKey, hd.lastWatchedInternal, hd.internalCount)
-	if err != nil {
-		return 0, err
+		if err != nil {
+			return 0, err
 		}
 	}
 
