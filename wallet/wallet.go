@@ -996,63 +996,53 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 	}
 	w.addressBuffersMu.Unlock()
 
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	watchAddrs := make(chan []stdaddr.Address, runtime.NumCPU())
-	watchError := make(chan error)
-	go func() {
-		for addrs := range watchAddrs {
-			count += uint64(len(addrs))
-			err := n.LoadTxFilter(ctx, false, addrs, nil)
-			if err != nil {
-				watchError <- err
-				cancel()
-				return
-			}
-		}
-		watchError <- nil
-	}()
-	var deriveError error
-	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) {
+	loadBranchAddrs := func(branchKey *hdkeychain.ExtendedKey, start, end uint32) error {
 		if start == 0 && w.watchLast != 0 && end-w.gapLimit > w.watchLast {
 			start = end - w.gapLimit - w.watchLast
 		}
+
+		// Deriving addresses is CPU intensive and can take significant time for
+		// larger wallets. To speed things up, use errgroup to run on multiple
+		// threads.
+		errGroup, ctx := errgroup.WithContext(ctx)
+		errGroup.SetLimit(runtime.NumCPU())
 		const step = 256
 		for ; start <= end; start += step {
+			if ctx.Err() != nil {
+				return nil
+			}
 			addrs := make([]stdaddr.Address, 0, step)
-			stop := min(end+1, start+step)
-			for child := start; child < stop; child++ {
+			groupStart := start
+			groupStop := min(end+1, start+step)
+			errGroup.Go(func() error {
+				for child := groupStart; child < groupStop; child++ {
 				addr, err := deriveChildAddress(branchKey, child, w.chainParams)
 				if errors.Is(err, hdkeychain.ErrInvalidChild) {
 					continue
 				}
 				if err != nil {
-					deriveError = err
-					return
+						return err
 				}
 				addrs = append(addrs, addr)
 			}
-			select {
-			case watchAddrs <- addrs:
-			case <-ctx.Done():
-				return
-			}
+
+				count += uint64(len(addrs))
+				return n.LoadTxFilter(ctx, false, addrs, nil)
+			})
 		}
+
+		return errGroup.Wait()
 	}
+
 	for _, hd := range hdAccounts {
-		loadBranchAddrs(hd.externalKey, hd.lastWatchedExternal, hd.externalCount)
-		loadBranchAddrs(hd.internalKey, hd.lastWatchedInternal, hd.internalCount)
-		if ctx.Err() != nil || deriveError != nil {
-			break
+		err := loadBranchAddrs(hd.externalKey, hd.lastWatchedExternal, hd.externalCount)
+		if err != nil {
+			return 0, err
 		}
-	}
-	close(watchAddrs)
-	if deriveError != nil {
-		return 0, deriveError
-	}
-	err = <-watchError
+		err = loadBranchAddrs(hd.internalKey, hd.lastWatchedInternal, hd.internalCount)
 	if err != nil {
 		return 0, err
+		}
 	}
 
 	w.addressBuffersMu.Lock()
