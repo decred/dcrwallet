@@ -79,7 +79,7 @@ type blockRequest struct {
 // messages with the local peer.  RemotePeers must be created by dialing the
 // peer's address with a LocalPeer.
 type RemotePeer struct {
-	atomicClosed atomic.Uint64
+	atomicClosed atomic.Bool
 
 	id         uint64
 	lp         *LocalPeer
@@ -727,7 +727,7 @@ var ErrDisconnected = errors.New("peer has been disconnected")
 // Disconnect closes the underlying TCP connection to a RemotePeer.  A nil
 // reason is replaced with ErrDisconnected.
 func (rp *RemotePeer) Disconnect(reason error) {
-	if !rp.atomicClosed.CompareAndSwap(0, 1) {
+	if !rp.atomicClosed.CompareAndSwap(false, true) {
 		// Already disconnected
 		return
 	}
