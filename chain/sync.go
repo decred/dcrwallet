@@ -35,8 +35,8 @@ var requiredAPIVersion = semver{Major: 8, Minor: 3, Patch: 0}
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type Syncer struct {
-	atomicWalletSynced     atomic.Bool
-	atomicTargetSyncHeight atomic.Int32
+	walletSynced     atomic.Bool
+	targetSyncHeight atomic.Int32
 
 	wallet   *wallet.Wallet
 	opts     *RPCOptions
@@ -122,10 +122,10 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // Synced returns whether the syncer has completed syncing to the backend and
 // the target height it is attempting to sync to.
 func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
-	synced := s.atomicWalletSynced.Load()
+	synced := s.walletSynced.Load()
 	var targetHeight int32
 	if !synced {
-		targetHeight = s.atomicTargetSyncHeight.Load()
+		targetHeight = s.targetSyncHeight.Load()
 	} else {
 		_, targetHeight = s.wallet.MainChainTip(ctx)
 	}
@@ -135,7 +135,7 @@ func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	swapped := s.atomicWalletSynced.CompareAndSwap(false, true)
+	swapped := s.walletSynced.CompareAndSwap(false, true)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(true)
 	}
@@ -144,7 +144,7 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	swapped := s.atomicWalletSynced.CompareAndSwap(true, false)
+	swapped := s.walletSynced.CompareAndSwap(true, false)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(false)
 	}
@@ -224,7 +224,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 
-	startedSynced := s.atomicWalletSynced.Load()
+	startedSynced := s.walletSynced.Load()
 
 	cnet := s.wallet.ChainParams().Net
 	s.fetchHeadersStart()
@@ -239,7 +239,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			s.atomicTargetSyncHeight.Store(int32(info.Headers))
+			s.targetSyncHeight.Store(int32(info.Headers))
 		}
 
 		headers, err := s.rpc.Headers(ctx, locators, &hashStop)
@@ -538,7 +538,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 	s.notifier = &notifier{
 		syncer: s,
 		ctx:    ntfnCtx,
-		closed: make(chan struct{}),
+		done:   make(chan struct{}),
 	}
 	addr, err := normalizeAddress(s.opts.Address, s.opts.DefaultPort)
 	if err != nil {
@@ -726,7 +726,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 
 		// Wait for notifications to finish before returning
-		<-s.notifier.closed
+		<-s.notifier.done
 	}()
 
 	// Ensure wallet.Run cleanly finishes/is canceled first when outer
@@ -764,10 +764,10 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 }
 
 type notifier struct {
-	atomicClosed     atomic.Bool
+	closed           atomic.Bool
 	syncer           *Syncer
 	ctx              context.Context
-	closed           chan struct{}
+	done             chan struct{}
 	connectingBlocks bool
 }
 
@@ -814,8 +814,8 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 }
 
 func (n *notifier) Close() error {
-	if n.atomicClosed.CompareAndSwap(false, true) {
-		close(n.closed)
+	if n.closed.CompareAndSwap(false, true) {
+		close(n.done)
 	}
 	return nil
 }
