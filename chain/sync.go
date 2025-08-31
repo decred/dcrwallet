@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023 The Decred developers
+// Copyright (c) 2017-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -46,8 +46,7 @@ type Syncer struct {
 	blake256Hasher   hash.Hash
 	blake256HasherMu sync.Mutex
 
-	discoverAccts bool
-	mu            sync.Mutex
+	discoverAccts atomic.Bool
 
 	// Sidechain management
 	sidechains   wallet.SidechainForest
@@ -76,12 +75,13 @@ type RPCOptions struct {
 
 // NewSyncer creates a Syncer that will sync the wallet using dcrd JSON-RPC.
 func NewSyncer(w *wallet.Wallet, r *RPCOptions) *Syncer {
-	return &Syncer{
+	s := &Syncer{
 		wallet:         w,
 		opts:           r,
 		blake256Hasher: blake256.New(),
-		discoverAccts:  !w.Locked(),
 	}
+	s.discoverAccts.Store(!w.Locked())
+	return s
 }
 
 // Callbacks contains optional callback functions to notify events during
@@ -116,9 +116,7 @@ func (s *Syncer) RPC() *dcrd.RPC {
 // DisableDiscoverAccounts disables account discovery. This has an effect only
 // if called before the main Run() executes the account discovery process.
 func (s *Syncer) DisableDiscoverAccounts() {
-	s.mu.Lock()
-	s.discoverAccts = false
-	s.mu.Unlock()
+	s.discoverAccts.Store(false)
 }
 
 // Synced returns whether the syncer has completed syncing to the backend and
@@ -360,18 +358,14 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 	if rescanPoint != nil {
-		s.mu.Lock()
-		discoverAccts := s.discoverAccts
-		s.mu.Unlock()
+		discoverAccts := s.discoverAccts.Load()
 		s.discoverAddressesStart()
 		err = s.wallet.DiscoverActiveAddresses(ctx, s, rescanPoint, discoverAccts, s.wallet.GapLimit())
 		if err != nil {
 			return err
 		}
 		s.discoverAddressesFinished()
-		s.mu.Lock()
-		s.discoverAccts = false
-		s.mu.Unlock()
+		s.discoverAccts.Store(false)
 		err = s.wallet.LoadActiveDataFilters(ctx, s, true)
 		if err != nil {
 			return err
