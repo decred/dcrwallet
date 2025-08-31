@@ -53,8 +53,7 @@ type backoff struct {
 // Syncer implements wallet synchronization services by over the Decred wire
 // protocol using Simplified Payment Verification (SPV) with compact filters.
 type Syncer struct {
-	// atomics
-	atomicWalletSynced atomic.Bool
+	walletSynced atomic.Bool
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
@@ -178,7 +177,7 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	if s.atomicWalletSynced.CompareAndSwap(false, true) &&
+	if s.walletSynced.CompareAndSwap(false, true) &&
 		s.notifications != nil &&
 		s.notifications.Synced != nil {
 		s.notifications.Synced(true)
@@ -188,7 +187,7 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	if s.atomicWalletSynced.CompareAndSwap(true, false) {
+	if s.walletSynced.CompareAndSwap(true, false) {
 		if s.notifications != nil &&
 			s.notifications.Synced != nil {
 			s.notifications.Synced(false)
@@ -200,7 +199,7 @@ func (s *Syncer) unsynced() {
 // Synced returns whether this wallet is completely synced to the network and
 // the target height it is attempting to sync to.
 func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
-	synced := s.atomicWalletSynced.Load()
+	synced := s.walletSynced.Load()
 	var targetHeight int32
 	if !synced {
 		s.forRemotes(func(rp *p2p.RemotePeer) error {
