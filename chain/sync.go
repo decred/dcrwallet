@@ -35,7 +35,7 @@ var requiredAPIVersion = semver{Major: 8, Minor: 3, Patch: 0}
 // Syncer implements wallet synchronization services by processing
 // notifications from a dcrd JSON-RPC server.
 type Syncer struct {
-	atomicWalletSynced     atomic.Uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced     atomic.Bool
 	atomicTargetSyncHeight atomic.Int32
 
 	wallet   *wallet.Wallet
@@ -122,7 +122,7 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // Synced returns whether the syncer has completed syncing to the backend and
 // the target height it is attempting to sync to.
 func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
-	synced := s.atomicWalletSynced.Load() == 1
+	synced := s.atomicWalletSynced.Load()
 	var targetHeight int32
 	if !synced {
 		targetHeight = s.atomicTargetSyncHeight.Load()
@@ -135,7 +135,7 @@ func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	swapped := s.atomicWalletSynced.CompareAndSwap(0, 1)
+	swapped := s.atomicWalletSynced.CompareAndSwap(false, true)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(true)
 	}
@@ -144,7 +144,7 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	swapped := s.atomicWalletSynced.CompareAndSwap(1, 0)
+	swapped := s.atomicWalletSynced.CompareAndSwap(true, false)
 	if swapped && s.cb != nil && s.cb.Synced != nil {
 		s.cb.Synced(false)
 	}
@@ -224,7 +224,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 
-	startedSynced := s.atomicWalletSynced.Load() == 1
+	startedSynced := s.atomicWalletSynced.Load()
 
 	cnet := s.wallet.ChainParams().Net
 	s.fetchHeadersStart()
@@ -764,7 +764,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 }
 
 type notifier struct {
-	atomicClosed     atomic.Uint32
+	atomicClosed     atomic.Bool
 	syncer           *Syncer
 	ctx              context.Context
 	closed           chan struct{}
@@ -814,7 +814,7 @@ func (n *notifier) Notify(method string, params json.RawMessage) error {
 }
 
 func (n *notifier) Close() error {
-	if n.atomicClosed.CompareAndSwap(0, 1) {
+	if n.atomicClosed.CompareAndSwap(false, true) {
 		close(n.closed)
 	}
 	return nil

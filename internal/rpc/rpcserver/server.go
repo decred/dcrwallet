@@ -177,7 +177,7 @@ type versionServer struct {
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
-	ready  atomic.Uint32
+	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedWalletServiceServer
 }
@@ -185,7 +185,7 @@ type walletServer struct {
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
-	ready     atomic.Uint32
+	ready     atomic.Bool
 	loader    *loader.Loader
 	activeNet *netparams.Params
 	pb.UnimplementedWalletLoaderServiceServer
@@ -201,7 +201,7 @@ type seedServer struct {
 // accountMixerServer provides RPC clients with the ability to start/stop the
 // account mixing privacy service.
 type accountMixerServer struct {
-	ready  atomic.Uint32
+	ready  atomic.Bool
 	loader *loader.Loader
 	pb.UnimplementedAccountMixerServiceServer
 }
@@ -209,19 +209,19 @@ type accountMixerServer struct {
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
 type ticketbuyerServer struct {
-	ready  atomic.Uint32
+	ready  atomic.Bool
 	loader *loader.Loader
 	pb.UnimplementedTicketBuyerServiceServer
 }
 
 type agendaServer struct {
-	ready     atomic.Uint32
+	ready     atomic.Bool
 	activeNet *chaincfg.Params
 	pb.UnimplementedAgendaServiceServer
 }
 
 type votingServer struct {
-	ready  atomic.Uint32
+	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedVotingServiceServer
 }
@@ -241,7 +241,7 @@ type decodeMessageServer struct {
 // networkServer provices RPC clients with the ability to perform network
 // related calls that are not necessarily used or backed by the wallet itself.
 type networkServer struct {
-	ready  atomic.Uint32
+	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedNetworkServiceServer
 }
@@ -323,14 +323,14 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 
 // StartWalletService starts the WalletService.
 func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
-	if walletService.ready.Swap(1) != 0 {
+	if walletService.ready.Swap(true) {
 		panic("service already started")
 	}
 	walletService.wallet = wallet
 }
 
 func (s *walletServer) checkReady() bool {
-	return s.ready.Load() != 0
+	return s.ready.Load()
 }
 
 // requireNetworkBackend checks whether the wallet has been associated with the
@@ -2515,19 +2515,19 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
 	loaderService.loader = loader
 	loaderService.activeNet = activeNet
-	if loaderService.ready.Swap(1) != 0 {
+	if loaderService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
 
 func (s *loaderServer) checkReady() bool {
-	return s.ready.Load() != 0
+	return s.ready.Load()
 }
 
 // StartAccountMixerService starts the AccountMixerService.
 func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
 	accountMixerService.loader = loader
-	if accountMixerService.ready.Swap(1) != 0 {
+	if accountMixerService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
@@ -2575,13 +2575,13 @@ func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr
 }
 
 func (t *accountMixerServer) checkReady() bool {
-	return t.ready.Load() != 0
+	return t.ready.Load()
 }
 
 // StartTicketBuyerService starts the TicketBuyerService.
 func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader) {
 	ticketBuyerService.loader = loader
-	if ticketBuyerService.ready.Swap(1) != 0 {
+	if ticketBuyerService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
@@ -2691,7 +2691,7 @@ func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb
 }
 
 func (t *ticketbuyerServer) checkReady() bool {
-	return t.ready.Load() != 0
+	return t.ready.Load()
 }
 
 func (s *loaderServer) CreateWallet(ctx context.Context, req *pb.CreateWalletRequest) (
@@ -3197,13 +3197,13 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 
 func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
 	agendaService.activeNet = activeNet
-	if agendaService.ready.Swap(1) != 0 {
+	if agendaService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
 
 func (s *agendaServer) checkReady() bool {
-	return s.ready.Load() != 0
+	return s.ready.Load()
 }
 
 func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb.AgendasResponse, error) {
@@ -3239,13 +3239,13 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 // StartVotingService starts the VotingService.
 func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
 	votingService.wallet = wallet
-	if votingService.ready.Swap(1) != 0 {
+	if votingService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
 
 func (s *votingServer) checkReady() bool {
-	return s.ready.Load() != 0
+	return s.ready.Load()
 }
 
 func (s *votingServer) VoteChoices(ctx context.Context, req *pb.VoteChoicesRequest) (*pb.VoteChoicesResponse, error) {
@@ -3779,13 +3779,13 @@ func (s *walletServer) AbandonTransaction(ctx context.Context, req *pb.AbandonTr
 // StartNetworkService starts the NetworkService.
 func StartNetworkService(server *grpc.Server, wallet *wallet.Wallet) {
 	networkService.wallet = wallet
-	if networkService.ready.Swap(1) != 0 {
+	if networkService.ready.Swap(true) {
 		panic("service already started")
 	}
 }
 
 func (s *networkServer) checkReady() bool {
-	return s.ready.Load() != 0
+	return s.ready.Load()
 }
 
 func (s *networkServer) GetRawBlock(ctx context.Context, req *pb.GetRawBlockRequest) (*pb.GetRawBlockResponse, error) {

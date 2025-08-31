@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -54,7 +54,7 @@ type backoff struct {
 // protocol using Simplified Payment Verification (SPV) with compact filters.
 type Syncer struct {
 	// atomics
-	atomicWalletSynced atomic.Uint32 // CAS (synced=1) when wallet syncing complete
+	atomicWalletSynced atomic.Bool
 
 	wallet *wallet.Wallet
 	lp     *p2p.LocalPeer
@@ -178,7 +178,7 @@ func (s *Syncer) DisableDiscoverAccounts() {
 // synced checks the atomic that controls wallet syncness and if previously
 // unsynced, updates to synced and notifies the callback, if set.
 func (s *Syncer) synced() {
-	if s.atomicWalletSynced.CompareAndSwap(0, 1) &&
+	if s.atomicWalletSynced.CompareAndSwap(false, true) &&
 		s.notifications != nil &&
 		s.notifications.Synced != nil {
 		s.notifications.Synced(true)
@@ -188,7 +188,7 @@ func (s *Syncer) synced() {
 // unsynced checks the atomic that controls wallet syncness and if previously
 // synced, updates to unsynced and notifies the callback, if set.
 func (s *Syncer) unsynced() {
-	if s.atomicWalletSynced.CompareAndSwap(1, 0) {
+	if s.atomicWalletSynced.CompareAndSwap(true, false) {
 		if s.notifications != nil &&
 			s.notifications.Synced != nil {
 			s.notifications.Synced(false)
@@ -200,7 +200,7 @@ func (s *Syncer) unsynced() {
 // Synced returns whether this wallet is completely synced to the network and
 // the target height it is attempting to sync to.
 func (s *Syncer) Synced(ctx context.Context) (bool, int32) {
-	synced := s.atomicWalletSynced.Load() == 1
+	synced := s.atomicWalletSynced.Load()
 	var targetHeight int32
 	if !synced {
 		s.forRemotes(func(rp *p2p.RemotePeer) error {
