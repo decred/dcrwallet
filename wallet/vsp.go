@@ -21,6 +21,7 @@ import (
 	"github.com/decred/dcrd/wire"
 	"github.com/decred/slog"
 	vspd "github.com/decred/vspd/client/v4"
+	"github.com/decred/vspd/types/v3"
 )
 
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
@@ -139,18 +140,29 @@ func (c *VSPClient) ProcessManagedTickets(ctx context.Context, tickets []*VSPTic
 		_, ok := c.jobs[*hash]
 		c.mu.Unlock()
 		if ok {
+			c.log.Debugf("Ticket %s already added to vsp client", ticket)
 			// Already processing this ticket with the VSP.
 			continue
 		}
 
-		// Make ticketstatus api call and only continue if ticket is
-		// found managed by this vsp.  The rest is the same codepath as
-		// for processing a new ticket.
+		// Make ticketstatus API call and only continue if ticket is found
+		// managed by this VSP.  The rest is the same codepath as for processing
+		// a new ticket.
 		status, err := c.status(ctx, ticket)
 		if err != nil {
 			if errors.Is(err, errors.Locked) {
 				return err
 			}
+
+			// Noop if ticket is not known by this VSP.
+			var apiErr types.ErrorResponse
+			if errors.As(err, &apiErr) && apiErr.Code == types.ErrUnknownTicket {
+				c.log.Debugf("Ticket %s not known by vsp", ticket)
+				continue
+			}
+
+			c.log.Debugf("Ticket %s not added to vsp client, vsp status error: %v",
+				ticket, err)
 			continue
 		}
 
@@ -163,6 +175,8 @@ func (c *VSPClient) ProcessManagedTickets(ctx context.Context, tickets []*VSPTic
 			if err != nil {
 				return err
 			}
+
+			c.log.Debugf("Ticket %s already confirmed by vsp", ticket)
 			continue
 		} else if status.FeeTxHash != "" {
 			feeHash, err := chainhash.NewHashFromStr(status.FeeTxHash)
