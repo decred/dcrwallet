@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
 
 // TestGenerateEmissionKeyCmd tests the GenerateEmissionKeyCmd structure.
@@ -64,9 +64,9 @@ func TestGenerateEmissionKeyCmd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// Test basic validation logic
 			isValid := validateGenerateEmissionKeyCmd(test.cmd)
-			
+
 			if isValid != test.wantValid {
-				t.Errorf("Expected validation result %t, got %t: %s", 
+				t.Errorf("Expected validation result %t, got %t: %s",
 					test.wantValid, isValid, test.description)
 			}
 		})
@@ -146,9 +146,9 @@ func TestImportEmissionKeyCmd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// Test basic validation logic
 			isValid := validateImportEmissionKeyCmd(test.cmd)
-			
+
 			if isValid != test.wantValid {
-				t.Errorf("Expected validation result %t, got %t: %s", 
+				t.Errorf("Expected validation result %t, got %t: %s",
 					test.wantValid, isValid, test.description)
 			}
 		})
@@ -219,9 +219,9 @@ func TestCreateAuthorizedEmissionCmd(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// Test basic validation logic
 			isValid := validateCreateAuthorizedEmissionCmd(test.cmd)
-			
+
 			if isValid != test.wantValid {
-				t.Errorf("Expected validation result %t, got %t: %s", 
+				t.Errorf("Expected validation result %t, got %t: %s",
 					test.wantValid, isValid, test.description)
 			}
 		})
@@ -231,55 +231,55 @@ func TestCreateAuthorizedEmissionCmd(t *testing.T) {
 // TestEmissionKeyEncryptionFormat tests the encryption format validation.
 func TestEmissionKeyEncryptionFormat(t *testing.T) {
 	tests := []struct {
-		name           string
-		encryptedKey   string
-		expectedValid  bool
-		description    string
+		name          string
+		encryptedKey  string
+		expectedValid bool
+		description   string
 	}{
 		{
-			name:           "Valid AES-256-GCM format",
-			encryptedKey:   "aes256gcm:1234567890abcdef:fedcba0987654321",
-			expectedValid:  true,
-			description:    "Should recognize valid AES-256-GCM format",
+			name:          "Valid AES-256-GCM format",
+			encryptedKey:  "aes256gcm:1234567890abcdef:fedcba0987654321",
+			expectedValid: true,
+			description:   "Should recognize valid AES-256-GCM format",
 		},
 		{
-			name:           "Invalid format - missing prefix",
-			encryptedKey:   "1234567890abcdef:fedcba0987654321",
-			expectedValid:  false,
-			description:    "Should reject format without aes256gcm prefix",
+			name:          "Invalid format - missing prefix",
+			encryptedKey:  "1234567890abcdef:fedcba0987654321",
+			expectedValid: false,
+			description:   "Should reject format without aes256gcm prefix",
 		},
 		{
-			name:           "Invalid format - wrong prefix",
-			encryptedKey:   "aes128gcm:1234567890abcdef:fedcba0987654321",
-			expectedValid:  false,
-			description:    "Should reject format with wrong encryption prefix",
+			name:          "Invalid format - wrong prefix",
+			encryptedKey:  "aes128gcm:1234567890abcdef:fedcba0987654321",
+			expectedValid: false,
+			description:   "Should reject format with wrong encryption prefix",
 		},
 		{
-			name:           "Invalid format - missing parts",
-			encryptedKey:   "aes256gcm:1234567890abcdef",
-			expectedValid:  false,
-			description:    "Should reject format with missing encrypted data part",
+			name:          "Invalid format - missing parts",
+			encryptedKey:  "aes256gcm:1234567890abcdef",
+			expectedValid: false,
+			description:   "Should reject format with missing encrypted data part",
 		},
 		{
-			name:           "Invalid format - empty string",
-			encryptedKey:   "",
-			expectedValid:  false,
-			description:    "Should reject empty encrypted key",
+			name:          "Invalid format - empty string",
+			encryptedKey:  "",
+			expectedValid: false,
+			description:   "Should reject empty encrypted key",
 		},
 		{
-			name:           "Invalid format - too many parts",
-			encryptedKey:   "aes256gcm:1234:5678:9abc:def0",
-			expectedValid:  false,
-			description:    "Should reject format with too many colon-separated parts",
+			name:          "Invalid format - too many parts",
+			encryptedKey:  "aes256gcm:1234:5678:9abc:def0",
+			expectedValid: false,
+			description:   "Should reject format with too many colon-separated parts",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			isValid := isValidEncryptedKeyFormat(test.encryptedKey)
-			
+
 			if isValid != test.expectedValid {
-				t.Errorf("Expected %t for '%s': %s", 
+				t.Errorf("Expected %t for '%s': %s",
 					test.expectedValid, test.encryptedKey, test.description)
 			}
 		})
@@ -296,10 +296,10 @@ func TestPrivateKeyHexValidation(t *testing.T) {
 	validHex := hex.EncodeToString(validPrivKey.Serialize())
 
 	tests := []struct {
-		name        string
-		privateKey  string
+		name          string
+		privateKey    string
 		expectedValid bool
-		description string
+		description   string
 	}{
 		{
 			name:          "Valid private key hex",
@@ -342,9 +342,9 @@ func TestPrivateKeyHexValidation(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			isValid := isValidPrivateKeyHex(test.privateKey)
-			
+
 			if isValid != test.expectedValid {
-				t.Errorf("Expected %t for private key validation: %s", 
+				t.Errorf("Expected %t for private key validation: %s",
 					test.expectedValid, test.description)
 			}
 		})
@@ -376,12 +376,12 @@ func validateImportEmissionKeyCmd(cmd *types.ImportEmissionKeyCmd) bool {
 	if cmd.PrivateKey == "" {
 		return false
 	}
-	
+
 	// Check if it's encrypted format or raw hex
 	if strings.HasPrefix(cmd.PrivateKey, "aes256gcm:") {
 		return isValidEncryptedKeyFormat(cmd.PrivateKey)
 	}
-	
+
 	return isValidPrivateKeyHex(cmd.PrivateKey)
 }
 
@@ -405,7 +405,7 @@ func isValidEncryptedKeyFormat(encryptedKey string) bool {
 	if !strings.HasPrefix(encryptedKey, "aes256gcm:") {
 		return false
 	}
-	
+
 	parts := strings.Split(encryptedKey, ":")
 	return len(parts) == 3 && parts[1] != "" && parts[2] != ""
 }
@@ -414,18 +414,18 @@ func isValidPrivateKeyHex(privateKey string) bool {
 	if privateKey == "" {
 		return false
 	}
-	
+
 	// Check if it's valid hex
 	decoded, err := hex.DecodeString(privateKey)
 	if err != nil {
 		return false
 	}
-	
+
 	// Check correct length (32 bytes for secp256k1)
 	if len(decoded) != 32 {
 		return false
 	}
-	
+
 	// Check that it's not all zeros (invalid private key)
 	allZeros := true
 	allOnes := true
@@ -437,7 +437,7 @@ func isValidPrivateKeyHex(privateKey string) bool {
 			allOnes = false
 		}
 	}
-	
+
 	// Reject all-zeros and all-ones private keys
 	return !allZeros && !allOnes
 }

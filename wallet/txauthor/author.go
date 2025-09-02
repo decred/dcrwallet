@@ -11,6 +11,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"decred.org/dcrwallet/v5/wallet/txsizes"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
@@ -104,7 +105,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 	// Calculate initial fee for transaction size estimation
 	// SKA emission transactions have zero fees, all other transactions use normal fees
 	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
-	
+
 	// Check if this is an SKA emission transaction (need to create temp tx to check)
 	tempTx := &wire.MsgTx{
 		SerType: wire.TxSerializeFull,
@@ -175,7 +176,7 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 			}
 
 			// Set the coin type for the change output to match the transaction
-			var changeCoinType wire.CoinType = wire.CoinType(dcrutil.CoinTypeVAR) // Default to VAR
+			var changeCoinType cointype.CoinType = cointype.CoinTypeVAR // Default to VAR
 			if len(outputs) > 0 {
 				changeCoinType = outputs[0].CoinType
 			}

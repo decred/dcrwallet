@@ -9,6 +9,7 @@ import (
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txauthor"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
@@ -24,8 +25,8 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "All VAR outputs",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
-				{Value: 2e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
+				{Value: 1e6, CoinType: cointype.CoinTypeVAR},
+				{Value: 2e6, CoinType: cointype.CoinTypeVAR},
 			},
 			expectError: false,
 			description: "All VAR outputs should be valid",
@@ -33,8 +34,8 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "All SKA-1 outputs",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
-				{Value: 2e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
+				{Value: 1e6, CoinType: cointype.CoinType(1)},
+				{Value: 2e6, CoinType: cointype.CoinType(1)},
 			},
 			expectError: false,
 			description: "All same SKA type outputs should be valid",
@@ -42,7 +43,7 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "Single VAR output",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
+				{Value: 1e6, CoinType: cointype.CoinTypeVAR},
 			},
 			expectError: false,
 			description: "Single VAR output should be valid",
@@ -50,7 +51,7 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "Single SKA output",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
+				{Value: 1e6, CoinType: cointype.CoinType(1)},
 			},
 			expectError: false,
 			description: "Single SKA output should be valid",
@@ -58,8 +59,8 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "Mixed VAR and SKA-1",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
-				{Value: 2e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
+				{Value: 1e6, CoinType: cointype.CoinTypeVAR},
+				{Value: 2e6, CoinType: cointype.CoinType(1)},
 			},
 			expectError: true,
 			description: "Mixed VAR and SKA should be invalid",
@@ -67,8 +68,8 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "Mixed SKA-1 and SKA-2",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
-				{Value: 2e6, CoinType: wire.CoinType(dcrutil.CoinType(2))},
+				{Value: 1e6, CoinType: cointype.CoinType(1)},
+				{Value: 2e6, CoinType: cointype.CoinType(2)},
 			},
 			expectError: true,
 			description: "Mixed different SKA types should be invalid",
@@ -76,9 +77,9 @@ func TestDualCoinValidationLogic(t *testing.T) {
 		{
 			name: "Three mixed outputs",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
-				{Value: 2e6, CoinType: wire.CoinType(dcrutil.CoinType(1))},
-				{Value: 3e6, CoinType: wire.CoinType(dcrutil.CoinType(2))},
+				{Value: 1e6, CoinType: cointype.CoinTypeVAR},
+				{Value: 2e6, CoinType: cointype.CoinType(1)},
+				{Value: 3e6, CoinType: cointype.CoinType(2)},
 			},
 			expectError: true,
 			description: "Multiple different coin types should be invalid",
@@ -121,7 +122,7 @@ func validateCoinTypeMixing(outputs []*wire.TxOut) error {
 	}
 
 	// Dual-coin validation: Ensure all outputs use the same coin type
-	var txCoinType *wire.CoinType
+	var txCoinType *cointype.CoinType
 	for i, output := range outputs {
 		if i == 0 {
 			txCoinType = &output.CoinType
@@ -137,25 +138,25 @@ func validateCoinTypeMixing(outputs []*wire.TxOut) error {
 func TestInputStructCoinTypeUsage(t *testing.T) {
 	testCases := []struct {
 		name        string
-		coinType    dcrutil.CoinType
+		coinType    cointype.CoinType
 		value       int64
 		description string
 	}{
 		{
 			name:        "VAR input",
-			coinType:    dcrutil.CoinTypeVAR,
+			coinType:    cointype.CoinTypeVAR,
 			value:       1e8,
 			description: "VAR input should preserve coin type",
 		},
 		{
 			name:        "SKA-1 input",
-			coinType:    dcrutil.CoinType(1),
+			coinType:    cointype.CoinType(1),
 			value:       2e8,
 			description: "SKA-1 input should preserve coin type",
 		},
 		{
 			name:        "SKA-255 input",
-			coinType:    dcrutil.CoinType(255),
+			coinType:    cointype.CoinType(255),
 			value:       5e8,
 			description: "SKA-255 input should preserve coin type",
 		},
@@ -168,7 +169,7 @@ func TestInputStructCoinTypeUsage(t *testing.T) {
 				OutPoint: wire.OutPoint{},
 				PrevOut: wire.TxOut{
 					Value:    tc.value,
-					CoinType: wire.CoinType(tc.coinType),
+					CoinType: tc.coinType,
 				},
 				CoinType: tc.coinType,
 			}
@@ -180,7 +181,7 @@ func TestInputStructCoinTypeUsage(t *testing.T) {
 			}
 
 			// Test that PrevOut.CoinType matches
-			if dcrutil.CoinType(input.PrevOut.CoinType) != tc.coinType {
+			if input.PrevOut.CoinType != tc.coinType {
 				t.Errorf("Input.PrevOut.CoinType mismatch: got %v, want %v",
 					input.PrevOut.CoinType, tc.coinType)
 			}
@@ -198,7 +199,7 @@ func TestInputStructCoinTypeUsage(t *testing.T) {
 func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 	testCases := []struct {
 		name         string
-		coinType     dcrutil.CoinType
+		coinType     cointype.CoinType
 		inputAmount  dcrutil.Amount
 		outputAmount dcrutil.Amount
 		expectFees   bool
@@ -206,7 +207,7 @@ func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 	}{
 		{
 			name:         "VAR transaction",
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			inputAmount:  1e8,
 			outputAmount: 9e7, // Leave room for fees
 			expectFees:   true,
@@ -214,7 +215,7 @@ func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 		},
 		{
 			name:         "SKA-1 transaction",
-			coinType:     dcrutil.CoinType(1),
+			coinType:     cointype.CoinType(1),
 			inputAmount:  1e8,
 			outputAmount: 1e8, // Exact amount - no fees
 			expectFees:   false,
@@ -222,7 +223,7 @@ func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 		},
 		{
 			name:         "SKA-255 transaction",
-			coinType:     dcrutil.CoinType(255),
+			coinType:     cointype.CoinType(255),
 			inputAmount:  5e7,
 			outputAmount: 5e7, // Exact amount - no fees
 			expectFees:   false,
@@ -256,13 +257,13 @@ func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 				CoinType: tc.coinType,
 				PrevOut: wire.TxOut{
 					Value:    int64(tc.inputAmount),
-					CoinType: wire.CoinType(tc.coinType),
+					CoinType: tc.coinType,
 				},
 			}
 
 			testOutput := &wire.TxOut{
 				Value:    int64(tc.outputAmount),
-				CoinType: wire.CoinType(tc.coinType),
+				CoinType: tc.coinType,
 			}
 
 			// Input and output should have matching coin types
@@ -271,7 +272,7 @@ func TestTransactionCreationWithDifferentCoinTypes(t *testing.T) {
 					testInput.CoinType, tc.coinType)
 			}
 
-			if dcrutil.CoinType(testOutput.CoinType) != tc.coinType {
+			if testOutput.CoinType != tc.coinType {
 				t.Errorf("Output coin type mismatch: got %v, want %v",
 					testOutput.CoinType, tc.coinType)
 			}
@@ -287,10 +288,10 @@ func TestOutputSelectionAlgorithmWithCoinTypes(t *testing.T) {
 		OutputSelectionAlgorithmAll,
 	}
 
-	coinTypes := []dcrutil.CoinType{
-		dcrutil.CoinTypeVAR,
-		dcrutil.CoinType(1),
-		dcrutil.CoinType(2),
+	coinTypes := []cointype.CoinType{
+		cointype.CoinTypeVAR,
+		cointype.CoinType(1),
+		cointype.CoinType(2),
 	}
 
 	for _, algo := range algorithms {
@@ -329,7 +330,7 @@ func TestTransactionValidationEdgeCases(t *testing.T) {
 		{
 			name: "Single zero-value VAR output",
 			outputs: []*wire.TxOut{
-				{Value: 0, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
+				{Value: 0, CoinType: cointype.CoinTypeVAR},
 			},
 			expectError: false, // Zero value validation happens elsewhere
 			description: "Zero-value outputs don't trigger coin type validation",
@@ -337,7 +338,7 @@ func TestTransactionValidationEdgeCases(t *testing.T) {
 		{
 			name: "Single negative-value SKA output",
 			outputs: []*wire.TxOut{
-				{Value: -1, CoinType: wire.CoinType(dcrutil.CoinType(1))},
+				{Value: -1, CoinType: cointype.CoinType(1)},
 			},
 			expectError: false, // Negative value validation happens elsewhere
 			description: "Negative-value outputs don't trigger coin type validation",
@@ -345,8 +346,8 @@ func TestTransactionValidationEdgeCases(t *testing.T) {
 		{
 			name: "Maximum coin type value",
 			outputs: []*wire.TxOut{
-				{Value: 1e6, CoinType: wire.CoinType(255)},
-				{Value: 2e6, CoinType: wire.CoinType(255)},
+				{Value: 1e6, CoinType: cointype.CoinType(255)},
+				{Value: 2e6, CoinType: cointype.CoinType(255)},
 			},
 			expectError: false,
 			description: "Maximum coin type (255) should be valid",
@@ -358,7 +359,7 @@ func TestTransactionValidationEdgeCases(t *testing.T) {
 				for i := range outputs {
 					outputs[i] = &wire.TxOut{
 						Value:    int64(i + 1),
-						CoinType: wire.CoinType(dcrutil.CoinType(1)),
+						CoinType: cointype.CoinType(1),
 					}
 				}
 				return outputs
@@ -386,11 +387,11 @@ func TestTransactionValidationEdgeCases(t *testing.T) {
 // TestChangeSourceCoinTypeCompatibility tests change source compatibility with coin types
 func TestChangeSourceCoinTypeCompatibility(t *testing.T) {
 	// Test that change sources work with different coin types
-	coinTypes := []dcrutil.CoinType{
-		dcrutil.CoinTypeVAR,
-		dcrutil.CoinType(1),
-		dcrutil.CoinType(2),
-		dcrutil.CoinType(255),
+	coinTypes := []cointype.CoinType{
+		cointype.CoinTypeVAR,
+		cointype.CoinType(1),
+		cointype.CoinType(2),
+		cointype.CoinType(255),
 	}
 
 	for _, coinType := range coinTypes {
@@ -436,11 +437,11 @@ func (cs *testChangeSource) ScriptSize() int {
 
 // TestInputSourceCoinTypeCompatibility tests input source compatibility with coin types
 func TestInputSourceCoinTypeCompatibility(t *testing.T) {
-	coinTypes := []dcrutil.CoinType{
-		dcrutil.CoinTypeVAR,
-		dcrutil.CoinType(1),
-		dcrutil.CoinType(100),
-		dcrutil.CoinType(255),
+	coinTypes := []cointype.CoinType{
+		cointype.CoinTypeVAR,
+		cointype.CoinType(1),
+		cointype.CoinType(100),
+		cointype.CoinType(255),
 	}
 
 	for _, coinType := range coinTypes {
@@ -475,7 +476,7 @@ func TestInputSourceCoinTypeCompatibility(t *testing.T) {
 }
 
 // Mock input source for testing
-func createMockInputSource(coinType dcrutil.CoinType, availableAmount dcrutil.Amount) txauthor.InputSource {
+func createMockInputSource(coinType cointype.CoinType, availableAmount dcrutil.Amount) txauthor.InputSource {
 	return func(target dcrutil.Amount) (*txauthor.InputDetail, error) {
 		if target > availableAmount {
 			return nil, errors.E(errors.InsufficientBalance, "not enough funds")

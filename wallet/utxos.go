@@ -13,6 +13,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txauthor"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
 	"github.com/decred/dcrd/wire"
@@ -23,7 +24,7 @@ import (
 type OutputSelectionPolicy struct {
 	Account               uint32
 	RequiredConfirmations int32
-	CoinType              *dcrutil.CoinType // Optional coin type filter
+	CoinType              *cointype.CoinType // Optional coin type filter
 }
 
 func (p *OutputSelectionPolicy) meetsRequiredConfs(txHeight, curHeight int32) bool {
@@ -95,7 +96,7 @@ func (w *Wallet) UnspentOutputs(ctx context.Context, policy OutputSelectionPolic
 					// only version 0 at time of writing.
 					Version:  0,
 					PkScript: output.PkScript,
-					CoinType: wire.CoinType(output.CoinType),
+					CoinType: output.CoinType,
 				},
 				OutputKind:      outputSource,
 				ContainingBlock: BlockIdentity(output.Block),

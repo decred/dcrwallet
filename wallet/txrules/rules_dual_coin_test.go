@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"decred.org/dcrwallet/v5/wallet/txrules"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
@@ -19,25 +20,25 @@ func TestFeeForSerializeSizeDualCoin(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		coinType    dcrutil.CoinType
+		coinType    cointype.CoinType
 		expectedFee dcrutil.Amount
 		description string
 	}{
 		{
 			name:        "VAR transaction",
-			coinType:    dcrutil.CoinTypeVAR,
+			coinType:    cointype.CoinTypeVAR,
 			expectedFee: txrules.FeeForSerializeSize(relayFeePerKb, txSize), // Normal fee
 			description: "VAR should use standard fee calculation",
 		},
 		{
 			name:        "SKA-1 transaction",
-			coinType:    dcrutil.CoinType(1),
+			coinType:    cointype.CoinType(1),
 			expectedFee: txrules.FeeForSerializeSize(relayFeePerKb, txSize), // Same calculation as VAR
 			description: "SKA-1 transactions pay fees in SKA-1 coins using same calculation",
 		},
 		{
 			name:        "SKA-255 transaction",
-			coinType:    dcrutil.CoinType(255),
+			coinType:    cointype.CoinType(255),
 			expectedFee: txrules.FeeForSerializeSize(relayFeePerKb, txSize), // Same calculation as VAR
 			description: "SKA-255 transactions pay fees in SKA-255 coins using same calculation",
 		},
@@ -62,7 +63,7 @@ func TestIsDustAmountDualCoin(t *testing.T) {
 	testCases := []struct {
 		name         string
 		amount       dcrutil.Amount
-		coinType     dcrutil.CoinType
+		coinType     cointype.CoinType
 		expectedDust bool
 		description  string
 	}{
@@ -70,21 +71,21 @@ func TestIsDustAmountDualCoin(t *testing.T) {
 		{
 			name:         "VAR normal amount",
 			amount:       dcrutil.Amount(1e6), // 0.01 DCR
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			expectedDust: false,
 			description:  "Normal VAR amount should not be dust",
 		},
 		{
 			name:         "VAR dust amount",
 			amount:       dcrutil.Amount(1), // 1 atom
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			expectedDust: true,
 			description:  "Very small VAR amount should be dust",
 		},
 		{
 			name:         "VAR zero amount",
 			amount:       dcrutil.Amount(0),
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			expectedDust: true,
 			description:  "Zero VAR amount should be dust",
 		},
@@ -92,28 +93,28 @@ func TestIsDustAmountDualCoin(t *testing.T) {
 		{
 			name:         "SKA normal amount",
 			amount:       dcrutil.Amount(1e6),
-			coinType:     dcrutil.CoinType(1),
+			coinType:     cointype.CoinType(1),
 			expectedDust: false,
 			description:  "Normal SKA amount should not be dust",
 		},
 		{
 			name:         "SKA small amount",
 			amount:       dcrutil.Amount(1), // Should be dust for SKA same as VAR
-			coinType:     dcrutil.CoinType(1),
+			coinType:     cointype.CoinType(1),
 			expectedDust: true,
 			description:  "Small SKA amount should be dust (same fee-based dust as VAR)",
 		},
 		{
 			name:         "SKA zero amount",
 			amount:       dcrutil.Amount(0),
-			coinType:     dcrutil.CoinType(1),
+			coinType:     cointype.CoinType(1),
 			expectedDust: true,
 			description:  "Zero SKA amount should be dust",
 		},
 		{
 			name:         "SKA negative amount",
 			amount:       dcrutil.Amount(-1),
-			coinType:     dcrutil.CoinType(2),
+			coinType:     cointype.CoinType(2),
 			expectedDust: true,
 			description:  "Negative SKA amount should be dust",
 		},
@@ -146,7 +147,7 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 			name: "VAR normal output",
 			output: &wire.TxOut{
 				Value:    int64(1e6),
-				CoinType: wire.CoinType(dcrutil.CoinTypeVAR),
+				CoinType: cointype.CoinTypeVAR,
 				PkScript: make([]byte, scriptSize),
 			},
 			expectedDust: false,
@@ -156,7 +157,7 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 			name: "VAR dust output",
 			output: &wire.TxOut{
 				Value:    int64(1),
-				CoinType: wire.CoinType(dcrutil.CoinTypeVAR),
+				CoinType: cointype.CoinTypeVAR,
 				PkScript: make([]byte, scriptSize),
 			},
 			expectedDust: true,
@@ -167,7 +168,7 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 			name: "SKA normal output",
 			output: &wire.TxOut{
 				Value:    int64(1e6),
-				CoinType: wire.CoinType(dcrutil.CoinType(1)),
+				CoinType: cointype.CoinType(1),
 				PkScript: make([]byte, scriptSize),
 			},
 			expectedDust: false,
@@ -177,7 +178,7 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 			name: "SKA small output",
 			output: &wire.TxOut{
 				Value:    int64(1), // Should be dust for SKA same as VAR
-				CoinType: wire.CoinType(dcrutil.CoinType(1)),
+				CoinType: cointype.CoinType(1),
 				PkScript: make([]byte, scriptSize),
 			},
 			expectedDust: true,
@@ -187,7 +188,7 @@ func TestIsDustOutputDualCoin(t *testing.T) {
 			name: "SKA zero output",
 			output: &wire.TxOut{
 				Value:    int64(0),
-				CoinType: wire.CoinType(dcrutil.CoinType(2)),
+				CoinType: cointype.CoinType(2),
 				PkScript: make([]byte, scriptSize),
 			},
 			expectedDust: true,
@@ -216,7 +217,7 @@ func TestVARFeeCalculation(t *testing.T) {
 		t.Run(string(rune(size)), func(t *testing.T) {
 			// Calculate fee using both methods
 			standardFee := txrules.FeeForSerializeSize(relayFeePerKb, size)
-			dualCoinFee := txrules.FeeForSerializeSizeDualCoin(relayFeePerKb, size, dcrutil.CoinTypeVAR)
+			dualCoinFee := txrules.FeeForSerializeSizeDualCoin(relayFeePerKb, size, cointype.CoinTypeVAR)
 
 			// Should be identical for VAR
 			if standardFee != dualCoinFee {
@@ -236,11 +237,11 @@ func TestVARFeeCalculation(t *testing.T) {
 func TestSKAFeeLogic(t *testing.T) {
 	relayFeePerKb := dcrutil.Amount(1e4) // High fee rate
 
-	skaTypes := []dcrutil.CoinType{
-		dcrutil.CoinType(1),   // SKA-1
-		dcrutil.CoinType(2),   // SKA-2
-		dcrutil.CoinType(128), // SKA-128
-		dcrutil.CoinType(255), // SKA-255
+	skaTypes := []cointype.CoinType{
+		cointype.CoinType(1),   // SKA-1
+		cointype.CoinType(2),   // SKA-2
+		cointype.CoinType(128), // SKA-128
+		cointype.CoinType(255), // SKA-255
 	}
 
 	testSizes := []int{100, 250, 500, 1000, 5000}
@@ -255,7 +256,7 @@ func TestSKAFeeLogic(t *testing.T) {
 				if expectedFee == 0 && relayFeePerKb > 0 {
 					expectedFee = relayFeePerKb
 				}
-				
+
 				if fee != expectedFee {
 					t.Errorf("SKA-%d fee should be %v for size %d, got %v",
 						coinType, expectedFee, size, fee)
@@ -273,7 +274,7 @@ func TestDustEdgeCases(t *testing.T) {
 		name         string
 		amount       dcrutil.Amount
 		scriptSize   int
-		coinType     dcrutil.CoinType
+		coinType     cointype.CoinType
 		expectedDust bool
 		description  string
 	}{
@@ -281,7 +282,7 @@ func TestDustEdgeCases(t *testing.T) {
 			name:         "Large script VAR",
 			amount:       dcrutil.Amount(1000),
 			scriptSize:   1000, // Very large script
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			expectedDust: true, // Large script increases dust threshold
 			description:  "VAR with large script should be dust due to high cost",
 		},
@@ -289,7 +290,7 @@ func TestDustEdgeCases(t *testing.T) {
 			name:         "Large script SKA",
 			amount:       dcrutil.Amount(1000),
 			scriptSize:   1000, // Very large script
-			coinType:     dcrutil.CoinType(1),
+			coinType:     cointype.CoinType(1),
 			expectedDust: true, // SKA should have same dust logic as VAR
 			description:  "SKA with large script should be dust due to high cost (same as VAR)",
 		},
@@ -297,7 +298,7 @@ func TestDustEdgeCases(t *testing.T) {
 			name:         "Zero relay fee VAR",
 			amount:       dcrutil.Amount(1),
 			scriptSize:   25,
-			coinType:     dcrutil.CoinTypeVAR,
+			coinType:     cointype.CoinTypeVAR,
 			expectedDust: false, // No relay fee means no dust threshold
 			description:  "VAR with zero relay fee should not have dust threshold",
 		},
@@ -335,7 +336,7 @@ func TestBackwardCompatibility(t *testing.T) {
 			oldIsDust := txrules.IsDustAmount(amount, scriptSize, relayFeePerKb)
 
 			// New dual-coin calculation for VAR
-			newIsDust := txrules.IsDustAmountDualCoin(amount, scriptSize, relayFeePerKb, dcrutil.CoinTypeVAR)
+			newIsDust := txrules.IsDustAmountDualCoin(amount, scriptSize, relayFeePerKb, cointype.CoinTypeVAR)
 
 			if oldIsDust != newIsDust {
 				t.Errorf("Backward compatibility broken for VAR amount %v: old=%v, new=%v",

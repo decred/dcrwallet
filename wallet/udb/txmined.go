@@ -20,6 +20,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -90,7 +91,7 @@ type credit struct {
 	opCode     uint8
 	isCoinbase bool
 	hasExpiry  bool
-	coinType   dcrutil.CoinType // Dual-coin support: track coin type
+	coinType   cointype.CoinType // Dual-coin support: track coin type
 }
 
 // TxRecord represents a transaction managed by the Store.
@@ -169,7 +170,7 @@ type Credit struct {
 	Received     time.Time
 	FromCoinBase bool
 	HasExpiry    bool
-	CoinType     dcrutil.CoinType // Dual-coin support: track coin type (VAR=0, SKA=1-255)
+	CoinType     cointype.CoinType // Dual-coin support: track coin type (VAR=0, SKA=1-255)
 }
 
 // Store implements a transaction store for storing and managing wallet
@@ -1155,7 +1156,7 @@ func (s *Store) moveMinedTx(ns walletdb.ReadWriteBucket, addrmgrNs walletdb.Read
 		cred.change = change
 		cred.opCode = fetchRawUnminedCreditTagOpCode(v)
 		cred.isCoinbase = fetchRawUnminedCreditTagIsCoinbase(v)
-		cred.coinType = dcrutil.CoinType(rec.MsgTx.TxOut[i].CoinType)
+		cred.coinType = rec.MsgTx.TxOut[i].CoinType
 
 		// Legacy credit output values may be of the wrong
 		// size.
@@ -1416,7 +1417,7 @@ func (s *Store) AddCredit(dbtx walletdb.ReadWriteTx, rec *TxRecord, block *Block
 			opCode:     getStakeOpCode(version, pkScript),
 			isCoinbase: compat.IsEitherCoinBaseTx(&rec.MsgTx),
 			hasExpiry:  rec.MsgTx.Expiry != 0,
-			coinType:   dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType),
+			coinType:   rec.MsgTx.TxOut[index].CoinType,
 		}
 		scTy := pkScriptType(version, pkScript)
 		scLoc := uint32(rec.MsgTx.PkScriptLocs()[index])
@@ -1531,7 +1532,7 @@ func (s *Store) addCredit(ns walletdb.ReadWriteBucket, rec *TxRecord, block *Blo
 		opCode:     opCode,
 		isCoinbase: isCoinbase,
 		hasExpiry:  rec.MsgTx.Expiry != wire.NoExpiryValue,
-		coinType:   dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType),
+		coinType:   rec.MsgTx.TxOut[index].CoinType,
 	}
 	scrType := pkScriptType(scriptVersion, pkScript)
 	pkScrLocs := rec.MsgTx.PkScriptLocs()
@@ -2269,7 +2270,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 	var blockTime time.Time
 	var pkScript []byte
 	var receiveTime time.Time
-	var coinType dcrutil.CoinType // Dual-coin support: track coin type from TxOut
+	var coinType cointype.CoinType // Dual-coin support: track coin type from TxOut
 
 	if unminedCredV != nil {
 		var err error
@@ -2297,7 +2298,7 @@ func (s *Store) outputCreditInfo(ns walletdb.ReadBucket, op wire.OutPoint, block
 			return nil, errors.E(errors.IO, errors.Errorf("no output %d for tx %v", op.Index, &op.Hash))
 		}
 		pkScript = tx.TxOut[op.Index].PkScript
-		coinType = dcrutil.CoinType(tx.TxOut[op.Index].CoinType) // Extract coin type from TxOut
+		coinType = tx.TxOut[op.Index].CoinType // Extract coin type from TxOut
 	} else {
 		mined = true
 
@@ -2928,22 +2929,6 @@ func (s *Store) UnspentMultisigCreditsForAddress(dbtx walletdb.ReadTx, addr stda
 	return mscs, nil
 }
 
-type minimalCredit struct {
-	txRecordKey []byte
-	index       uint32
-	Amount      int64
-	tree        int8
-	unmined     bool
-}
-
-// byUtxoAmount defines the methods needed to satisify sort.Interface to
-// sort a slice of Utxos by their amount.
-type byUtxoAmount []*minimalCredit
-
-func (u byUtxoAmount) Len() int           { return len(u) }
-func (u byUtxoAmount) Less(i, j int) bool { return u[i].Amount < u[j].Amount }
-func (u byUtxoAmount) Swap(i, j int)      { u[i], u[j] = u[j], u[i] }
-
 // confirmed checks whether a transaction at height txHeight has met minConf
 // confirmations for a blockchain at height curHeight.
 func confirmed(minConf, txHeight, curHeight int32) bool {
@@ -3023,52 +3008,6 @@ func (s *Store) fastCreditPkScriptLookup(ns walletdb.ReadBucket, credKey []byte,
 	v := existsRawTxRecord(ns, k)
 	idx := extractRawCreditIndex(credKey)
 	return fetchRawTxRecordPkScript(k, v, idx, scrLoc, scrLen)
-}
-
-// minimalCreditToCredit looks up a minimal credit's data and prepares a Credit
-// from this data.
-func (s *Store) minimalCreditToCredit(ns walletdb.ReadBucket, mc *minimalCredit) (*Credit, error) {
-	var cred *Credit
-
-	switch mc.unmined {
-	case false: // Mined transactions.
-		opHash, err := chainhash.NewHash(mc.txRecordKey[0:32])
-		if err != nil {
-			return nil, err
-		}
-
-		var block Block
-		err = readUnspentBlock(mc.txRecordKey[32:68], &block)
-		if err != nil {
-			return nil, err
-		}
-
-		var op wire.OutPoint
-		op.Hash = *opHash
-		op.Index = mc.index
-
-		cred, err = s.outputCreditInfo(ns, op, &block)
-		if err != nil {
-			return nil, err
-		}
-
-	case true: // Unmined transactions.
-		opHash, err := chainhash.NewHash(mc.txRecordKey[0:32])
-		if err != nil {
-			return nil, err
-		}
-
-		var op wire.OutPoint
-		op.Hash = *opHash
-		op.Index = mc.index
-
-		cred, err = s.outputCreditInfo(ns, op, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return cred, nil
 }
 
 // InputSource provides a method (SelectInputs) to incrementally select unspent
@@ -3418,7 +3357,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 // This is essential for dual-coin transactions to ensure SKA transactions use SKA UTXOs
 // and VAR transactions use VAR UTXOs.
 func (s *Store) MakeInputSourceWithCoinType(dbtx walletdb.ReadTx, account uint32, minConf,
-	syncHeight int32, ignore func(*wire.OutPoint) bool, coinType dcrutil.CoinType) InputSource {
+	syncHeight int32, ignore func(*wire.OutPoint) bool, coinType cointype.CoinType) InputSource {
 
 	ns := dbtx.ReadBucket(wtxmgrBucketKey)
 	addrmgrNs := dbtx.ReadBucket(waddrmgrBucketKey)
@@ -3591,7 +3530,7 @@ func (s *Store) MakeInputSourceWithCoinType(dbtx walletdb.ReadTx, account uint32
 
 				// COIN TYPE FILTER: Check if this UTXO matches the required coin type
 				utxoCoinType := fetchRawCreditCoinType(cVal)
-				if dcrutil.CoinType(utxoCoinType) != coinType {
+				if utxoCoinType != coinType {
 					continue
 				}
 
@@ -3673,7 +3612,7 @@ func (s *Store) MakeInputSourceWithCoinType(dbtx walletdb.ReadTx, account uint32
 			} else {
 				// COIN TYPE FILTER: Check unmined credit coin type
 				utxoCoinType := fetchRawUnminedCreditCoinType(v)
-				if dcrutil.CoinType(utxoCoinType) != coinType {
+				if utxoCoinType != coinType {
 					continue
 				}
 
@@ -3807,7 +3746,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		if !ok {
 			ab = &Balances{
 				Account:          thisAcct,
-				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
+				CoinTypeBalances: make(map[cointype.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
@@ -3837,14 +3776,14 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 				// Update per-coin balance
 				coinBalance.Spendable += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.Spendable += utxoAmt
 				}
 			} else if creditFromCoinbase && !matureCoinbase {
 				// Update per-coin balance
 				coinBalance.ImmatureCoinbaseRewards += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.ImmatureCoinbaseRewards += utxoAmt
 				}
 			}
@@ -3852,14 +3791,14 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			// Update per-coin total
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR total for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.Total += utxoAmt
 			}
 		case txscript.OP_SSTX:
 			// Update per-coin balance
 			coinBalance.VotingAuthority += utxoAmt
 			// Update legacy VAR balance for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.VotingAuthority += utxoAmt
 			}
 		case txscript.OP_SSGEN:
@@ -3869,14 +3808,14 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 				// Update per-coin balance
 				coinBalance.Spendable += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.Spendable += utxoAmt
 				}
 			} else {
 				// Update per-coin balance
 				coinBalance.ImmatureStakeGeneration += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.ImmatureStakeGeneration += utxoAmt
 				}
 			}
@@ -3884,7 +3823,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			// Update per-coin total
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR total for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.Total += utxoAmt
 			}
 		case txscript.OP_SSTXCHANGE:
@@ -3892,7 +3831,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 				// Update per-coin balance
 				coinBalance.Spendable += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.Spendable += utxoAmt
 				}
 			}
@@ -3900,7 +3839,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			// Update per-coin total
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR total for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.Total += utxoAmt
 			}
 		default:
@@ -3942,7 +3881,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 		if !ok {
 			ab = &Balances{
 				Account:          thisAcct,
-				CoinTypeBalances: make(map[dcrutil.CoinType]CoinBalance),
+				CoinTypeBalances: make(map[cointype.CoinType]CoinBalance),
 			}
 			accountBalances[thisAcct] = ab
 		}
@@ -3972,28 +3911,28 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 				// Update per-coin balance
 				coinBalance.Spendable += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.Spendable += utxoAmt
 				}
 			} else if !fetchRawCreditIsCoinbase(v) {
 				// Update per-coin balance
 				coinBalance.Unconfirmed += utxoAmt
 				// Update legacy VAR balance for backward compatibility
-				if coinType == dcrutil.CoinTypeVAR {
+				if coinType == cointype.CoinTypeVAR {
 					ab.Unconfirmed += utxoAmt
 				}
 			}
 			// Update per-coin total
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR total for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.Total += utxoAmt
 			}
 		case txscript.OP_SSTX:
 			// Update per-coin balance
 			coinBalance.VotingAuthority += utxoAmt
 			// Update legacy VAR balance for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.VotingAuthority += utxoAmt
 			}
 		case txscript.OP_SSGEN:
@@ -4003,7 +3942,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			coinBalance.ImmatureStakeGeneration += utxoAmt
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR balance for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.ImmatureStakeGeneration += utxoAmt
 				ab.Total += utxoAmt
 			}
@@ -4011,7 +3950,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 			// Update per-coin total
 			coinBalance.Total += utxoAmt
 			// Update legacy VAR total for backward compatibility
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				ab.Total += utxoAmt
 			}
 			// Store updated coin balance and continue
@@ -4060,7 +3999,7 @@ func (s *Store) balanceFullScan(dbtx walletdb.ReadTx, minConf int32, syncHeight 
 
 // CoinBalance represents balance breakdown for a specific coin type
 type CoinBalance struct {
-	CoinType                dcrutil.CoinType
+	CoinType                cointype.CoinType
 	ImmatureCoinbaseRewards dcrutil.Amount
 	ImmatureStakeGeneration dcrutil.Amount
 	LockedByTickets         dcrutil.Amount
@@ -4085,7 +4024,7 @@ type Balances struct {
 	Unconfirmed             dcrutil.Amount
 
 	// Multi-coin support: breakdown by coin type
-	CoinTypeBalances map[dcrutil.CoinType]CoinBalance
+	CoinTypeBalances map[cointype.CoinType]CoinBalance
 }
 
 // AccountBalance returns a Balances struct for some given account at

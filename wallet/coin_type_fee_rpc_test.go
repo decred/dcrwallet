@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 
@@ -49,7 +50,7 @@ func TestCoinTypeFeeManagementMethods(t *testing.T) {
 		if w.RelayFee() != newFee {
 			t.Errorf("After SetRelayFee(%d), RelayFee() = %d", newFee, w.RelayFee())
 		}
-		
+
 		t.Logf("✅ VAR fee management: get=%d, set=%d", fee, newFee)
 	})
 
@@ -67,7 +68,7 @@ func TestCoinTypeFeeManagementMethods(t *testing.T) {
 		if w.SKARelayFee() != newFee {
 			t.Errorf("After SetSKARelayFee(%d), SKARelayFee() = %d", newFee, w.SKARelayFee())
 		}
-		
+
 		t.Logf("✅ SKA fee management: get=%d, set=%d", fee, newFee)
 	})
 
@@ -79,24 +80,24 @@ func TestCoinTypeFeeManagementMethods(t *testing.T) {
 		w.SetSKARelayFee(skaFee)
 
 		// Test VAR coin type
-		varResult := w.RelayFeeForCoinType(dcrutil.CoinTypeVAR)
+		varResult := w.RelayFeeForCoinType(cointype.CoinTypeVAR)
 		if varResult != varFee {
 			t.Errorf("RelayFeeForCoinType(VAR) = %d, expected %d", varResult, varFee)
 		}
 
 		// Test SKA coin type (SKA-1)
-		skaResult := w.RelayFeeForCoinType(dcrutil.CoinType(1))
+		skaResult := w.RelayFeeForCoinType(cointype.CoinType(1))
 		if skaResult != skaFee {
 			t.Errorf("RelayFeeForCoinType(SKA-1) = %d, expected %d", skaResult, skaFee)
 		}
 
 		// Test another SKA coin type (SKA-2)
-		ska2Result := w.RelayFeeForCoinType(dcrutil.CoinType(2))
+		ska2Result := w.RelayFeeForCoinType(cointype.CoinType(2))
 		if ska2Result != skaFee {
 			t.Errorf("RelayFeeForCoinType(SKA-2) = %d, expected %d", ska2Result, skaFee)
 		}
 
-		t.Logf("✅ RelayFeeForCoinType: VAR=%d, SKA-1=%d, SKA-2=%d", 
+		t.Logf("✅ RelayFeeForCoinType: VAR=%d, SKA-1=%d, SKA-2=%d",
 			varResult, skaResult, ska2Result)
 	})
 
@@ -124,7 +125,7 @@ func TestCoinTypeFeeManagementMethods(t *testing.T) {
 			t.Error("VAR fee should not change when SKA fee changes")
 		}
 
-		t.Logf("✅ Fee independence verified: VAR=%d, SKA=%d", 
+		t.Logf("✅ Fee independence verified: VAR=%d, SKA=%d",
 			w.RelayFee(), w.SKARelayFee())
 	})
 }
@@ -153,17 +154,17 @@ func TestWalletFeeInitialization(t *testing.T) {
 		}
 
 		if w.RelayFee() != configRelayFee {
-			t.Errorf("VAR fee should be initialized to config value %d, got %d", 
+			t.Errorf("VAR fee should be initialized to config value %d, got %d",
 				configRelayFee, w.RelayFee())
 		}
 
 		expectedSKAFee := dcrutil.Amount(1500)
 		if w.SKARelayFee() != expectedSKAFee {
-			t.Errorf("SKA fee should be initialized to chain param value %d, got %d", 
+			t.Errorf("SKA fee should be initialized to chain param value %d, got %d",
 				expectedSKAFee, w.SKARelayFee())
 		}
 
-		t.Logf("✅ Initialized with SKA param: VAR=%d, SKA=%d", 
+		t.Logf("✅ Initialized with SKA param: VAR=%d, SKA=%d",
 			w.RelayFee(), w.SKARelayFee())
 	})
 
@@ -186,16 +187,16 @@ func TestWalletFeeInitialization(t *testing.T) {
 		}
 
 		if w.RelayFee() != configRelayFee {
-			t.Errorf("VAR fee should be initialized to config value %d, got %d", 
+			t.Errorf("VAR fee should be initialized to config value %d, got %d",
 				configRelayFee, w.RelayFee())
 		}
 
 		if w.SKARelayFee() != configRelayFee {
-			t.Errorf("SKA fee should fallback to config value %d, got %d", 
+			t.Errorf("SKA fee should fallback to config value %d, got %d",
 				configRelayFee, w.SKARelayFee())
 		}
 
-		t.Logf("✅ Initialized without SKA param (fallback): VAR=%d, SKA=%d", 
+		t.Logf("✅ Initialized without SKA param (fallback): VAR=%d, SKA=%d",
 			w.RelayFee(), w.SKARelayFee())
 	})
 }
@@ -217,17 +218,17 @@ func TestCoinTypeFeeIntegrationScenarios(t *testing.T) {
 
 	t.Run("Scenario: User wants to check current fees", func(t *testing.T) {
 		// User calls getwalletfee (no coin type = VAR default)
-		varFee := w.RelayFeeForCoinType(dcrutil.CoinTypeVAR)
-		
+		varFee := w.RelayFeeForCoinType(cointype.CoinTypeVAR)
+
 		// User calls getwalletfee 1 (for SKA-1)
-		skaFee := w.RelayFeeForCoinType(dcrutil.CoinType(1))
+		skaFee := w.RelayFeeForCoinType(cointype.CoinType(1))
 
 		t.Logf("Current fees: VAR=%d atoms/KB, SKA=%d atoms/KB", varFee, skaFee)
-		
+
 		if varFee <= skaFee {
 			t.Log("⚠️  Note: VAR fee is not higher than SKA fee in this test scenario")
 		}
-		
+
 		t.Log("✅ Fee query scenario completed")
 	})
 
@@ -242,30 +243,30 @@ func TestCoinTypeFeeIntegrationScenarios(t *testing.T) {
 
 		// Verify changes
 		if w.RelayFee() != newVARFee {
-			t.Errorf("VAR fee not updated correctly: expected %d, got %d", 
+			t.Errorf("VAR fee not updated correctly: expected %d, got %d",
 				newVARFee, w.RelayFee())
 		}
 
 		if w.SKARelayFee() != newSKAFee {
-			t.Errorf("SKA fee not updated correctly: expected %d, got %d", 
+			t.Errorf("SKA fee not updated correctly: expected %d, got %d",
 				newSKAFee, w.SKARelayFee())
 		}
 
-		t.Logf("✅ Fee adjustment scenario: VAR raised to %d, SKA lowered to %d", 
+		t.Logf("✅ Fee adjustment scenario: VAR raised to %d, SKA lowered to %d",
 			newVARFee, newSKAFee)
 	})
 
 	t.Run("Scenario: Multiple SKA coin types use same fee", func(t *testing.T) {
 		// All SKA coin types should use the same fee setting
-		ska1Fee := w.RelayFeeForCoinType(dcrutil.CoinType(1))  // SKA-1
-		ska2Fee := w.RelayFeeForCoinType(dcrutil.CoinType(2))  // SKA-2
-		ska255Fee := w.RelayFeeForCoinType(dcrutil.CoinType(255)) // SKA-255 (max)
+		ska1Fee := w.RelayFeeForCoinType(cointype.CoinType(1))     // SKA-1
+		ska2Fee := w.RelayFeeForCoinType(cointype.CoinType(2))     // SKA-2
+		ska255Fee := w.RelayFeeForCoinType(cointype.CoinType(255)) // SKA-255 (max)
 
 		if ska1Fee != ska2Fee || ska2Fee != ska255Fee {
 			t.Error("All SKA coin types should use the same fee rate")
 		}
 
-		t.Logf("✅ Multiple SKA types scenario: SKA-1=%d, SKA-2=%d, SKA-255=%d", 
+		t.Logf("✅ Multiple SKA types scenario: SKA-1=%d, SKA-2=%d, SKA-255=%d",
 			ska1Fee, ska2Fee, ska255Fee)
 	})
 }

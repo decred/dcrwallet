@@ -924,6 +924,7 @@ type SendFromCmd struct {
 	MinConf     *int    `jsonrpcdefault:"1"`
 	Comment     *string
 	CommentTo   *string
+	CoinType    *uint8 `json:"cointype,omitempty"` // Optional: specify coin type (0=VAR, 1-255=SKA)
 }
 
 // NewSendFromCmd returns a new instance which can be used to issue a sendfrom
@@ -939,6 +940,19 @@ func NewSendFromCmd(fromAccount, toAddress string, amount float64, minConf *int,
 		MinConf:     minConf,
 		Comment:     comment,
 		CommentTo:   commentTo,
+	}
+}
+
+// NewSendFromCmdWithCoinType returns a new SendFromCmd with coin type specified.
+func NewSendFromCmdWithCoinType(fromAccount, toAddress string, amount float64, minConf *int, comment, commentTo *string, coinType *uint8) *SendFromCmd {
+	return &SendFromCmd{
+		FromAccount: fromAccount,
+		ToAddress:   toAddress,
+		Amount:      amount,
+		MinConf:     minConf,
+		Comment:     comment,
+		CommentTo:   commentTo,
+		CoinType:    coinType,
 	}
 }
 

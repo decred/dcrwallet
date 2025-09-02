@@ -16,6 +16,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -210,50 +211,20 @@ func flattenBalanceMap(m map[uint32]dcrutil.Amount) []AccountBalance {
 			Account:      k,
 			TotalBalance: v,
 			// Initialize empty CoinTypeBalances map for backward compatibility
-			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
+			CoinTypeBalances: make(map[cointype.CoinType]dcrutil.Amount),
 		})
 	}
 	return s
 }
 
-// multiCoinTotalBalances calculates per-coin-type balances for all accounts
-func multiCoinTotalBalances(dbtx walletdb.ReadTx, w *Wallet, accountCoinBalances map[uint32]map[dcrutil.CoinType]dcrutil.Amount) error {
-	addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
-	unspent, err := w.txStore.UnspentOutputs(dbtx)
-	if err != nil {
-		return err
-	}
-
-	for i := range unspent {
-		output := unspent[i]
-		_, addrs := stdscript.ExtractAddrs(scriptVersionAssumed, output.PkScript, w.chainParams)
-		if len(addrs) == 0 {
-			continue
-		}
-
-		outputAcct, err := w.manager.AddrAccount(addrmgrNs, addrs[0])
-		if err == nil {
-			// Initialize account map if not exists
-			if accountCoinBalances[outputAcct] == nil {
-				accountCoinBalances[outputAcct] = make(map[dcrutil.CoinType]dcrutil.Amount)
-			}
-
-			// Add to coin-type specific balance
-			coinType := output.CoinType
-			accountCoinBalances[outputAcct][coinType] += output.Amount
-		}
-	}
-	return nil
-}
-
 // flattenMultiCoinBalanceMap converts multi-coin balance map to AccountBalance slice
-func flattenMultiCoinBalanceMap(accountCoinBalances map[uint32]map[dcrutil.CoinType]dcrutil.Amount) []AccountBalance {
+func flattenMultiCoinBalanceMap(accountCoinBalances map[uint32]map[cointype.CoinType]dcrutil.Amount) []AccountBalance {
 	s := make([]AccountBalance, 0, len(accountCoinBalances))
 
 	for account, coinBalances := range accountCoinBalances {
 		accountBalance := AccountBalance{
 			Account:          account,
-			CoinTypeBalances: make(map[dcrutil.CoinType]dcrutil.Amount),
+			CoinTypeBalances: make(map[cointype.CoinType]dcrutil.Amount),
 		}
 
 		// Calculate total balance and populate coin type balances
@@ -261,7 +232,7 @@ func flattenMultiCoinBalanceMap(accountCoinBalances map[uint32]map[dcrutil.CoinT
 			accountBalance.CoinTypeBalances[coinType] = amount
 
 			// For backward compatibility, aggregate VAR balance as total
-			if coinType == dcrutil.CoinTypeVAR {
+			if coinType == cointype.CoinTypeVAR {
 				accountBalance.TotalBalance = amount
 			}
 		}
@@ -543,7 +514,7 @@ type TransactionSummaryOutput struct {
 //	AccountBalance{
 //	  Account: 0,
 //	  TotalBalance: 500000000, // 5 VAR (legacy field)
-//	  CoinTypeBalances: map[dcrutil.CoinType]dcrutil.Amount{
+//	  CoinTypeBalances: map[cointype.CoinType]dcrutil.Amount{
 //	    0: 500000000,   // 5 VAR
 //	    1: 1000000000,  // 10 SKA-1
 //	    2: 250000000,   // 2.5 SKA-2
@@ -554,7 +525,7 @@ type AccountBalance struct {
 	TotalBalance dcrutil.Amount // VAR total balance (for backward compatibility)
 
 	// Multi-coin support: breakdown by coin type
-	CoinTypeBalances map[dcrutil.CoinType]dcrutil.Amount
+	CoinTypeBalances map[cointype.CoinType]dcrutil.Amount
 }
 
 // TransactionNotificationsClient receives TransactionNotifications from the

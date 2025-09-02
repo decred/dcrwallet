@@ -40,6 +40,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -85,7 +86,7 @@ const (
 )
 
 // validateCoinType validates a coin type parameter and returns an appropriate error
-func validateCoinType(coinType dcrutil.CoinType) error {
+func validateCoinType(coinType cointype.CoinType) error {
 	if coinType < CoinTypeVAR || coinType > CoinTypeMaxSKA {
 		return rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between %d (VAR) and %d (SKA)", CoinTypeVAR, CoinTypeMaxSKA)
 	}
@@ -739,7 +740,7 @@ func (s *Server) createRawTransaction(ctx context.Context, icmd any) (any, error
 				"New amount: %v", err)
 		}
 		// Ensure amount is in the valid range for monetary amounts.
-		if atomic <= 0 || atomic > dcrutil.MaxAmount {
+		if atomic <= 0 || atomic > dcrutil.Amount(cointype.MaxVARAmount) {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"Amount outside valid range: %v", atomic)
 		}
@@ -1083,7 +1084,7 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 
 	// Validate coin type if specified
 	if cmd.CoinType != nil {
-		coinType := dcrutil.CoinType(*cmd.CoinType)
+		coinType := cointype.CoinType(*cmd.CoinType)
 		if err := validateCoinType(coinType); err != nil {
 			return nil, err
 		}
@@ -1102,7 +1103,7 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 	if accountName == "*" {
 		// If coin type is specified, filter by coin type
 		if cmd.CoinType != nil {
-			coinType := dcrutil.CoinType(*cmd.CoinType)
+			coinType := cointype.CoinType(*cmd.CoinType)
 			allBalances, err := w.AccountBalances(ctx, minConf)
 			if err != nil {
 				return nil, err
@@ -1234,7 +1235,7 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 
 		// If coin type is specified, use coin-type specific balance for single account
 		if cmd.CoinType != nil {
-			coinType := dcrutil.CoinType(*cmd.CoinType)
+			coinType := cointype.CoinType(*cmd.CoinType)
 			coinBal, err := w.AccountBalanceByCoinType(ctx, account, coinType, minConf)
 			if err != nil {
 				return nil, err
@@ -1553,7 +1554,7 @@ func (s *Server) getBlock(ctx context.Context, icmd any) (any, error) {
 		powHash = blockHeader.PowHashV2()
 	}
 
-	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin
+	sbitsFloat := float64(blockHeader.SBits) / cointype.AtomsPerVAR
 	blockReply := dcrdtypes.GetBlockVerboseResult{
 		Hash:          cmd.Hash,
 		PoWHash:       powHash.String(),
@@ -2358,7 +2359,7 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 	chainParams := w.ChainParams()
 
 	// Get SKA coin configuration from governance settings
-	skaConfig := chainParams.SKACoins[dcrutil.CoinType(cmd.CoinType)]
+	skaConfig := chainParams.SKACoins[cointype.CoinType(cmd.CoinType)]
 	if skaConfig == nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 			"coin type %d is not configured in governance settings", cmd.CoinType)
@@ -2410,7 +2411,7 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 	// Get emission private key for this coin type from wallet
 	// This is a simplified implementation using a placeholder
 	// TODO: Implement proper emission key management in wallet
-	emissionPrivKey, err := getEmissionKeyForCoinType(w, ctx, dcrutil.CoinType(cmd.CoinType), cmd.EmissionKeyName)
+	emissionPrivKey, err := getEmissionKeyForCoinType(w, ctx, cointype.CoinType(cmd.CoinType), cmd.EmissionKeyName)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCWallet,
 			"failed to get emission key: %v", err)
@@ -2421,37 +2422,48 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 	currentHeight := int64(currentHeight32)
 
 	// Get next nonce for this coin type (should be last nonce + 1)
-	lastNonce := chainParams.GetSKAEmissionNonce(wire.CoinType(cmd.CoinType))
-	nonce := lastNonce + 1
+	// TODO: Need to implement RPC method to get nonce from dcrd
+	// lastNonce := chainParams.GetSKAEmissionNonce(cointype.CoinType(cmd.CoinType))
+	nonce := uint64(1) // Default nonce for development - TODO: implement proper nonce retrieval
 
-	// Create authorization structure
+	// Create authorization structure (without signature initially)
 	auth := &chaincfg.SKAEmissionAuth{
 		EmissionKey: emissionPrivKey.PubKey(),
 		Nonce:       nonce,
-		CoinType:    wire.CoinType(cmd.CoinType),
+		CoinType:    cointype.CoinType(cmd.CoinType),
 		Amount:      totalAmount,
 		Height:      currentHeight,
 		Timestamp:   time.Now().Unix(),
 	}
 
-	// Create authorization hash for signing using governance-defined parameters
-	authHash, err := createEmissionAuthHash(auth, emissionAddresses, emissionAmounts)
-	if err != nil {
-		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
-			"failed to create authorization hash: %v", err)
-	}
-
-	// Sign the authorization hash
-	signature := ecdsa.Sign(emissionPrivKey, authHash[:])
-	auth.Signature = signature.Serialize()
-
-	// Create the authorized emission transaction using governance-defined parameters
-	tx, err := createAuthorizedSKAEmissionTransaction(
+	// Create the emission transaction first (unsigned)
+	// We need to build the transaction before signing so we can sign the transaction hash
+	tx, err := createUnsignedSKAEmissionTransaction(
 		auth, emissionAddresses, emissionAmounts, w.ChainParams())
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
 			"failed to create emission transaction: %v", err)
 	}
+
+	// SECURITY FIX: Sign the transaction hash, not the addresses/amounts
+	// This prevents miner redirect attacks
+	authHash, err := createEmissionAuthHashFromTx(tx, auth, currentHeight, w.ChainParams())
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"failed to create authorization hash: %v", err)
+	}
+
+	// Sign the authorization hash that includes the transaction
+	signature := ecdsa.Sign(emissionPrivKey, authHash[:])
+	auth.Signature = signature.Serialize()
+
+	// Now update the transaction with the signed authorization
+	authScript, err := createEmissionAuthScript(auth)
+	if err != nil {
+		return nil, rpcErrorf(dcrjson.ErrRPCInternal.Code,
+			"failed to create authorization script: %v", err)
+	}
+	tx.TxIn[0].SignatureScript = authScript
 
 	// Serialize transaction to hex
 	var txBuf bytes.Buffer
@@ -3098,8 +3110,8 @@ func (s *Server) getWalletFee(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// Return appropriate fee based on coin type
-	switch dcrutil.CoinType(coinType) {
-	case dcrutil.CoinTypeVAR:
+	switch cointype.CoinType(coinType) {
+	case cointype.CoinTypeVAR:
 		return w.RelayFee().ToCoin(), nil
 	default:
 		// SKA or other coin types
@@ -3513,7 +3525,7 @@ func (s *Server) listUnspent(ctx context.Context, icmd any) (any, error) {
 
 	// Validate coin type if specified
 	if cmd.CoinType != nil {
-		coinType := dcrutil.CoinType(*cmd.CoinType)
+		coinType := cointype.CoinType(*cmd.CoinType)
 		if err := validateCoinType(coinType); err != nil {
 			return nil, err
 		}
@@ -3835,7 +3847,7 @@ func makeOutputs(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params) 
 }
 
 // makeOutputsWithCoinType creates transaction outputs with specified coin type for dual-coin support.
-func makeOutputsWithCoinType(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params, coinType dcrutil.CoinType) ([]*wire.TxOut, error) {
+func makeOutputsWithCoinType(pairs map[string]dcrutil.Amount, chainParams *chaincfg.Params, coinType cointype.CoinType) ([]*wire.TxOut, error) {
 	outputs := make([]*wire.TxOut, 0, len(pairs))
 	for addrStr, amt := range pairs {
 		if amt < 0 {
@@ -3852,7 +3864,7 @@ func makeOutputsWithCoinType(pairs map[string]dcrutil.Amount, chainParams *chain
 			Value:    int64(amt),
 			PkScript: pkScript,
 			Version:  vers,
-			CoinType: wire.CoinType(coinType), // Dual-coin support: specify coin type
+			CoinType: coinType, // Dual-coin support: specify coin type
 		})
 	}
 	return outputs, nil
@@ -3896,7 +3908,7 @@ func (s *Server) sendPairs(ctx context.Context, w *wallet.Wallet, amounts map[st
 
 // sendPairsWithCoinType creates and sends payment transactions with coin type support.
 // It extends sendPairs to handle dual-coin transactions (VAR and SKA).
-func (s *Server) sendPairsWithCoinType(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32, coinType dcrutil.CoinType) (string, error) {
+func (s *Server) sendPairsWithCoinType(ctx context.Context, w *wallet.Wallet, amounts map[string]dcrutil.Amount, account uint32, minconf int32, coinType cointype.CoinType) (string, error) {
 	changeAccount := account
 	if s.cfg.MixingEnabled && s.cfg.MixAccount != "" && s.cfg.MixChangeAccount != "" {
 		mixAccount, err := w.AccountNumber(ctx, s.cfg.MixAccount)
@@ -4796,6 +4808,15 @@ func (s *Server) sendFrom(ctx context.Context, icmd any) (any, error) {
 		return nil, errUnloadedWallet
 	}
 
+	// Validate coin type if specified
+	var coinType cointype.CoinType = cointype.CoinTypeVAR // Default to VAR for backward compatibility
+	if cmd.CoinType != nil {
+		coinType = cointype.CoinType(*cmd.CoinType)
+		if err := validateCoinType(coinType); err != nil {
+			return nil, err
+		}
+	}
+
 	// Transaction comments are not yet supported.  Error instead of
 	// pretending to save them.
 	if !isNilOrEmpty(cmd.Comment) || !isNilOrEmpty(cmd.CommentTo) {
@@ -4824,7 +4845,7 @@ func (s *Server) sendFrom(ctx context.Context, icmd any) (any, error) {
 		cmd.ToAddress: amt,
 	}
 
-	return s.sendPairs(ctx, w, pairs, account, minConf)
+	return s.sendPairsWithCoinType(ctx, w, pairs, account, minConf, coinType)
 }
 
 // sendMany handles a sendmany RPC request by creating a new transaction
@@ -4882,9 +4903,9 @@ func (s *Server) sendToAddress(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// Validate coin type if specified
-	var coinType dcrutil.CoinType = dcrutil.CoinTypeVAR // Default to VAR for backward compatibility
+	var coinType cointype.CoinType = cointype.CoinTypeVAR // Default to VAR for backward compatibility
 	if cmd.CoinType != nil {
-		coinType = dcrutil.CoinType(*cmd.CoinType)
+		coinType = cointype.CoinType(*cmd.CoinType)
 		if err := validateCoinType(coinType); err != nil {
 			return nil, err
 		}
@@ -5065,8 +5086,8 @@ func (s *Server) setTxFee(ctx context.Context, icmd any) (any, error) {
 	}
 
 	// Set appropriate fee based on coin type
-	switch dcrutil.CoinType(coinType) {
-	case dcrutil.CoinTypeVAR:
+	switch cointype.CoinType(coinType) {
+	case cointype.CoinTypeVAR:
 		w.SetRelayFee(relayFee)
 	default:
 		// SKA or other coin types
@@ -6168,7 +6189,7 @@ func (s *Server) getCoinBalance(ctx context.Context, icmd any) (any, error) {
 		return nil, errUnloadedWallet
 	}
 
-	coinType := dcrutil.CoinType(cmd.CoinType)
+	coinType := cointype.CoinType(cmd.CoinType)
 	minConf := int32(1)
 	if cmd.MinConf != nil {
 		minConf = int32(*cmd.MinConf)
@@ -6319,7 +6340,7 @@ func (s *Server) listCoinTypes(ctx context.Context, icmd any) (any, error) {
 
 		// Generate human-readable name
 		var name string
-		if coinType == dcrutil.CoinTypeVAR {
+		if coinType == cointype.CoinTypeVAR {
 			name = "VAR"
 		} else {
 			name = fmt.Sprintf("SKA-%d", coinType)
@@ -6339,7 +6360,7 @@ func (s *Server) listCoinTypes(ctx context.Context, icmd any) (any, error) {
 
 // getEmissionKeyForCoinType retrieves a stored emission key by name and validates
 // it matches the governance-approved public key for the specified coin type.
-func getEmissionKeyForCoinType(w *wallet.Wallet, ctx context.Context, coinType dcrutil.CoinType, keyName string) (*secp256k1.PrivateKey, error) {
+func getEmissionKeyForCoinType(w *wallet.Wallet, ctx context.Context, coinType cointype.CoinType, keyName string) (*secp256k1.PrivateKey, error) {
 	// Retrieve emission key by name from wallet database
 	privateKey, err := retrieveEmissionKeyByName(w, ctx, keyName)
 	if err != nil {
@@ -6348,7 +6369,7 @@ func getEmissionKeyForCoinType(w *wallet.Wallet, ctx context.Context, coinType d
 
 	// Validate that this key matches the governance-approved public key for this coin type
 	chainParams := w.ChainParams()
-	authorizedKey := chainParams.GetSKAEmissionKey(wire.CoinType(coinType))
+	authorizedKey := chainParams.GetSKAEmissionKey(coinType)
 	if authorizedKey == nil {
 		return nil, fmt.Errorf("no emission key configured for coin type %d in governance settings", coinType)
 	}
@@ -6361,48 +6382,58 @@ func getEmissionKeyForCoinType(w *wallet.Wallet, ctx context.Context, coinType d
 	return privateKey, nil
 }
 
-// createEmissionAuthHash creates the authorization hash for SKA emission signing.
-// This is duplicated from dcrd/internal/blockchain for wallet access.
-func createEmissionAuthHash(auth *chaincfg.SKAEmissionAuth, addresses []string, amounts []int64) ([32]byte, error) {
-	var buf bytes.Buffer
+// createEmissionAuthHashFromTx creates the authorization hash for SKA emission signing.
+// SECURITY: This function creates a hash that binds the signature to:
+// - The exact transaction outputs (preventing miner redirect attacks)
+// - The network ID (preventing cross-network replay)
+// - The coin type, nonce, and block height
+func createEmissionAuthHashFromTx(tx *wire.MsgTx, auth *chaincfg.SKAEmissionAuth,
+	blockHeight int64, chainParams *chaincfg.Params) ([32]byte, error) {
 
-	// Include all authorization fields in hash
-	if err := binary.Write(&buf, binary.LittleEndian, auth.Nonce); err != nil {
-		return [32]byte{}, err
+	// Compute the transaction hash using no-witness serialization
+	// This ensures the signature binds to the exact outputs
+	txBytes, err := tx.BytesPrefix()
+	if err != nil {
+		return [32]byte{}, fmt.Errorf("failed to serialize transaction: %w", err)
 	}
-	if err := binary.Write(&buf, binary.LittleEndian, uint8(auth.CoinType)); err != nil {
-		return [32]byte{}, err
-	}
-	if err := binary.Write(&buf, binary.LittleEndian, auth.Amount); err != nil {
-		return [32]byte{}, err
-	}
-	if err := binary.Write(&buf, binary.LittleEndian, auth.Height); err != nil {
-		return [32]byte{}, err
-	}
-	if err := binary.Write(&buf, binary.LittleEndian, auth.Timestamp); err != nil {
-		return [32]byte{}, err
-	}
+	txHash := sha256.Sum256(txBytes)
 
-	// Include emission addresses and amounts
-	for i, addr := range addresses {
-		if _, err := buf.WriteString(addr); err != nil {
-			return [32]byte{}, err
-		}
-		if err := binary.Write(&buf, binary.LittleEndian, amounts[i]); err != nil {
-			return [32]byte{}, err
-		}
+	// Build the domain-separated signing message
+	// Format: "SKA-EMIT-V2" || netID || coinType || nonce || blockHeight || txHash
+	var msgBuf bytes.Buffer
+
+	// Domain separator to prevent signature reuse in other contexts
+	msgBuf.WriteString("SKA-EMIT-V2")
+
+	// Network ID for replay protection across networks
+	if err := binary.Write(&msgBuf, binary.LittleEndian, uint32(chainParams.Net)); err != nil {
+		return [32]byte{}, fmt.Errorf("failed to write network ID: %w", err)
 	}
 
-	// Create Blake256 hash
-	hashBytes := chainhash.HashB(buf.Bytes())
-	var result [32]byte
-	copy(result[:], hashBytes)
-	return result, nil
+	// Coin type
+	msgBuf.WriteByte(byte(auth.CoinType))
+
+	// Nonce for replay protection within network
+	if err := binary.Write(&msgBuf, binary.LittleEndian, auth.Nonce); err != nil {
+		return [32]byte{}, fmt.Errorf("failed to write nonce: %w", err)
+	}
+
+	// Block height to bind emission to specific height
+	if err := binary.Write(&msgBuf, binary.LittleEndian, uint64(blockHeight)); err != nil {
+		return [32]byte{}, fmt.Errorf("failed to write block height: %w", err)
+	}
+
+	// Transaction hash - this binds the signature to exact outputs
+	msgBuf.Write(txHash[:])
+
+	// Create the final message hash
+	return sha256.Sum256(msgBuf.Bytes()), nil
 }
 
-// createAuthorizedSKAEmissionTransaction creates a cryptographically authorized
-// SKA emission transaction with proper security controls.
-func createAuthorizedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
+// createUnsignedSKAEmissionTransaction creates an unsigned SKA emission transaction.
+// The transaction will be signed separately after creation to bind the signature
+// to the transaction hash (preventing miner redirect attacks).
+func createUnsignedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
 	emissionAddresses []string, amounts []int64, chainParams *chaincfg.Params) (*wire.MsgTx, error) {
 
 	// Validate authorization structure
@@ -6435,11 +6466,10 @@ func createAuthorizedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
 		return nil, fmt.Errorf("unauthorized emission key for coin type %d", auth.CoinType)
 	}
 
-	// Check nonce for replay protection
-	lastNonce := chainParams.GetSKAEmissionNonce(auth.CoinType)
-	if auth.Nonce != lastNonce+1 {
-		return nil, fmt.Errorf("invalid nonce: expected %d, got %d", lastNonce+1, auth.Nonce)
-	}
+	// NOTE: Nonce checking is NOT performed during transaction creation
+	// because wallets cannot reliably know the chain state due to reorgs and lag.
+	// The nonce will be validated during block acceptance in dcrd
+	// which uses the actual blockchain state for proper replay protection.
 
 	// Validate emission amounts
 	if len(emissionAddresses) != len(amounts) {
@@ -6464,21 +6494,22 @@ func createAuthorizedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
 			totalAmount, auth.Amount)
 	}
 
-	// Create authorization hash for signature verification
-	authHash, err := createEmissionAuthHash(auth, emissionAddresses, amounts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create authorization hash: %w", err)
+	// Get the SKA coin config for this coin type and validate emission window
+	skaConfig, exists := chainParams.SKACoins[auth.CoinType]
+	if !exists {
+		return nil, fmt.Errorf("SKA coin type %d not configured", auth.CoinType)
 	}
 
-	// Verify signature
-	sig, err := ecdsa.ParseDERSignature(auth.Signature)
-	if err != nil {
-		return nil, fmt.Errorf("invalid emission signature: %w", err)
+	// Verify emission height is within the emission window
+	emissionStart := int64(skaConfig.EmissionHeight)
+	emissionEnd := emissionStart + int64(skaConfig.EmissionWindow)
+	if auth.Height < emissionStart || auth.Height > emissionEnd {
+		return nil, fmt.Errorf("emission height %d is outside emission window [%d, %d] for coin type %d",
+			auth.Height, emissionStart, emissionEnd, auth.CoinType)
 	}
 
-	if !sig.Verify(authHash[:], auth.EmissionKey) {
-		return nil, fmt.Errorf("emission signature verification failed")
-	}
+	// Note: Signature verification is not done here since we're creating an unsigned transaction.
+	// The signature will be added after the transaction is created.
 
 	// Create the authorized emission transaction
 	tx := &wire.MsgTx{
@@ -6494,7 +6525,7 @@ func createAuthorizedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
 		return nil, fmt.Errorf("failed to create authorization script: %w", err)
 	}
 
-	// Add authorized input
+	// Add null input for emission with full authorization script
 	tx.TxIn = append(tx.TxIn, &wire.TxIn{
 		PreviousOutPoint: wire.OutPoint{
 			Hash:  chainhash.Hash{}, // All zeros
@@ -6556,7 +6587,7 @@ func createEmissionAuthScript(auth *chaincfg.SKAEmissionAuth) ([]byte, error) {
 
 	// Height (8 bytes) - NEW FIELD
 	heightBytes := make([]byte, 8)
-	binary.LittleEndian.PutUint64(heightBytes, uint64(auth.Height+1))
+	binary.LittleEndian.PutUint64(heightBytes, uint64(auth.Height))
 	script.Write(heightBytes)
 
 	// Public key (33 bytes compressed)

@@ -146,17 +146,6 @@ func decodeAddress(a string, params *chaincfg.Params) (stdaddr.Address, error) {
 	return addr, nil
 }
 
-func decodeStakeAddress(s string, params *chaincfg.Params) (stdaddr.StakeAddress, error) {
-	a, err := decodeAddress(s, params)
-	if err != nil {
-		return nil, err
-	}
-	if sa, ok := a.(stdaddr.StakeAddress); ok {
-		return sa, nil
-	}
-	return nil, status.Errorf(codes.InvalidArgument, "invalid stake address %q", s)
-}
-
 func decodeHashes(in [][]byte) ([]*chainhash.Hash, error) {
 	out := make([]*chainhash.Hash, len(in))
 	var err error

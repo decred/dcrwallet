@@ -8,6 +8,7 @@ package txrules
 import (
 	"decred.org/dcrwallet/v5/errors"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdscript"
@@ -81,7 +82,7 @@ func CheckOutput(output *wire.TxOut, relayFeePerKb dcrutil.Amount) error {
 	if output.Value < 0 {
 		return errors.E(errors.Invalid, "transaction output amount is negative")
 	}
-	if output.Value > dcrutil.MaxAmount {
+	if dcrutil.Amount(output.Value) > dcrutil.Amount(cointype.MaxVARAmount) {
 		return errors.E(errors.Invalid, "transaction output amount exceeds maximum value")
 	}
 	if IsDustOutput(output, relayFeePerKb) {
@@ -99,8 +100,8 @@ func FeeForSerializeSize(relayFeePerKb dcrutil.Amount, txSerializeSize int) dcru
 		fee = relayFeePerKb
 	}
 
-	if fee < 0 || fee > dcrutil.MaxAmount {
-		fee = dcrutil.MaxAmount
+	if fee < 0 || fee > dcrutil.Amount(cointype.MaxVARAmount) {
+		fee = dcrutil.Amount(cointype.MaxVARAmount)
 	}
 
 	return fee
@@ -118,7 +119,7 @@ func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 // VAR transactions: Pay fees in VAR
 // SKA transactions: Pay fees in their respective SKA coin type (SKA-1 pays in SKA-1, etc.)
 // SKA emission transactions: Zero fees (handled separately - coin doesn't exist yet)
-func FeeForSerializeSizeDualCoin(relayFeePerKb dcrutil.Amount, txSerializeSize int, coinType dcrutil.CoinType) dcrutil.Amount {
+func FeeForSerializeSizeDualCoin(relayFeePerKb dcrutil.Amount, txSerializeSize int, coinType cointype.CoinType) dcrutil.Amount {
 	// All coin types (VAR and SKA) pay fees using the same calculation
 	// The fee is paid in the same coin type as the transaction
 	return FeeForSerializeSize(relayFeePerKb, txSerializeSize)
@@ -126,12 +127,12 @@ func FeeForSerializeSizeDualCoin(relayFeePerKb dcrutil.Amount, txSerializeSize i
 
 // FeeForSerializeSizeWithChainParams calculates the required fee for a transaction
 // based on coin type using proper chain parameters for SKA fee rates.
-func FeeForSerializeSizeWithChainParams(relayFeePerKb dcrutil.Amount, txSerializeSize int, coinType dcrutil.CoinType, chainParams *chaincfg.Params) dcrutil.Amount {
+func FeeForSerializeSizeWithChainParams(relayFeePerKb dcrutil.Amount, txSerializeSize int, coinType cointype.CoinType, chainParams *chaincfg.Params) dcrutil.Amount {
 	switch coinType {
-	case dcrutil.CoinTypeVAR:
+	case cointype.CoinTypeVAR:
 		// VAR transactions use the provided relay fee rate
 		return FeeForSerializeSize(relayFeePerKb, txSerializeSize)
-	
+
 	default:
 		// SKA and other coin types: use chain-specific fee rates
 		if chainParams != nil && chainParams.SKAMinRelayTxFee > 0 {
@@ -147,18 +148,18 @@ func FeeForSerializeSizeWithChainParams(relayFeePerKb dcrutil.Amount, txSerializ
 // GetPrimaryCoinTypeFromOutputs determines the primary coin type of transaction outputs.
 // Returns the first non-VAR coin type found, or VAR if all outputs are VAR.
 // This matches the logic used in the blockchain fee collection.
-func GetPrimaryCoinTypeFromOutputs(outputs []*wire.TxOut) dcrutil.CoinType {
+func GetPrimaryCoinTypeFromOutputs(outputs []*wire.TxOut) cointype.CoinType {
 	for _, output := range outputs {
-		if dcrutil.CoinType(output.CoinType) != dcrutil.CoinTypeVAR {
-			return dcrutil.CoinType(output.CoinType)
+		if output.CoinType != cointype.CoinTypeVAR {
+			return output.CoinType
 		}
 	}
-	return dcrutil.CoinTypeVAR
+	return cointype.CoinTypeVAR
 }
 
 // IsDustAmountDualCoin determines dust for dual-coin system.
 // All coin types use the same dust calculation since all pay fees.
-func IsDustAmountDualCoin(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.Amount, coinType dcrutil.CoinType) bool {
+func IsDustAmountDualCoin(amount dcrutil.Amount, scriptSize int, relayFeePerKb dcrutil.Amount, coinType cointype.CoinType) bool {
 	// All coin types (VAR and SKA) use the same dust calculation
 	// since they all pay fees using the same calculation
 	return IsDustAmount(amount, scriptSize, relayFeePerKb)
@@ -178,7 +179,7 @@ func IsDustOutputDualCoin(output *wire.TxOut, relayFeePerKb dcrutil.Amount) bool
 	}
 
 	return IsDustAmountDualCoin(dcrutil.Amount(output.Value), len(output.PkScript),
-		relayFeePerKb, dcrutil.CoinType(output.CoinType))
+		relayFeePerKb, output.CoinType)
 }
 
 // PaysHighFees checks whether the signed transaction pays insanely high fees.

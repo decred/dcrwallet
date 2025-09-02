@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
@@ -19,25 +20,25 @@ func TestDualCoinCredit(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		coinType    dcrutil.CoinType
+		coinType    cointype.CoinType
 		amount      dcrutil.Amount
 		description string
 	}{
 		{
 			name:        "VAR mining reward",
-			coinType:    dcrutil.CoinTypeVAR,
+			coinType:    cointype.CoinTypeVAR,
 			amount:      dcrutil.Amount(500000000), // 5 VAR
 			description: "Standard VAR coin from mining",
 		},
 		{
 			name:        "SKA-1 emission",
-			coinType:    dcrutil.CoinType(1),
+			coinType:    cointype.CoinType(1),
 			amount:      dcrutil.Amount(100000000), // 1 SKA-1
 			description: "SKA coin type 1 from emission",
 		},
 		{
 			name:        "SKA-255 maximum",
-			coinType:    dcrutil.CoinType(255),
+			coinType:    cointype.CoinType(255),
 			amount:      dcrutil.Amount(250000000), // 2.5 SKA-255
 			description: "Maximum SKA coin type",
 		},
@@ -50,7 +51,7 @@ func TestDualCoinCredit(t *testing.T) {
 				Amount:       tt.amount,
 				CoinType:     tt.coinType,
 				Received:     time.Now(),
-				FromCoinBase: tt.coinType == dcrutil.CoinTypeVAR, // Only VAR from coinbase
+				FromCoinBase: tt.coinType == cointype.CoinTypeVAR, // Only VAR from coinbase
 			}
 
 			// Test basic properties
@@ -63,11 +64,11 @@ func TestDualCoinCredit(t *testing.T) {
 			}
 
 			// Test coin type specific logic
-			if tt.coinType == dcrutil.CoinTypeVAR && !credit.FromCoinBase {
+			if tt.coinType == cointype.CoinTypeVAR && !credit.FromCoinBase {
 				t.Error("VAR credits should typically be from coinbase (mining)")
 			}
 
-			if tt.coinType != dcrutil.CoinTypeVAR && credit.FromCoinBase {
+			if tt.coinType != cointype.CoinTypeVAR && credit.FromCoinBase {
 				t.Error("SKA credits should not be from coinbase")
 			}
 		})
@@ -78,10 +79,10 @@ func TestDualCoinCredit(t *testing.T) {
 func TestCreditCoinTypeSeparation(t *testing.T) {
 	// Create mixed credit list
 	credits := []Credit{
-		{Amount: dcrutil.Amount(100000000), CoinType: dcrutil.CoinTypeVAR},
-		{Amount: dcrutil.Amount(200000000), CoinType: dcrutil.CoinType(1)},
-		{Amount: dcrutil.Amount(300000000), CoinType: dcrutil.CoinTypeVAR},
-		{Amount: dcrutil.Amount(400000000), CoinType: dcrutil.CoinType(2)},
+		{Amount: dcrutil.Amount(100000000), CoinType: cointype.CoinTypeVAR},
+		{Amount: dcrutil.Amount(200000000), CoinType: cointype.CoinType(1)},
+		{Amount: dcrutil.Amount(300000000), CoinType: cointype.CoinTypeVAR},
+		{Amount: dcrutil.Amount(400000000), CoinType: cointype.CoinType(2)},
 	}
 
 	// Filter by coin type
@@ -89,7 +90,7 @@ func TestCreditCoinTypeSeparation(t *testing.T) {
 	skaCredits := make([]Credit, 0)
 
 	for _, credit := range credits {
-		if credit.CoinType == dcrutil.CoinTypeVAR {
+		if credit.CoinType == cointype.CoinTypeVAR {
 			varCredits = append(varCredits, credit)
 		} else {
 			skaCredits = append(skaCredits, credit)
@@ -133,13 +134,13 @@ func TestNewCreditRecord(t *testing.T) {
 		TxOut: []*wire.TxOut{
 			{
 				Value:    int64(100000000),
-				CoinType: wire.CoinType(dcrutil.CoinTypeVAR),
+				CoinType: cointype.CoinTypeVAR,
 				PkScript: []byte{0x76, 0xa9, 0x14}, // Mock P2PKH script
 			},
 			{
 				Value:    int64(200000000),
-				CoinType: wire.CoinType(1),   // SKA-1
-				PkScript: []byte{0xa9, 0x14}, // Mock P2SH script
+				CoinType: cointype.CoinType(1), // SKA-1
+				PkScript: []byte{0xa9, 0x14},   // Mock P2SH script
 			},
 		},
 	}
@@ -151,9 +152,9 @@ func TestNewCreditRecord(t *testing.T) {
 	}
 
 	// Test extracting CoinType from each output
-	for index, expectedCoinType := range []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)} {
+	for index, expectedCoinType := range []cointype.CoinType{cointype.CoinTypeVAR, cointype.CoinType(1)} {
 		// This simulates what happens in newCreditRecord function
-		extractedCoinType := dcrutil.CoinType(rec.MsgTx.TxOut[index].CoinType)
+		extractedCoinType := rec.MsgTx.TxOut[index].CoinType
 
 		if extractedCoinType != expectedCoinType {
 			t.Errorf("Output %d: extracted CoinType = %v, want %v", index, extractedCoinType, expectedCoinType)
@@ -188,11 +189,11 @@ func TestCreditDatabaseIntegration(t *testing.T) {
 	// Test complete serialization/deserialization cycle
 	testCredits := []struct {
 		amount   dcrutil.Amount
-		coinType dcrutil.CoinType
+		coinType cointype.CoinType
 	}{
-		{dcrutil.Amount(100000000), dcrutil.CoinTypeVAR},
-		{dcrutil.Amount(200000000), dcrutil.CoinType(1)},
-		{dcrutil.Amount(300000000), dcrutil.CoinType(255)},
+		{dcrutil.Amount(100000000), cointype.CoinTypeVAR},
+		{dcrutil.Amount(200000000), cointype.CoinType(1)},
+		{dcrutil.Amount(300000000), cointype.CoinType(255)},
 	}
 
 	for i, tc := range testCredits {
@@ -223,36 +224,36 @@ func TestDualCoinTransactionValidation(t *testing.T) {
 	// Test cases for dual-coin transaction validation
 	tests := []struct {
 		name        string
-		inputTypes  []dcrutil.CoinType
-		outputTypes []dcrutil.CoinType
+		inputTypes  []cointype.CoinType
+		outputTypes []cointype.CoinType
 		valid       bool
 		description string
 	}{
 		{
 			name:        "pure VAR transaction",
-			inputTypes:  []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR},
-			outputTypes: []dcrutil.CoinType{dcrutil.CoinTypeVAR},
+			inputTypes:  []cointype.CoinType{cointype.CoinTypeVAR, cointype.CoinTypeVAR},
+			outputTypes: []cointype.CoinType{cointype.CoinTypeVAR},
 			valid:       true,
 			description: "All VAR inputs and outputs",
 		},
 		{
 			name:        "pure SKA-1 transaction",
-			inputTypes:  []dcrutil.CoinType{dcrutil.CoinType(1), dcrutil.CoinType(1)},
-			outputTypes: []dcrutil.CoinType{dcrutil.CoinType(1)},
+			inputTypes:  []cointype.CoinType{cointype.CoinType(1), cointype.CoinType(1)},
+			outputTypes: []cointype.CoinType{cointype.CoinType(1)},
 			valid:       true,
 			description: "All SKA-1 inputs and outputs",
 		},
 		{
 			name:        "mixed coin transaction (invalid)",
-			inputTypes:  []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)},
-			outputTypes: []dcrutil.CoinType{dcrutil.CoinTypeVAR},
+			inputTypes:  []cointype.CoinType{cointype.CoinTypeVAR, cointype.CoinType(1)},
+			outputTypes: []cointype.CoinType{cointype.CoinTypeVAR},
 			valid:       false,
 			description: "Mixed VAR and SKA inputs - should be invalid",
 		},
 		{
 			name:        "mixed output types (invalid)",
-			inputTypes:  []dcrutil.CoinType{dcrutil.CoinTypeVAR},
-			outputTypes: []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1)},
+			inputTypes:  []cointype.CoinType{cointype.CoinTypeVAR},
+			outputTypes: []cointype.CoinType{cointype.CoinTypeVAR, cointype.CoinType(1)},
 			valid:       false,
 			description: "Mixed VAR and SKA outputs - should be invalid",
 		},
@@ -271,7 +272,7 @@ func TestDualCoinTransactionValidation(t *testing.T) {
 }
 
 // Helper function to validate coin type separation in transactions
-func validateCoinTypeSeparation(inputTypes, outputTypes []dcrutil.CoinType) bool {
+func validateCoinTypeSeparation(inputTypes, outputTypes []cointype.CoinType) bool {
 	if len(inputTypes) == 0 || len(outputTypes) == 0 {
 		return false
 	}

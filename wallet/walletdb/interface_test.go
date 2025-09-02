@@ -97,27 +97,6 @@ func testDeleteValues(tc *testContext, bucket walletdb.ReadWriteBucket, values m
 }
 
 // testCursorDelete should remove all key/value pairs from the provided bucket.
-// This is currently failing due to a bolt bug:
-// https://github.com/boltdb/bolt/issues/620.
-func testCursorDelete(tc *testContext, bucket walletdb.ReadWriteBucket) bool {
-	c := bucket.ReadWriteCursor()
-	for k, _ := c.First(); k != nil; k, _ = c.Next() {
-		err := c.Delete()
-		if err != nil {
-			c.Close()
-			tc.t.Errorf("CursorDelete: unexpected error: %v", err)
-			return false
-		}
-	}
-	c.Close()
-
-	if !walletdb.BucketIsEmpty(bucket.(walletdb.ReadBucket)) {
-		tc.t.Error("CursorDelete: bucket still has keys")
-		return false
-	}
-
-	return true
-}
 
 // testNestedReadWriteBucket reruns the testBucketInterface against a nested
 // bucket along with a counter to only test a couple of level deep.

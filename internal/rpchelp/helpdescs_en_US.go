@@ -804,6 +804,7 @@ var helpDescsEnUS = map[string]string{
 	"sendfrom-minconf":     "Minimum number of block confirmations required before a transaction output is eligible to be spent",
 	"sendfrom-comment":     "Unused",
 	"sendfrom-commentto":   "Unused",
+	"sendfrom-cointype":    "Optional coin type to send (0=VAR, 1-255=SKA)",
 	"sendfrom--result0":    "The transaction hash of the sent transaction",
 
 	// SendFromTreasuryCmd help.

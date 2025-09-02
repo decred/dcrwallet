@@ -16,6 +16,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4"
@@ -913,18 +914,18 @@ func fetchRawCreditHasExpiry(v []byte, dbVersion uint32) bool {
 // fetchRawCreditCoinType returns the CoinType for this credit.
 // For backward compatibility, defaults to VAR (0) if not set.
 // Validates that the coin type is within the valid range (0-255).
-func fetchRawCreditCoinType(v []byte) dcrutil.CoinType {
+func fetchRawCreditCoinType(v []byte) cointype.CoinType {
 	if len(v) < creditValueSize { // Need full credit size to read CoinType
-		return dcrutil.CoinTypeVAR // Default to VAR for older credits
+		return cointype.CoinTypeVAR // Default to VAR for older credits
 	}
 
-	coinType := dcrutil.CoinType(v[coinTypeBytePosition]) // Read CoinType from end of record
+	coinType := cointype.CoinType(v[coinTypeBytePosition]) // Read CoinType from end of record
 
 	// Validate coin type range - corrupted data could have invalid values
 	if coinType > 255 {
 		// Log warning but return VAR as safe fallback for corrupted data
 		// TODO: Consider adding proper logging infrastructure
-		return dcrutil.CoinTypeVAR
+		return cointype.CoinTypeVAR
 	}
 
 	return coinType
@@ -1592,10 +1593,10 @@ func fetchRawUnminedCreditAccount(v []byte) (uint32, error) {
 // fetchRawUnminedCreditCoinType returns the CoinType for an unmined credit.
 // For backward compatibility, defaults to VAR (0) since unmined credits
 // currently don't store coin type (this will be enhanced in future versions).
-func fetchRawUnminedCreditCoinType(v []byte) dcrutil.CoinType {
+func fetchRawUnminedCreditCoinType(v []byte) cointype.CoinType {
 	// TODO: In future versions, we should extend unmined credit structure
 	// to store coin type. For now, default to VAR for backward compatibility.
-	return dcrutil.CoinTypeVAR
+	return cointype.CoinTypeVAR
 }
 
 func existsRawUnminedCredit(ns walletdb.ReadBucket, k []byte) []byte {

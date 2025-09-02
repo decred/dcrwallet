@@ -7,8 +7,9 @@ package jsonrpc
 import (
 	"testing"
 
-	"github.com/decred/dcrd/chaincfg/chainhash"
 	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
+	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -56,7 +57,7 @@ func TestEmissionCommandIntegration(t *testing.T) {
 		keyName := "imported_integration_key"
 		passphrase := "imported_test_passphrase"
 		coinType := uint8(2)
-		
+
 		// Mock private key hex (proper length)
 		privateKeyHex := "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
 
@@ -117,7 +118,7 @@ func TestEmissionTransactionStructure(t *testing.T) {
 
 		// Verify all outputs are SKA type
 		for i, output := range validEmissionTx.TxOut {
-			if output.CoinType != wire.CoinTypeSKA {
+			if output.CoinType != cointype.CoinType(1) {
 				t.Errorf("Output %d: expected SKA coin type, got %d", i, output.CoinType)
 			}
 			if output.Value <= 0 {
@@ -177,7 +178,7 @@ func TestEmissionTransactionStructure(t *testing.T) {
 			{
 				name: "VAR output",
 				modifyTx: func(tx *wire.MsgTx) {
-					tx.TxOut[0].CoinType = wire.CoinTypeVAR
+					tx.TxOut[0].CoinType = cointype.CoinTypeVAR
 				},
 				reason: "Should reject transaction with VAR output",
 			},
@@ -274,7 +275,7 @@ func TestEmissionErrorScenarios(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
 				cmd := test.setupCmd()
-				
+
 				var isValid bool
 				switch c := cmd.(type) {
 				case *types.GenerateEmissionKeyCmd:
@@ -288,7 +289,7 @@ func TestEmissionErrorScenarios(t *testing.T) {
 				}
 
 				if isValid != test.expectValid {
-					t.Errorf("Expected validation result %t, got %t: %s", 
+					t.Errorf("Expected validation result %t, got %t: %s",
 						test.expectValid, isValid, test.description)
 				}
 			})
@@ -300,49 +301,49 @@ func TestEmissionErrorScenarios(t *testing.T) {
 func TestEmissionSecurityValidation(t *testing.T) {
 	t.Run("PrivateKeySecurityChecks", func(t *testing.T) {
 		tests := []struct {
-			name       string
-			privateKey string
+			name        string
+			privateKey  string
 			expectValid bool
-			reason     string
+			reason      string
 		}{
 			{
-				name:       "All zeros private key",
-				privateKey: "0000000000000000000000000000000000000000000000000000000000000000",
+				name:        "All zeros private key",
+				privateKey:  "0000000000000000000000000000000000000000000000000000000000000000",
 				expectValid: false,
-				reason:     "Should reject all-zero private key (invalid)",
+				reason:      "Should reject all-zero private key (invalid)",
 			},
 			{
-				name:       "All ones private key",
-				privateKey: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+				name:        "All ones private key",
+				privateKey:  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 				expectValid: false,
-				reason:     "Should reject all-ones private key (likely invalid)",
+				reason:      "Should reject all-ones private key (likely invalid)",
 			},
 			{
-				name:       "Valid random private key",
-				privateKey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+				name:        "Valid random private key",
+				privateKey:  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
 				expectValid: true,
-				reason:     "Should accept valid random private key",
+				reason:      "Should accept valid random private key",
 			},
 			{
-				name:       "Short private key",
-				privateKey: "1234567890abcdef",
+				name:        "Short private key",
+				privateKey:  "1234567890abcdef",
 				expectValid: false,
-				reason:     "Should reject short private key",
+				reason:      "Should reject short private key",
 			},
 			{
-				name:       "Long private key",
-				privateKey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefextra",
+				name:        "Long private key",
+				privateKey:  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdefextra",
 				expectValid: false,
-				reason:     "Should reject overly long private key",
+				reason:      "Should reject overly long private key",
 			},
 		}
 
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
 				isValid := isValidPrivateKeyHex(test.privateKey)
-				
+
 				if isValid != test.expectValid {
-					t.Errorf("Expected %t for private key validation: %s", 
+					t.Errorf("Expected %t for private key validation: %s",
 						test.expectValid, test.reason)
 				}
 			})
@@ -391,9 +392,9 @@ func TestEmissionSecurityValidation(t *testing.T) {
 		for _, test := range tests {
 			t.Run(test.name, func(t *testing.T) {
 				isValid := isValidEncryptedKeyFormat(test.encryptedKey)
-				
+
 				if isValid != test.expectValid {
-					t.Errorf("Expected %t for encryption format validation: %s", 
+					t.Errorf("Expected %t for encryption format validation: %s",
 						test.expectValid, test.reason)
 				}
 			})
@@ -417,7 +418,7 @@ func createMockEmissionTransaction() *wire.MsgTx {
 		}},
 		TxOut: []*wire.TxOut{{
 			Value:    1000000 * 1e8, // 1M SKA in atoms
-			CoinType: wire.CoinTypeSKA,
+			CoinType: cointype.CoinType(1),
 			Version:  0,
 			PkScript: []byte{0x76, 0xa9, 0x14, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x88, 0xac},
 		}},

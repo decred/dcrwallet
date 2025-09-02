@@ -35,6 +35,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/blake256"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -799,8 +800,8 @@ func (w *Wallet) SetSKARelayFee(skaRelayFee dcrutil.Amount) {
 }
 
 // RelayFeeForCoinType returns the appropriate relay fee for the specified coin type.
-func (w *Wallet) RelayFeeForCoinType(coinType dcrutil.CoinType) dcrutil.Amount {
-	if coinType == dcrutil.CoinTypeVAR {
+func (w *Wallet) RelayFeeForCoinType(coinType cointype.CoinType) dcrutil.Amount {
+	if coinType == cointype.CoinTypeVAR {
 		return w.RelayFee()
 	}
 	return w.SKARelayFee()
@@ -1984,9 +1985,9 @@ func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balance
 //
 // Example:
 //
-//	varBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinTypeVAR, 1)
-//	skaBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(1), 6)
-func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
+//	varBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, cointype.CoinTypeVAR, 1)
+//	skaBalance, err := wallet.AccountBalanceByCoinType(ctx, 0, cointype.CoinType(1), 6)
+func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, coinType cointype.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalanceByCoinType"
 
 	// Validate coin type range
@@ -2011,7 +2012,7 @@ func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, c
 
 // AccountBalancesByCoinType returns balance breakdowns for all accounts
 // filtered by specific coin type.
-func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) ([]CoinBalance, error) {
+func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType cointype.CoinType, confirms int32) ([]CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalancesByCoinType"
 
 	// Validate coin type range
@@ -2052,9 +2053,9 @@ func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType dcrutil
 //
 // Example:
 //
-//	totalVAR, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinTypeVAR, 1)
-//	totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, dcrutil.CoinType(1), 6)
-func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.CoinType, confirms int32) (CoinBalance, error) {
+//	totalVAR, err := wallet.TotalBalanceByCoinType(ctx, cointype.CoinTypeVAR, 1)
+//	totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, cointype.CoinType(1), 6)
+func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType cointype.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.TotalBalanceByCoinType"
 
 	// Validate coin type range
@@ -2090,7 +2091,7 @@ func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.Co
 // Parameters:
 //   - confirms: Minimum confirmations required for inclusion in balance calculation
 //
-// Returns a slice of dcrutil.CoinType values sorted in ascending order (VAR=0 first, then SKA 1-255).
+// Returns a slice of cointype.CoinType values sorted in ascending order (VAR=0 first, then SKA 1-255).
 // Only includes coin types with positive total balances across all accounts. Returns error if
 // database access fails.
 //
@@ -2098,7 +2099,7 @@ func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType dcrutil.Co
 //
 //	activeCoins, err := wallet.ListCoinTypes(ctx, 1)
 //	// Result might be: [0, 1, 5] representing VAR, SKA-1, and SKA-5
-func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.CoinType, error) {
+func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]cointype.CoinType, error) {
 	const op errors.Op = "wallet.ListCoinTypes"
 
 	balances, err := w.AccountBalances(ctx, confirms)
@@ -2106,7 +2107,7 @@ func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.C
 		return nil, errors.E(op, err)
 	}
 
-	coinTypesMap := make(map[dcrutil.CoinType]bool)
+	coinTypesMap := make(map[cointype.CoinType]bool)
 	for _, balance := range balances {
 		for coinType, coinBalance := range balance.CoinTypeBalances {
 			// Only include coin types with non-zero total balance
@@ -2116,7 +2117,7 @@ func (w *Wallet) ListCoinTypes(ctx context.Context, confirms int32) ([]dcrutil.C
 		}
 	}
 
-	var coinTypes []dcrutil.CoinType
+	var coinTypes []cointype.CoinType
 	for coinType := range coinTypesMap {
 		coinTypes = append(coinTypes, coinType)
 	}
@@ -4758,13 +4759,13 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address,
 // transaction hash upon success
 func (w *Wallet) SendOutputs(ctx context.Context, outputs []*wire.TxOut, account, changeAccount uint32, minconf int32) (*chainhash.Hash, error) {
 	const op errors.Op = "wallet.SendOutputs"
-	
+
 	// Determine the primary coin type from outputs for coin-type-aware fee calculation
 	coinType := txrules.GetPrimaryCoinTypeFromOutputs(outputs)
-	
+
 	// Calculate appropriate fee rate based on coin type using user-configured fees
 	txFeeRate := w.RelayFeeForCoinType(coinType)
-	
+
 	// Validate outputs with appropriate fee rate
 	for _, output := range outputs {
 		err := txrules.CheckOutput(output, txFeeRate)

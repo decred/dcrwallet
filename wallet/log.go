@@ -18,21 +18,3 @@ var log = slog.Disabled
 func UseLogger(logger slog.Logger) {
 	log = logger
 }
-
-type debugLogger struct{}
-
-var debugLog debugLogger
-
-func (debugLogger) Print(args ...any)                 { log.Debug(args...) }
-func (debugLogger) Printf(format string, args ...any) { log.Debugf(format, args...) }
-func (debugLogger) Log(args ...any)                   { log.Debug(args...) }
-func (debugLogger) Logf(format string, args ...any)   { log.Debugf(format, args...) }
-
-type infoLogger struct{}
-
-var infoLog infoLogger
-
-func (infoLogger) Print(args ...any)                 { log.Info(args...) }
-func (infoLogger) Printf(format string, args ...any) { log.Infof(format, args...) }
-func (infoLogger) Log(args ...any)                   { log.Info(args...) }
-func (infoLogger) Logf(format string, args ...any)   { log.Infof(format, args...) }

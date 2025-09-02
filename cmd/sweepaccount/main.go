@@ -20,6 +20,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 	"github.com/decred/dcrd/wire"
@@ -477,7 +478,7 @@ func promptSecret(what string) (string, error) {
 }
 
 func saneOutputValue(amount dcrutil.Amount) bool {
-	return amount >= 0 && amount <= dcrutil.MaxAmount
+	return amount >= 0 && amount <= dcrutil.Amount(cointype.MaxVARAmount)
 }
 
 func parseOutPoint(input *types.ListUnspentResult) (wire.OutPoint, error) {

@@ -11,6 +11,7 @@ import (
 
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
@@ -34,12 +35,12 @@ func TestCreditCoinType(t *testing.T) {
 	// Test Credit struct CoinType field functionality
 	tests := []struct {
 		name     string
-		coinType dcrutil.CoinType
-		want     dcrutil.CoinType
+		coinType cointype.CoinType
+		want     cointype.CoinType
 	}{
-		{"VAR coin (default)", dcrutil.CoinTypeVAR, dcrutil.CoinTypeVAR},
-		{"SKA-1 coin", dcrutil.CoinType(1), dcrutil.CoinType(1)},
-		{"SKA-255 coin", dcrutil.CoinType(255), dcrutil.CoinType(255)},
+		{"VAR coin (default)", cointype.CoinTypeVAR, cointype.CoinTypeVAR},
+		{"SKA-1 coin", cointype.CoinType(1), cointype.CoinType(1)},
+		{"SKA-255 coin", cointype.CoinType(255), cointype.CoinType(255)},
 	}
 
 	for _, tt := range tests {
@@ -65,12 +66,12 @@ func TestCreditSerialization(t *testing.T) {
 	// Test database serialization of CoinType field
 	tests := []struct {
 		name     string
-		coinType dcrutil.CoinType
+		coinType cointype.CoinType
 	}{
-		{"VAR serialization", dcrutil.CoinTypeVAR},
-		{"SKA-1 serialization", dcrutil.CoinType(1)},
-		{"SKA-100 serialization", dcrutil.CoinType(100)},
-		{"SKA-255 serialization", dcrutil.CoinType(255)},
+		{"VAR serialization", cointype.CoinTypeVAR},
+		{"SKA-1 serialization", cointype.CoinType(1)},
+		{"SKA-100 serialization", cointype.CoinType(100)},
+		{"SKA-255 serialization", cointype.CoinType(255)},
 	}
 
 	for _, tt := range tests {
@@ -95,7 +96,7 @@ func TestCreditSerialization(t *testing.T) {
 
 		// Should default to VAR
 		gotCoinType := fetchRawCreditCoinType(oldData)
-		if gotCoinType != dcrutil.CoinTypeVAR {
+		if gotCoinType != cointype.CoinTypeVAR {
 			t.Errorf("fetchRawCreditCoinType(old data) = %v, want VAR", gotCoinType)
 		}
 	})

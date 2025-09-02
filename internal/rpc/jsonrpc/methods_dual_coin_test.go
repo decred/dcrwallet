@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/wire"
 )
 
 // Note: These tests focus on functions that don't require a loaded wallet
@@ -23,7 +23,7 @@ func TestMakeOutputsWithCoinType(t *testing.T) {
 	tests := []struct {
 		name     string
 		pairs    map[string]dcrutil.Amount
-		coinType dcrutil.CoinType
+		coinType cointype.CoinType
 		wantErr  bool
 	}{
 		{
@@ -79,7 +79,7 @@ func TestMakeOutputsWithCoinType(t *testing.T) {
 
 				// Check that all outputs have the correct coin type
 				for _, output := range outputs {
-					if output.CoinType != wire.CoinType(tt.coinType) {
+					if output.CoinType != tt.coinType {
 						t.Errorf("Expected coin type %d, got %d", tt.coinType, output.CoinType)
 					}
 				}

@@ -11,6 +11,7 @@ require (
 	github.com/decred/dcrd/certgen v1.2.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.4
 	github.com/decred/dcrd/chaincfg/v3 v3.2.1
+	github.com/decred/dcrd/cointype v1.0.0
 	github.com/decred/dcrd/connmgr/v3 v3.1.2
 	github.com/decred/dcrd/crypto/blake256 v1.1.0
 	github.com/decred/dcrd/crypto/rand v1.0.1
@@ -62,9 +63,12 @@ require (
 
 // Replace with local Monetarium dcrd modules for dual-coin support
 replace (
+	github.com/decred/dcrd/blockchain/stake/v5 => ../dcrd/blockchain/stake
 	github.com/decred/dcrd/blockchain/v5 => ../dcrd/blockchain
 	github.com/decred/dcrd/chaincfg/chainhash => ../dcrd/chaincfg/chainhash
 	github.com/decred/dcrd/chaincfg/v3 => ../dcrd/chaincfg
+	github.com/decred/dcrd/cointype => ../dcrd/cointype
 	github.com/decred/dcrd/dcrutil/v4 => ../dcrd/dcrutil
+	github.com/decred/dcrd/rpcclient/v8 => ../dcrd/rpcclient
 	github.com/decred/dcrd/wire => ../dcrd/wire
 )

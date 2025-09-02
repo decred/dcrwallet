@@ -23,6 +23,7 @@ import (
 	blockchain "github.com/decred/dcrd/blockchain/standalone/v2"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -60,7 +61,7 @@ const (
 type Input struct {
 	OutPoint wire.OutPoint
 	PrevOut  wire.TxOut
-	CoinType dcrutil.CoinType
+	CoinType cointype.CoinType
 }
 
 // --------------------------------------------------------------------------------
@@ -111,7 +112,6 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 			}
 		}
 
-
 		if changeSource == nil {
 			changeSource = &p2PKHChangeSource{
 				persist: w.deferPersistReturnedChild(ctx, &changeSourceUpdates),
@@ -144,7 +144,7 @@ func (w *Wallet) NewUnsignedTransaction(ctx context.Context, outputs []*wire.TxO
 					return errors.E(errors.Invalid, fmt.Sprintf("failed to lookup input %d previous output: %v", i, err))
 				}
 
-				if wire.CoinType(prevCredit.CoinType) != expectedCoinType {
+				if prevCredit.CoinType != expectedCoinType {
 					return errors.E(errors.Invalid, fmt.Sprintf("input %d coin type %d does not match output coin type %d",
 						i, prevCredit.CoinType, expectedCoinType))
 				}
@@ -420,11 +420,11 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 
 		// Create the unsigned transaction.
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
-		
+
 		// Determine coin type from outputs for coin-type-aware UTXO selection
 		var inputSource udb.InputSource
 		if len(a.outputs) > 0 {
-			txCoinType := dcrutil.CoinType(a.outputs[0].CoinType)
+			txCoinType := a.outputs[0].CoinType
 			inputSource = w.txStore.MakeInputSourceWithCoinType(dbtx, a.account,
 				a.minconf, tipHeight, ignoreInput, txCoinType)
 		} else {
@@ -454,7 +454,7 @@ func (w *Wallet) authorTx(ctx context.Context, op errors.Op, a *authorTx) error 
 		// Calculate relay fee based on transaction coin type
 		actualTxFee := a.txFee
 		if len(a.outputs) > 0 {
-			actualTxFee = w.RelayFeeForCoinType(dcrutil.CoinType(a.outputs[0].CoinType))
+			actualTxFee = w.RelayFeeForCoinType(a.outputs[0].CoinType)
 		}
 
 		var err error

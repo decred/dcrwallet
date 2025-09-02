@@ -10,13 +10,14 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txauthor"
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"decred.org/dcrwallet/v5/wallet/txsizes"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
 
 // Dual-coin test helper functions
 
-func p2pkhOutputsWithCoinType(coinType wire.CoinType, amounts ...dcrutil.Amount) []*wire.TxOut {
+func p2pkhOutputsWithCoinType(coinType cointype.CoinType, amounts ...dcrutil.Amount) []*wire.TxOut {
 	v := make([]*wire.TxOut, 0, len(amounts))
 	for _, a := range amounts {
 		outScript := make([]byte, txsizes.P2PKHOutputSize)
@@ -52,8 +53,8 @@ func makeInputSourceWithCoinType(unspents []*wire.TxOut) txauthor.InputSource {
 // TestVARTransactionCreation tests VAR transaction creation with fees (backward compatibility)
 func TestVARTransactionCreation(t *testing.T) {
 	// Create VAR inputs (CoinType = 0)
-	varUnspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e8)
-	varOutputs := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e6)
+	varUnspents := p2pkhOutputsWithCoinType(cointype.CoinTypeVAR, 1e8)
+	varOutputs := p2pkhOutputsWithCoinType(cointype.CoinTypeVAR, 1e6)
 
 	relayFee := dcrutil.Amount(1e3)
 	inputSource := makeInputSourceWithCoinType(varUnspents)
@@ -76,9 +77,9 @@ func TestVARTransactionCreation(t *testing.T) {
 
 	// Verify all outputs are VAR coin type
 	for i, out := range authoredTx.Tx.TxOut {
-		if out.CoinType != wire.CoinType(dcrutil.CoinTypeVAR) {
+		if out.CoinType != cointype.CoinTypeVAR {
 			t.Errorf("Output %d has wrong coin type: got %v, want %v",
-				i, out.CoinType, wire.CoinType(dcrutil.CoinTypeVAR))
+				i, out.CoinType, cointype.CoinTypeVAR)
 		}
 	}
 }
@@ -86,10 +87,10 @@ func TestVARTransactionCreation(t *testing.T) {
 // TestSKATransactionCreation tests regular SKA transaction creation with fees
 func TestSKATransactionCreation(t *testing.T) {
 	// Test different SKA coin types
-	skaTypes := []wire.CoinType{
-		wire.CoinType(dcrutil.CoinType(1)),   // SKA-1
-		wire.CoinType(dcrutil.CoinType(2)),   // SKA-2
-		wire.CoinType(dcrutil.CoinType(255)), // SKA-255
+	skaTypes := []cointype.CoinType{
+		cointype.CoinType(1),   // SKA-1
+		cointype.CoinType(2),   // SKA-2
+		cointype.CoinType(255), // SKA-255
 	}
 
 	for _, coinType := range skaTypes {
@@ -111,12 +112,12 @@ func TestSKATransactionCreation(t *testing.T) {
 			}
 
 			// Verify transaction has fees (regular SKA transactions should include fees)
-			expectedFee := txrules.FeeForSerializeSize(relayFee, 
+			expectedFee := txrules.FeeForSerializeSize(relayFee,
 				txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHSigScriptSize}, skaOutputs, txsizes.P2PKHPkScriptSize))
-			
-			if authoredTx.TotalInput < outputAmount + expectedFee {
+
+			if authoredTx.TotalInput < outputAmount+expectedFee {
 				t.Errorf("SKA transaction should include fees. Got total input %v, expected at least %v",
-					authoredTx.TotalInput, outputAmount + expectedFee)
+					authoredTx.TotalInput, outputAmount+expectedFee)
 			}
 
 			// Verify all outputs are correct SKA coin type
@@ -134,12 +135,12 @@ func TestSKATransactionCreation(t *testing.T) {
 func TestMixedCoinRejection(t *testing.T) {
 	// Create mixed outputs (VAR + SKA)
 	mixedOutputs := []*wire.TxOut{
-		{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinTypeVAR)},
-		{Value: 1e6, CoinType: wire.CoinType(dcrutil.CoinType(1))}, // SKA-1
+		{Value: 1e6, CoinType: cointype.CoinTypeVAR},
+		{Value: 1e6, CoinType: cointype.CoinType(1)}, // SKA-1
 	}
 
 	// Create inputs
-	unspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 2e6)
+	unspents := p2pkhOutputsWithCoinType(cointype.CoinTypeVAR, 2e6)
 	inputSource := makeInputSourceWithCoinType(unspents)
 	changeSource := AuthorTestChangeSource{}
 	relayFee := dcrutil.Amount(1e3)
@@ -158,11 +159,11 @@ func TestMixedCoinRejection(t *testing.T) {
 func TestDualCoinChangeOutput(t *testing.T) {
 	testCases := []struct {
 		name     string
-		coinType wire.CoinType
+		coinType cointype.CoinType
 	}{
-		{"VAR change", wire.CoinType(dcrutil.CoinTypeVAR)},
-		{"SKA-1 change", wire.CoinType(dcrutil.CoinType(1))},
-		{"SKA-2 change", wire.CoinType(dcrutil.CoinType(2))},
+		{"VAR change", cointype.CoinTypeVAR},
+		{"SKA-1 change", cointype.CoinType(1)},
+		{"SKA-2 change", cointype.CoinType(2)},
 	}
 
 	for _, tc := range testCases {
@@ -199,23 +200,23 @@ func TestDualCoinChangeOutput(t *testing.T) {
 }
 
 // TestSKAEmissionZeroFeeValidation tests that SKA emission transactions have zero fees
-// Note: This is a placeholder test since creating actual emission transactions 
+// Note: This is a placeholder test since creating actual emission transactions
 // requires specific blockchain context that's not available in unit tests
 func TestSKAEmissionZeroFeeValidation(t *testing.T) {
 	t.Skip("SKA emission transaction testing requires blockchain context - tested in integration tests")
-	
+
 	// This test would verify that wire.IsSKAEmissionTransaction() returns true
 	// for emission transactions and that those transactions have zero fees
 	// However, creating valid emission transactions requires:
 	// 1. Specific block height context
-	// 2. Valid emission signatures  
+	// 2. Valid emission signatures
 	// 3. Proper UTXO chain state
 	// These are better tested in integration tests with actual blockchain state
 }
 
 // TestEmptyOutputsHandling tests edge case of empty outputs
 func TestEmptyOutputsHandling(t *testing.T) {
-	unspents := p2pkhOutputsWithCoinType(wire.CoinType(dcrutil.CoinTypeVAR), 1e6)
+	unspents := p2pkhOutputsWithCoinType(cointype.CoinTypeVAR, 1e6)
 	emptyOutputs := []*wire.TxOut{} // No outputs
 
 	inputSource := makeInputSourceWithCoinType(unspents)

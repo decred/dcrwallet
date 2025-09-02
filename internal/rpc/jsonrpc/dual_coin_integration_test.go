@@ -14,6 +14,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet"
 	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/cointype"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 
@@ -130,7 +131,7 @@ func TestGetCoinBalanceIntegration(t *testing.T) {
 
 			// Test wallet balance retrieval
 			// This tests the core functionality without full RPC layer
-			balance, err := w.AccountBalanceByCoinType(ctx, 0, dcrutil.CoinType(tt.coinType), tt.minConf)
+			balance, err := w.AccountBalanceByCoinType(ctx, 0, cointype.CoinType(tt.coinType), tt.minConf)
 			if err != nil && !tt.wantErr {
 				t.Errorf("Unexpected error getting balance: %v", err)
 				return
@@ -196,7 +197,7 @@ func TestListCoinTypesIntegration(t *testing.T) {
 			}
 
 			// Test that we can list balances for different coin types
-			coinTypes := []dcrutil.CoinType{dcrutil.CoinTypeVAR, dcrutil.CoinType(1), dcrutil.CoinType(2)}
+			coinTypes := []cointype.CoinType{cointype.CoinTypeVAR, cointype.CoinType(1), cointype.CoinType(2)}
 
 			for _, coinType := range coinTypes {
 				balance, err := w.AccountBalanceByCoinType(ctx, 0, coinType, tt.minConf)
@@ -208,7 +209,7 @@ func TestListCoinTypesIntegration(t *testing.T) {
 				if !tt.wantErr {
 					// Verify coin type name formatting
 					var expectedName string
-					if coinType == dcrutil.CoinTypeVAR {
+					if coinType == cointype.CoinTypeVAR {
 						expectedName = "VAR"
 					} else {
 						expectedName = fmt.Sprintf("SKA-%d", coinType)
@@ -242,11 +243,11 @@ func TestDualCoinRPCMethodsBasic(t *testing.T) {
 
 	t.Run("basic dual coin functionality", func(t *testing.T) {
 		// Test that wallet supports multiple coin types
-		coinTypes := []dcrutil.CoinType{
-			dcrutil.CoinTypeVAR,
-			dcrutil.CoinType(1),
-			dcrutil.CoinType(2),
-			dcrutil.CoinType(255),
+		coinTypes := []cointype.CoinType{
+			cointype.CoinTypeVAR,
+			cointype.CoinType(1),
+			cointype.CoinType(2),
+			cointype.CoinType(255),
 		}
 
 		for _, coinType := range coinTypes {
