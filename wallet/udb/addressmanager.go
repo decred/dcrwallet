@@ -207,7 +207,7 @@ func unseal(key keyType, ciphertext []byte) ([]byte, error) {
 }
 
 // AccountProperties contains properties associated with each account, such as
-// the account name, number, and the nubmer of derived and imported keys.  If no
+// the account name, number, and the number of derived and imported keys.  If no
 // address usage has been recorded on any of the external or internal branches,
 // the child index is ^uint32(0).
 type AccountProperties = struct {
@@ -287,7 +287,7 @@ const (
 	_ // Was CKTScript, now removed.  Left for iota to work properly.
 
 	// CKTPublic specifies the key that is used for encryption of public
-	// key material such as dervied extended public keys and imported public
+	// key material such as derived extended public keys and imported public
 	// keys.
 	CKTPublic
 )
@@ -1196,7 +1196,7 @@ func (m *Manager) ConvertToWatchingOnly(ns walletdb.ReadWriteBucket) error {
 	// converted to watching-only, the encrypted private key material is no
 	// longer needed.
 
-	// Clear and remove all of the encrypted acount private keys.
+	// Clear and remove all of the encrypted account private keys.
 	for _, acctInfo := range m.acctInfo {
 		zero(acctInfo.acctKeyEncrypted)
 		acctInfo.acctKeyEncrypted = nil
@@ -2411,7 +2411,7 @@ func (m *Manager) LastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return fetchLastAccount(ns)
 }
 
-// LastImportedAccount returns the acocunt number of the last imported account.
+// LastImportedAccount returns the account number of the last imported account.
 // This is the reserved imported account unless an account has been created by
 // an imported xpub.
 func (m *Manager) LastImportedAccount(dbtx walletdb.ReadTx) (uint32, error) {
