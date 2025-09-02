@@ -1990,11 +1990,6 @@ func (w *Wallet) AccountBalances(ctx context.Context, confirms int32) ([]Balance
 func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, coinType cointype.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalanceByCoinType"
 
-	// Validate coin type range
-	if coinType < 0 || coinType > 255 {
-		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
-	}
-
 	// Get full account balance
 	balance, err := w.AccountBalance(ctx, account, confirms)
 	if err != nil {
@@ -2014,11 +2009,6 @@ func (w *Wallet) AccountBalanceByCoinType(ctx context.Context, account uint32, c
 // filtered by specific coin type.
 func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType cointype.CoinType, confirms int32) ([]CoinBalance, error) {
 	const op errors.Op = "wallet.AccountBalancesByCoinType"
-
-	// Validate coin type range
-	if coinType < 0 || coinType > 255 {
-		return nil, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
-	}
 
 	// Get all account balances
 	balances, err := w.AccountBalances(ctx, confirms)
@@ -2057,11 +2047,6 @@ func (w *Wallet) AccountBalancesByCoinType(ctx context.Context, coinType cointyp
 //	totalSKA1, err := wallet.TotalBalanceByCoinType(ctx, cointype.CoinType(1), 6)
 func (w *Wallet) TotalBalanceByCoinType(ctx context.Context, coinType cointype.CoinType, confirms int32) (CoinBalance, error) {
 	const op errors.Op = "wallet.TotalBalanceByCoinType"
-
-	// Validate coin type range
-	if coinType < 0 || coinType > 255 {
-		return CoinBalance{}, errors.E(op, errors.Invalid, fmt.Sprintf("invalid coin type %d: must be VAR (0) or SKA (1-255)", coinType))
-	}
 
 	coinBalances, err := w.AccountBalancesByCoinType(ctx, coinType, confirms)
 	if err != nil {
@@ -4703,11 +4688,11 @@ func (w *Wallet) TotalReceivedForAccounts(ctx context.Context, minConf int32) ([
 // TotalReceivedForAddr iterates through a wallet's transaction history,
 // returning the total amount of decred received for a single wallet
 // address, optionally filtered by coin type (defaults to VAR/0).
-func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address, minConf int32, coinType ...uint8) (dcrutil.Amount, error) {
+func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address, minConf int32, coinType ...cointype.CoinType) (dcrutil.Amount, error) {
 	const op errors.Op = "wallet.TotalReceivedForAddr"
 
 	// Default to VAR (coin type 0) if no coin type specified
-	filterCoinType := uint8(0)
+	filterCoinType := cointype.CoinTypeVAR
 	if len(coinType) > 0 {
 		filterCoinType = coinType[0]
 	}
@@ -4731,7 +4716,7 @@ func (w *Wallet) TotalReceivedForAddr(ctx context.Context, addr stdaddr.Address,
 				for _, cred := range detail.Credits {
 					txOut := detail.MsgTx.TxOut[cred.Index]
 					// Check if this output matches the requested coin type
-					if uint8(txOut.CoinType) != filterCoinType {
+					if txOut.CoinType != filterCoinType {
 						continue
 					}
 					pkVersion := txOut.Version

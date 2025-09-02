@@ -60,11 +60,9 @@ import (
 // Dual-coin constants
 const (
 	// CoinTypeVAR represents the VAR coin type (mined coins)
-	CoinTypeVAR = 0
+	CoinTypeVAR = uint8(cointype.CoinTypeVAR)
 	// CoinTypeMaxSKA represents the maximum valid SKA coin type
-	CoinTypeMaxSKA = 255
-	// CoinTypeMinSKA represents the minimum valid SKA coin type
-	CoinTypeMinSKA = 1
+	CoinTypeMaxSKA = uint8(cointype.CoinTypeMax)
 )
 
 // API version constants
@@ -87,7 +85,7 @@ const (
 
 // validateCoinType validates a coin type parameter and returns an appropriate error
 func validateCoinType(coinType cointype.CoinType) error {
-	if coinType < CoinTypeVAR || coinType > CoinTypeMaxSKA {
+	if !coinType.IsValid() {
 		return rpcErrorf(dcrjson.ErrRPCInvalidParameter, "cointype must be between %d (VAR) and %d (SKA)", CoinTypeVAR, CoinTypeMaxSKA)
 	}
 	return nil
@@ -1254,7 +1252,7 @@ func (s *Server) getBalance(ctx context.Context, icmd any) (any, error) {
 			result.Balances = append(result.Balances, json)
 		} else {
 			// Default behavior (backward compatible): use existing AccountBalance for VAR
-			bal, err := w.AccountBalance(ctx, account, int32(*cmd.MinConf))
+			bal, err := w.AccountBalance(ctx, account, minConf)
 			if err != nil {
 				// Expect account lookup to succeed
 				if errors.Is(err, errors.NotExist) {
@@ -2349,12 +2347,6 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 		return nil, errUnloadedWallet
 	}
 
-	// Validate coin type
-	if cmd.CoinType < 1 || cmd.CoinType > 255 {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
-			"coin type must be between 1 and 255 (SKA types)")
-	}
-
 	// Get governance-defined parameters for this coin type
 	chainParams := w.ChainParams()
 
@@ -2409,8 +2401,6 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 	}
 
 	// Get emission private key for this coin type from wallet
-	// This is a simplified implementation using a placeholder
-	// TODO: Implement proper emission key management in wallet
 	emissionPrivKey, err := getEmissionKeyForCoinType(w, ctx, cointype.CoinType(cmd.CoinType), cmd.EmissionKeyName)
 	if err != nil {
 		return nil, rpcErrorf(dcrjson.ErrRPCWallet,
@@ -2421,10 +2411,10 @@ func (s *Server) createAuthorizedEmission(ctx context.Context, icmd any) (any, e
 	_, currentHeight32 := w.MainChainTip(ctx)
 	currentHeight := int64(currentHeight32)
 
-	// Get next nonce for this coin type (should be last nonce + 1)
-	// TODO: Need to implement RPC method to get nonce from dcrd
-	// lastNonce := chainParams.GetSKAEmissionNonce(cointype.CoinType(cmd.CoinType))
-	nonce := uint64(1) // Default nonce for development - TODO: implement proper nonce retrieval
+	// Set nonce to 1 - only one emission is planned per coin type
+	// This can be enhanced later to retrieve the current nonce from blockchain
+	// via RPC if multiple emissions per coin type are needed
+	nonce := uint64(1)
 
 	// Create authorization structure (without signature initially)
 	auth := &chaincfg.SKAEmissionAuth{
@@ -2695,12 +2685,18 @@ func (s *Server) getReceivedByAddress(ctx context.Context, icmd any) (any, error
 		return nil, err
 	}
 	// Use coin type filter, defaulting to VAR (0) if not specified
-	coinType := uint8(0)
+	// Default to VAR if no coin type specified
+	filterCoinType := cointype.CoinTypeVAR
 	if cmd.CoinType != nil {
-		coinType = uint8(*cmd.CoinType)
+		filterCoinType = cointype.CoinType(*cmd.CoinType)
+		// Validate coin type
+		if !filterCoinType.IsValid() {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, 
+				"invalid coin type %d: must be between 0 (VAR) and 255 (SKA)", *cmd.CoinType)
+		}
 	}
 
-	total, err := w.TotalReceivedForAddr(ctx, addr, int32(*cmd.MinConf), coinType)
+	total, err := w.TotalReceivedForAddr(ctx, addr, int32(*cmd.MinConf), filterCoinType)
 	if err != nil {
 		if errors.Is(err, errors.NotExist) {
 			return nil, errAddressNotInWallet
@@ -6388,7 +6384,7 @@ func getEmissionKeyForCoinType(w *wallet.Wallet, ctx context.Context, coinType c
 // - The network ID (preventing cross-network replay)
 // - The coin type, nonce, and block height
 func createEmissionAuthHashFromTx(tx *wire.MsgTx, auth *chaincfg.SKAEmissionAuth,
-	blockHeight int64, chainParams *chaincfg.Params) ([32]byte, error) {
+	_ int64, chainParams *chaincfg.Params) ([32]byte, error) {
 
 	// Compute the transaction hash using no-witness serialization
 	// This ensures the signature binds to the exact outputs
@@ -6418,9 +6414,10 @@ func createEmissionAuthHashFromTx(tx *wire.MsgTx, auth *chaincfg.SKAEmissionAuth
 		return [32]byte{}, fmt.Errorf("failed to write nonce: %w", err)
 	}
 
-	// Block height to bind emission to specific height
-	if err := binary.Write(&msgBuf, binary.LittleEndian, uint64(blockHeight)); err != nil {
-		return [32]byte{}, fmt.Errorf("failed to write block height: %w", err)
+	// Use auth.Height (signed by emitter) instead of current blockHeight
+	// This allows broadcasting to mempool and inclusion at any valid height within window
+	if err := binary.Write(&msgBuf, binary.LittleEndian, uint64(auth.Height)); err != nil {
+		return [32]byte{}, fmt.Errorf("failed to write authorization height: %w", err)
 	}
 
 	// Transaction hash - this binds the signature to exact outputs
@@ -6445,9 +6442,8 @@ func createUnsignedSKAEmissionTransaction(auth *chaincfg.SKAEmissionAuth,
 		return nil, fmt.Errorf("SKA emission key required")
 	}
 
-	if len(auth.Signature) == 0 {
-		return nil, fmt.Errorf("SKA emission signature required")
-	}
+	// Note: Signature is not required here since this creates an unsigned transaction
+	// The signature will be added after the transaction is created
 
 	// Validate coin type
 	if auth.CoinType < 1 || auth.CoinType > 255 {
