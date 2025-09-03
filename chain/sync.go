@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/blake256"
+	"github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/mixing/mixpool"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"
@@ -228,6 +229,29 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 
+	birthday, err := s.wallet.BirthState(ctx)
+	if err != nil {
+		return err
+	}
+	// If a birthday is set, it will likely not be found yet. Watch for it
+	// and do not download cfilters before it.
+	var afterBirthday func(h *wire.BlockHeader) bool
+	switch {
+	case birthday == nil:
+		afterBirthday = func(*wire.BlockHeader) bool {
+			return true
+		}
+	case birthday.SetFromTime:
+		afterBirthday = func(h *wire.BlockHeader) bool {
+			return h.Timestamp.After(birthday.Time)
+		}
+	default:
+		// Birthday is setting from height or was already found.
+		afterBirthday = func(h *wire.BlockHeader) bool {
+			return h.Height >= birthday.Height
+		}
+	}
+
 	startedSynced := s.atomicWalletSynced.Load() == 1
 
 	cnet := s.wallet.ChainParams().Net
@@ -261,15 +285,22 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &hash)
-				if err != nil {
-					return err
-				}
+				var filter *gcs.FilterV2
+				if afterBirthday(header) {
+					var (
+						proofIndex uint32
+						proof      []chainhash.Hash
+					)
+					filter, proofIndex, proof, err = s.rpc.CFilterV2(ctx, &hash)
+					if err != nil {
+						return err
+					}
 
-				err = validate.CFilterV2HeaderCommitment(cnet, header,
-					filter, proofIndex, proof)
-				if err != nil {
-					return err
+					err = validate.CFilterV2HeaderCommitment(cnet, header,
+						filter, proofIndex, proof)
+					if err != nil {
+						return err
+					}
 				}
 
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
