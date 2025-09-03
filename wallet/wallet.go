@@ -3322,7 +3322,7 @@ func (w *Wallet) UnspentOutput(ctx context.Context, op wire.OutPoint, includeMem
 }
 
 // AccountProperties contains properties associated with each account, such as
-// the account name, number, and the nubmer of derived and imported keys.  If no
+// the account name, number, and the number of derived and imported keys.  If no
 // address usage has been recorded on any of the external or internal branches,
 // the child index is ^uint32(0).
 type AccountProperties struct {

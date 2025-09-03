@@ -192,7 +192,7 @@ func putMinedBalance(ns walletdb.ReadWriteBucket, amt dcrutil.Amount) error {
 //
 // The canonical outpoint serialization format is:
 //
-//   [0:32]  Trasaction hash (32 bytes)
+//   [0:32]  Transaction hash (32 bytes)
 //   [32:36] Output index (4 bytes)
 //
 // The canonical transaction hash serialization is simply the hash.
@@ -2050,7 +2050,7 @@ func fetchRawTicketCommitmentAmount(v []byte) (dcrutil.Amount, error) {
 
 func fetchRawTicketCommitmentAccount(v []byte) (uint32, error) {
 	if len(v) < 12 {
-		return 0, errors.E(errors.IO, errors.Errorf("ticket commitment acount %d", len(v)))
+		return 0, errors.E(errors.IO, errors.Errorf("ticket commitment account %d", len(v)))
 	}
 	return byteOrder.Uint32(v[8:]), nil
 }

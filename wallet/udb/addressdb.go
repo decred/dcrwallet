@@ -1719,7 +1719,7 @@ func upgradeToVersion6(ns walletdb.ReadWriteBucket) error {
 }
 
 // upgradeManager upgrades the data in the provided manager namespace to newer
-// versions as neeeded.
+// versions as needed.
 func upgradeManager(ns walletdb.ReadWriteBucket) error {
 	version, err := fetchManagerVersion(ns)
 	if err != nil {
