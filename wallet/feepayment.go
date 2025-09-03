@@ -104,14 +104,10 @@ func (c *VSPClient) feePayment(ctx context.Context, ticket *VSPTicket, paidConfi
 	}
 
 	defer func() {
-		if fp == nil {
-			return
-		}
 		var schedule bool
 		c.mu.Lock()
 		fp2 := c.jobs[*ticketHash]
 		if fp2 != nil {
-			fp.stop()
 			fp = fp2
 		} else {
 			c.jobs[*ticketHash] = fp
