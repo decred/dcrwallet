@@ -4079,7 +4079,28 @@ func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 				res.UnspentExpired++
 			}
 		}
-		return it.Err()
+		if err := it.Err(); err != nil {
+			return err
+		}
+
+		// Include an estimate of the live ticket pool size. The correct
+		// poolsize would be the pool size to be mined into the next block,
+		// which takes into account maturing stake tickets, voters, and expiring
+		// tickets. There currently isn't a way to get this from the consensus
+		// RPC server, so just use the current block pool size as a "good
+		// enough" estimate for now.
+		serHeader, err := w.txStore.GetSerializedBlockHeader(txmgrNs, &tipHash)
+		if err != nil {
+			return err
+		}
+		var tipHeader wire.BlockHeader
+		err = tipHeader.Deserialize(bytes.NewReader(serHeader))
+		if err != nil {
+			return err
+		}
+		res.PoolSize = tipHeader.PoolSize
+
+		return nil
 	})
 	if err != nil {
 		return nil, errors.E(op, err)
