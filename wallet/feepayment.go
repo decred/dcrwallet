@@ -589,7 +589,6 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 		fp.schedule("confirm payment", fp.confirmPayment)
 		return nil
 	case "confirmed":
-		fp.remove("confirmed by VSP")
 		fp.mu.Lock()
 		feeHash := fp.feeHash
 		fp.mu.Unlock()
@@ -599,6 +598,7 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 			fp.schedule("confirm payment", fp.confirmPayment)
 			return nil
 		}
+		fp.remove("confirmed by VSP")
 		return nil
 	case "error":
 		fp.client.log.Warnf("VSP failed to broadcast feetx for %v -- restarting payment",
