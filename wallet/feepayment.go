@@ -564,12 +564,6 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 		return errStopped
 	}
 
-	defer func() {
-		if err != nil && !errors.Is(err, errStopped) {
-			fp.schedule("reconcile payment", fp.reconcilePayment)
-		}
-	}()
-
 	status, err := fp.client.status(ctx, fp.ticket)
 	if err != nil {
 		fp.client.log.Warnf("Rescheduling status check for %v: VSP err: %v", fp.ticket, err)
