@@ -52,7 +52,6 @@ type Syncer struct {
 	// Sidechain management
 	sidechains   wallet.SidechainForest
 	sidechainsMu sync.Mutex
-	relevantTxs  map[chainhash.Hash][]*wire.MsgTx
 
 	cb *Callbacks
 
@@ -82,7 +81,6 @@ func NewSyncer(w *wallet.Wallet, r *RPCOptions) *Syncer {
 		opts:           r,
 		blake256Hasher: blake256.New(),
 		discoverAccts:  !w.Locked(),
-		relevantTxs:    make(map[chainhash.Hash][]*wire.MsgTx),
 	}
 }
 
@@ -257,7 +255,6 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		nodes := make([]*wallet.BlockNode, len(headers))
 		var g errgroup.Group
 		for i := range headers {
-			i := i
 			g.Go(func() error {
 				header := headers[i]
 				hash := header.BlockHash()
@@ -272,7 +269,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 					return err
 				}
 
-				nodes[i] = wallet.NewBlockNode(header, &hash, filter)
+				nodes[i] = wallet.NewBlockNode(header, &hash, filter, nil)
 				if wallet.BadCheckpoint(cnet, &hash, int32(header.Height)) {
 					nodes[i].BadCheckpoint()
 				}
@@ -328,7 +325,7 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		}
 
 		s.sidechainsMu.Lock()
-		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain)
 		s.sidechainsMu.Unlock()
 		if err != nil {
 			return err
@@ -886,12 +883,16 @@ func (s *Syncer) handleBlockConnected(ctx context.Context, header *wire.BlockHea
 	s.sidechainsMu.Lock()
 	defer s.sidechainsMu.Unlock()
 
-	blockNode := wallet.NewBlockNode(header, &blockHash, filter)
+	if relevantTxs == nil {
+		// Indicate that we intend to update the block marker we have
+		// transactions synced through.
+		relevantTxs = make([]*wire.MsgTx, 0)
+	}
+	blockNode := wallet.NewBlockNode(header, &blockHash, filter, relevantTxs)
 	if wallet.BadCheckpoint(cnet, &blockHash, int32(header.Height)) {
 		blockNode.BadCheckpoint()
 	}
 	s.sidechains.AddBlockNode(blockNode)
-	s.relevantTxs[blockHash] = relevantTxs
 
 	bestChain, err := s.wallet.EvaluateBestChain(ctx, &s.sidechains)
 	if err != nil {
@@ -899,7 +900,7 @@ func (s *Syncer) handleBlockConnected(ctx context.Context, header *wire.BlockHea
 	}
 	if len(bestChain) != 0 {
 		var prevChain []*wallet.BlockNode
-		prevChain, err = s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, s.relevantTxs)
+		prevChain, err = s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain)
 		if err != nil {
 			return err
 		}
@@ -909,17 +910,11 @@ func (s *Syncer) handleBlockConnected(ctx context.Context, header *wire.BlockHea
 				prevChain[len(prevChain)-1].Hash, bestChain[len(bestChain)-1].Hash, len(prevChain))
 			for _, n := range prevChain {
 				s.sidechains.AddBlockNode(n)
-
-				// TODO: should add txs from the removed blocks
-				// to relevantTxs.  Later block connected logs
-				// will be missing the transaction counts if a
-				// reorg switches back to this older chain.
 			}
 		}
 		for _, n := range bestChain {
 			log.Infof("Connected block %v, height %d, %d wallet transaction(s)",
-				n.Hash, n.Header.Height, len(s.relevantTxs[*n.Hash]))
-			delete(s.relevantTxs, *n.Hash)
+				n.Hash, n.Header.Height, len(n.RelevantTxs))
 		}
 	} else {
 		log.Infof("Observed sidechain or orphan block %v (height %d)", &blockHash, header.Height)

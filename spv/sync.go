@@ -1469,7 +1469,7 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 				}
 			}
 
-			n := wallet.NewBlockNode(headers[i], &hash, nil)
+			n := wallet.NewBlockNode(headers[i], &hash, nil, nil)
 			newBlocks = append(newBlocks, n)
 		}
 
@@ -1535,9 +1535,18 @@ func (s *Syncer) handleBlockAnnouncements(ctx context.Context, rp *p2p.RemotePee
 			if err != nil {
 				return err
 			}
+			for _, n := range bestChain {
+				n.RelevantTxs = matchingTxs[*n.Hash]
+				if n.RelevantTxs == nil {
+					// Indicate that we intend to update
+					// the block marker we have
+					// transactions synced through.
+					n.RelevantTxs = make([]*wire.MsgTx, 0)
+				}
+			}
 		}
 
-		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, matchingTxs)
+		prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain)
 		if err != nil {
 			return err
 		}
@@ -1806,7 +1815,7 @@ func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 			}
 
 			// Switch to the new main chain.
-			prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain, nil)
+			prevChain, err := s.wallet.ChainSwitch(ctx, &s.sidechains, bestChain)
 			if err != nil {
 				s.sidechainMu.Unlock()
 				batch.rp.Disconnect(err)

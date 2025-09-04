@@ -304,7 +304,7 @@ nextbatch:
 			} else {
 				hash = &headers[i+1].PrevBlock
 			}
-			nodes[i] = wallet.NewBlockNode(headers[i], hash, nil)
+			nodes[i] = wallet.NewBlockNode(headers[i], hash, nil, nil)
 			if wallet.BadCheckpoint(cnet, hash, int32(headers[i].Height)) {
 				nodes[i].BadCheckpoint()
 			}

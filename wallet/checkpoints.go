@@ -59,7 +59,7 @@ func (w *Wallet) rollbackInvalidCheckpoints(dbtx walletdb.ReadWriteTx) error {
 		}
 		ckpt := CheckpointHash(w.chainParams.Net, height)
 		if h != *ckpt {
-			err := w.txStore.Rollback(dbtx, height)
+			_, err := w.txStore.Rollback(dbtx, height)
 			if err != nil {
 				return err
 			}

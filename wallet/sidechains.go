@@ -29,15 +29,15 @@ type SidechainForest struct {
 }
 
 // BlockNode represents a block node for a SidechainForest.  BlockNodes are not
-// safe for concurrent access, and all exported fields must be treated as
-// immutable.
+// safe for concurrent access.
 type BlockNode struct {
-	Header   *wire.BlockHeader
-	Hash     *chainhash.Hash
-	FilterV2 *gcs.FilterV2
-	parent   *BlockNode
-	workSum  *big.Int
-	invalid  bool
+	Header      *wire.BlockHeader
+	Hash        *chainhash.Hash
+	FilterV2    *gcs.FilterV2
+	RelevantTxs []*wire.MsgTx
+	parent      *BlockNode
+	workSum     *big.Int
+	invalid     bool
 }
 
 // sidechainRootedTree represents a rooted tree of blocks not currently in the
@@ -63,11 +63,14 @@ func newSideChainRootedTree(root *BlockNode) *sidechainRootedTree {
 }
 
 // NewBlockNode creates a block node for usage with a SidechainForest.
-func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.FilterV2) *BlockNode {
+func NewBlockNode(header *wire.BlockHeader, hash *chainhash.Hash, filter *gcs.FilterV2,
+	relevantTxs []*wire.MsgTx) *BlockNode {
+
 	return &BlockNode{
-		Header:   header,
-		Hash:     hash,
-		FilterV2: filter,
+		Header:      header,
+		Hash:        hash,
+		FilterV2:    filter,
+		RelevantTxs: relevantTxs,
 	}
 }
 

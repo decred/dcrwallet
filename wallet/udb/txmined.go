@@ -1868,9 +1868,10 @@ func approvesParent(voteBits uint16) bool {
 	return dcrutil.IsFlagSet16(voteBits, dcrutil.BlockValid)
 }
 
-// Rollback removes all blocks at height onwards, moving any transactions within
-// each block to the unconfirmed pool.
-func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
+// Rollback removes all blocks at height onwards, moving any transactions
+// within each block to the unconfirmed pool.  It returns all removed
+// transactions, mapped by the block hash they used to appear in.
+func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) (map[chainhash.Hash][]*wire.MsgTx, error) {
 	// Note: does not stake validate the parent block at height-1.  Assumes the
 	// rollback is being done to add more blocks starting at height, and stake
 	// validation will occur when that block is attached.
@@ -1879,12 +1880,12 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 	addrmgrNs := dbtx.ReadWriteBucket(waddrmgrBucketKey)
 
 	if height == 0 {
-		return errors.E(errors.Invalid, "cannot rollback the genesis block")
+		return nil, errors.E(errors.Invalid, "cannot rollback the genesis block")
 	}
 
 	minedBalance, err := fetchMinedBalance(ns)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Keep track of all credits that were removed from coinbase
@@ -1897,6 +1898,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 	var coinBaseCredits []wire.OutPoint
 
 	var heightsToRemove []int32
+	removedTxs := make(map[chainhash.Hash][]*wire.MsgTx)
 
 	it := makeReverseBlockIterator(ns)
 	defer it.close()
@@ -1923,13 +1925,16 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 			var rec TxRecord
 			err = readRawTxRecord(txHash, recVal, &rec)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			err = deleteTxRecord(ns, txHash, &b.Block)
 			if err != nil {
-				return err
+				return nil, err
 			}
+
+			msgTx := rec.MsgTx
+			removedTxs[b.Hash] = append(removedTxs[b.Hash], &msgTx)
 
 			// Handle coinbase transactions specially since they are
 			// not moved to the unconfirmed store.  A coinbase cannot
@@ -1955,13 +1960,13 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 						minedBalance -= dcrutil.Amount(output.Value)
 						err = deleteRawUnspent(ns, outPointKey)
 						if err != nil {
-							return err
+							return nil, err
 						}
 					}
 					removedCredits[string(k)] = v
 					err = deleteRawCredit(ns, k)
 					if err != nil {
-						return err
+						return nil, err
 					}
 
 					// Check if this output is a multisignature
@@ -1973,7 +1978,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 						setMultisigOutUnmined(msVal)
 						err := putMultisigOutRawValues(ns, msKey, msVal)
 						if err != nil {
-							return err
+							return nil, err
 						}
 					}
 				}
@@ -1983,7 +1988,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 
 			err = putRawUnmined(ns, txHash[:], recVal)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			txType := rec.TxType
@@ -2004,7 +2009,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					prevOut.Index)
 				err = putRawUnminedInput(ns, prevOutKey, rec.Hash[:])
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// If this input is a debit, remove the debit
@@ -2013,7 +2018,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 				debKey, credKey, err := existsDebit(ns,
 					&rec.Hash, uint32(i), &b.Block)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				if debKey == nil {
 					continue
@@ -2027,7 +2032,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					credVal = removedCredits[string(credKey)]
 				}
 				if credVal == nil {
-					return errors.E(errors.IO, errors.Errorf("missing credit "+
+					return nil, errors.E(errors.IO, errors.Errorf("missing credit "+
 						"%v, key %x, spent by %v", prevOut, credKey, &rec.Hash))
 				}
 				creditOpCode := fetchRawCreditTagOpCode(credVal)
@@ -2041,12 +2046,12 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 				var amt dcrutil.Amount
 				amt, err = unspendRawCredit(ns, credKey)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				err = deleteRawDebit(ns, debKey)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// If the credit was previously removed in the
@@ -2058,7 +2063,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 				}
 				unspentVal, err := fetchRawCreditUnspentValue(credKey)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// Ticket output spends are never decremented, so no need
@@ -2069,7 +2074,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 
 				err = putRawUnspent(ns, prevOutKey, unspentVal)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				// Check if this input uses a multisignature P2SH
@@ -2080,11 +2085,11 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					setMultisigOutUnSpent(msVal)
 					err := putMultisigOutRawValues(ns, prevOutKey, msVal)
 					if err != nil {
-						return err
+						return nil, err
 					}
 					err = putMultisigOutUS(ns, prevOutKey)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 			}
@@ -2107,7 +2112,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 
 				amt, change, err := fetchRawCreditAmountChange(v)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				opCode := fetchRawCreditTagOpCode(v)
 				isCoinbase := fetchRawCreditIsCoinbase(v)
@@ -2119,7 +2124,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 
 				acct, err := s.fetchAccountForPkScript(addrmgrNs, v, nil, output.PkScript)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				outPointKey := canonicalOutPoint(&rec.Hash, uint32(i))
@@ -2128,12 +2133,12 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					acct, DBVersion)
 				err = putRawUnminedCredit(ns, outPointKey, unminedCredVal)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				err = deleteRawCredit(ns, k)
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				credKey := existsRawUnspent(ns, outPointKey)
@@ -2146,7 +2151,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					}
 					err = deleteRawUnspent(ns, outPointKey)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 
@@ -2159,7 +2164,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 					setMultisigOutUnmined(msVal)
 					err := putMultisigOutRawValues(ns, msKey, msVal)
 					if err != nil {
-						return err
+						return nil, err
 					}
 				}
 			}
@@ -2169,7 +2174,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 			if (rec.TxType == stake.TxTypeSSGen) || (rec.TxType == stake.TxTypeSSRtx) {
 				err = s.replaceTicketCommitmentUnminedSpent(ns, rec.TxType, &rec.MsgTx, true)
 				if err != nil {
-					return err
+					return nil, err
 				}
 			}
 		}
@@ -2185,7 +2190,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 		// }
 	}
 	if it.err != nil {
-		return it.err
+		return nil, it.err
 	}
 
 	// Delete the block records outside of the iteration since cursor deletion
@@ -2193,7 +2198,7 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 	for _, h := range heightsToRemove {
 		err = deleteBlockRecord(ns, h)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -2206,21 +2211,21 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 			copy(unminedRec.Hash[:], unminedKey) // Silly but need an array
 			err = readRawTxRecord(&unminedRec.Hash, unminedVal, &unminedRec)
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			log.Debugf("Transaction %v spends a removed coinbase "+
 				"output -- removing as well", unminedRec.Hash)
 			err = s.RemoveUnconfirmed(ns, &unminedRec.MsgTx, &unminedRec.Hash)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 
 	err = putMinedBalance(ns, minedBalance)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Mark block hash for height-1 as the new main chain tip.
@@ -2228,10 +2233,10 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) error {
 	newTipHash := extractRawBlockRecordHash(newTipBlockRecord)
 	err = ns.Put(rootTipBlock, newTipHash)
 	if err != nil {
-		return errors.E(errors.IO, err)
+		return nil, errors.E(errors.IO, err)
 	}
 
-	return nil
+	return removedTxs, nil
 }
 
 // outputCreditInfo fetches information about a credit from the database,

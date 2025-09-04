@@ -174,7 +174,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		{
 			name: "rollback confirmed credit",
 			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
-				err := s.Rollback(dbtx, int32(b1H.Height))
+				_, err := s.Rollback(dbtx, int32(b1H.Height))
 				return s, err
 			},
 			bal: 0,
@@ -231,7 +231,7 @@ func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 		{
 			name: "rollback after spending tx",
 			f: func(s *Store, dbtx walletdb.ReadWriteTx) (*Store, error) {
-				err := s.Rollback(dbtx, int32(b2H.Height))
+				_, err := s.Rollback(dbtx, int32(b2H.Height))
 				return s, err
 			},
 			bal:      0,
@@ -531,7 +531,7 @@ func TestCoinbases(t *testing.T) {
 		// Reorg out the block that matured the coinbase and spends part of the
 		// coinbase. The immature coinbase should be deducted by the amount
 		// being spent by the tx.
-		err = s.Rollback(dbtx, int32(b17H.Height))
+		_, err = s.Rollback(dbtx, int32(b17H.Height))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -551,7 +551,7 @@ func TestCoinbases(t *testing.T) {
 		// Reorg out the block that contained the coinbase. Since the block
 		// with the coinbase is no longer part of the chain there should not be
 		// any mature or immature amounts reported.
-		err = s.Rollback(dbtx, int32(b1H.Height))
+		_, err = s.Rollback(dbtx, int32(b1H.Height))
 		if err != nil {
 			t.Fatal(err)
 		}
