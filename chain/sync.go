@@ -847,6 +847,12 @@ func (s *Syncer) blockConnected(ctx context.Context, params json.RawMessage) err
 }
 
 func (s *Syncer) handleBlockConnected(ctx context.Context, header *wire.BlockHeader, relevantTxs []*wire.MsgTx, isProcessingMissingBlock bool) error {
+	blockHash := header.BlockHash()
+	haveBlock, _, _ := s.wallet.BlockInMainChain(ctx, &blockHash)
+	if haveBlock {
+		return nil
+	}
+
 	// Ensure the ancestor is known to be in the main or in a side chain.
 	// If it is not, this means we missed some blocks and should perform a
 	// new round of initial header sync.
@@ -866,7 +872,6 @@ func (s *Syncer) handleBlockConnected(ctx context.Context, header *wire.BlockHea
 		return s.getMissingHeaders(ctx)
 	}
 
-	blockHash := header.BlockHash()
 	filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &blockHash)
 	if err != nil {
 		return err
