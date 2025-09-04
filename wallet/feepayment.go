@@ -558,9 +558,9 @@ func (fp *vspFeePayment) submitPayment() (err error) {
 func (fp *vspFeePayment) confirmPayment() (err error) {
 	ctx := fp.ctx
 
-	// stop processing if ticket is expired or spent
+	// Stop processing if ticket is expired or spent.
 	if fp.removedExpiredOrSpent() {
-		// nothing scheduled
+		// Nothing scheduled.
 		return errStopped
 	}
 
@@ -572,7 +572,7 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 
 	status, err := fp.client.status(ctx, fp.ticket)
 	if err != nil {
-		fp.client.log.Warnf("Rescheduling status check for %v: %v", fp.ticket, err)
+		fp.client.log.Warnf("Rescheduling status check for %v: VSP err: %v", fp.ticket, err)
 		fp.schedule("confirm payment", fp.confirmPayment)
 		return nil
 	}
@@ -590,13 +590,14 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 		return nil
 	case "confirmed":
 		fp.remove("confirmed by VSP")
-		// nothing scheduled
 		fp.mu.Lock()
 		feeHash := fp.feeHash
 		fp.mu.Unlock()
 		err = fp.ticket.UpdateFeeConfirmed(ctx, feeHash, fp.client.URL, fp.client.PubKey)
 		if err != nil {
-			return err
+			fp.client.log.Warnf("Rescheduling status check for %v: db err: %v", fp.ticket, err)
+			fp.schedule("confirm payment", fp.confirmPayment)
+			return nil
 		}
 		return nil
 	case "error":
