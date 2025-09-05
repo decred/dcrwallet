@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
@@ -192,6 +193,15 @@ func TestSetGetVSPTicket(t *testing.T) {
 		VSPHostID:   321,
 		Host:        "example.com",
 		PubKey:      []byte("not-a-real-key"),
+	}
+
+	// Non-existent tickets should return an error.
+	err = walletdb.View(ctx, db, func(dbtx walletdb.ReadTx) error {
+		_, err = GetVSPTicket(dbtx, *ticketHash)
+		return err
+	})
+	if !errors.Is(err, errors.NotExist) {
+		t.Fatalf("Expected NotExist error, got: %v", err)
 	}
 
 	// Insert into DB.

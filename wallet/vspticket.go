@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 The Decred developers
+// Copyright (c) 2023-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"sync"
 
-	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
@@ -325,12 +324,10 @@ func (v *VSPTicket) VSPTicketInfo(ctx context.Context) (*TicketInfo, error) {
 		}
 		return nil
 	})
-	if err == nil && data == nil {
-		err = errors.E(errors.NotExist)
-		return nil, err
-	} else if data == nil {
+	if err != nil {
 		return nil, err
 	}
+
 	convertedData := &TicketInfo{
 		FeeHash:     data.FeeHash,
 		FeeTxStatus: data.FeeTxStatus,
