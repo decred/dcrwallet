@@ -12,6 +12,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -338,9 +339,9 @@ func (s *Store) unminedTxHashes(ns walletdb.ReadBucket) ([]*chainhash.Hash, erro
 //
 //   - Any transactions past a set expiry
 //   - Ticket purchases with a different ticket price than the passed stake
-//     difficulty
+//     difficulty requirement of the next block (when sdiff is non-zero)
 //   - Votes that do not vote on the tip block
-func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*chainhash.Hash, error) {
+func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, sdiff dcrutil.Amount) ([]*chainhash.Hash, error) {
 	ns := dbtx.ReadWriteBucket(wtxmgrBucketKey)
 
 	tipHash, tipHeight := s.MainChainTip(dbtx)
@@ -366,7 +367,7 @@ func (s *Store) PruneUnmined(dbtx walletdb.ReadWriteTx, stakeDiff int64) ([]*cha
 			expired = true
 		case stake.IsSStx(&tx):
 			isTicketPurchase = true
-			if tx.TxOut[0].Value == stakeDiff {
+			if sdiff == 0 || tx.TxOut[0].Value == int64(sdiff) {
 				continue
 			}
 		case stake.IsSSGen(&tx):
