@@ -1,4 +1,4 @@
-// Copyright (c) 2023 The Decred developers
+// Copyright (c) 2023-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,8 +6,11 @@ package udb
 
 import (
 	"bytes"
+	"context"
+	"reflect"
 	"testing"
 
+	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 )
 
@@ -167,5 +170,49 @@ func TestVSPSerializeVSPTicket(t *testing.T) {
 			t.Fatalf("test %d: expected empty pubkey but had value %q",
 				i, after.PubKey)
 		}
+	}
+}
+
+func TestSetGetVSPTicket(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	db, _, _, teardown, err := cloneDB(ctx, "vsp.kv")
+	defer teardown()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ticketHash, _ := chainhash.NewHashFromStr("0a472047bfcf1a19580412536570e351d2ac3f30638491c1c1268d6ada514858")
+	feeHash, _ := chainhash.NewHashFromStr("679c508625503e5cd00ba8d35badc40ce040df8986c11321758db831b78f94ec")
+
+	ticket := &VSPTicket{
+		FeeHash:     *feeHash,
+		FeeTxStatus: 123,
+		VSPHostID:   321,
+		Host:        "example.com",
+		PubKey:      []byte("not-a-real-key"),
+	}
+
+	// Insert into DB.
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		err := SetVSPTicket(dbtx, ticketHash, ticket)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Inserting VSP ticket failed: %v", err)
+	}
+
+	// Retrieve from DB and check retrieved data matches inserted data.
+	var got *VSPTicket
+	err = walletdb.View(ctx, db, func(dbtx walletdb.ReadTx) error {
+		got, err = GetVSPTicket(dbtx, *ticketHash)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("Retrieving VSP ticket failed: %v", err)
+	}
+	if !reflect.DeepEqual(got, ticket) {
+		t.Fatalf("Retrieved data does not match inserted data")
 	}
 }
