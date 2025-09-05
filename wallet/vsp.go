@@ -93,6 +93,18 @@ func (w *Wallet) NewVSPClient(cfg VSPClientConfig, log slog.Logger, dialer DialF
 	return v, nil
 }
 
+// RemoveTicket removes the ticket from the VSPClient and cancels any jobs
+// scheduled for that ticket.
+func (c *VSPClient) RemoveTicket(ticketHash chainhash.Hash, reason string) {
+	c.mu.Lock()
+	fp := c.jobs[ticketHash]
+	c.mu.Unlock()
+
+	if fp != nil {
+		fp.remove(reason)
+	}
+}
+
 func (c *VSPClient) FeePercentage(ctx context.Context) (float64, error) {
 	resp, err := c.Client.VspInfo(ctx)
 	if err != nil {
