@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -240,6 +240,29 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 
 		for _, hash := range hashes {
 			w.NtfnServer.notifyRemovedTransaction(*hash)
+
+			// Remove pruned tickets from VSP clients.
+			for _, c := range w.vspClients {
+				c.RemoveTicket(*hash, "pruned")
+			}
+
+			// Remove pruned tickets from database. First check for existence to
+			// avoid unnecessary write txns.
+			err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+				_, err = udb.GetVSPTicket(tx, *hash)
+				return err
+			})
+			if err != nil && !errors.Is(err, errors.NotExist) {
+				log.Errorf("Failed to remove pruned ticket from db: %v", err)
+			} else {
+				err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
+					return udb.DeleteVSPTicket(tx, *hash)
+				})
+				if err != nil {
+					log.Errorf("Failed to remove pruned ticket from db: %v", err)
+				}
+			}
+
 		}
 		return nil
 	})

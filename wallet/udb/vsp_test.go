@@ -174,7 +174,7 @@ func TestVSPSerializeVSPTicket(t *testing.T) {
 	}
 }
 
-func TestSetGetVSPTicket(t *testing.T) {
+func TestSetGetDeleteVSPTicket(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -224,5 +224,30 @@ func TestSetGetVSPTicket(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, ticket) {
 		t.Fatalf("Retrieved data does not match inserted data")
+	}
+
+	// Delete from DB.
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		return DeleteVSPTicket(dbtx, *ticketHash)
+	})
+	if err != nil {
+		t.Fatalf("Deleting VSP ticket failed: %v", err)
+	}
+
+	// Deleted data should no longer be retrievable.
+	err = walletdb.View(ctx, db, func(dbtx walletdb.ReadTx) error {
+		_, err = GetVSPTicket(dbtx, *ticketHash)
+		return err
+	})
+	if !errors.Is(err, errors.NotExist) {
+		t.Fatalf("Expected NotExist error, got: %v", err)
+	}
+
+	// Deleting non-existent ticket should not return an error.
+	err = walletdb.Update(ctx, db, func(dbtx walletdb.ReadWriteTx) error {
+		return DeleteVSPTicket(dbtx, *ticketHash)
+	})
+	if err != nil {
+		t.Fatalf("Got unexpected error deleting non-existent ticket: %v", err)
 	}
 }
