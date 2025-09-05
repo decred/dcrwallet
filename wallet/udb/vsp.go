@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2024 The Decred developers
+// Copyright (c) 2020-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -87,7 +87,8 @@ func SetVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash *chainhash.Hash, record 
 	return bucket.Put(ticketHash[:], serializedRecord)
 }
 
-// GetVSPTicket gets a specific ticket by its hash.
+// GetVSPTicket gets a specific ticket by its hash. Returns errors.NotExist if
+// the the ticket does not exists.
 func GetVSPTicket(dbtx walletdb.ReadTx, tickethash chainhash.Hash) (*VSPTicket, error) {
 	bucket := dbtx.ReadBucket(vspBucketKey)
 	serializedTicket := bucket.Get(tickethash[:])
