@@ -255,23 +255,17 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 				c.RemoveTicket(*hash, "pruned")
 			}
 
-			// Remove pruned tickets from database. First check for existence to
-			// avoid unnecessary write txns.
-			err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
-				_, err = udb.GetVSPTicket(tx, *hash)
-				return err
-			})
-			if err != nil && !errors.Is(err, errors.NotExist) {
-				log.Errorf("Failed to remove pruned ticket from db: %v", err)
-			} else {
-				err = walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
-					return udb.DeleteVSPTicket(tx, *hash)
-				})
-				if err != nil {
-					log.Errorf("Failed to remove pruned ticket from db: %v", err)
-				}
+			// Remove pruned tickets from database.
+			_, err = udb.GetVSPTicket(dbtx, *hash)
+			switch {
+			case errors.Is(err, errors.NotExist):
+				err = nil
+			case err == nil:
+				err = udb.DeleteVSPTicket(dbtx, *hash)
 			}
-
+			if err != nil {
+				log.Errorf("Failed to remove pruned ticket from db: %v", err)
+			}
 		}
 		return nil
 	})
