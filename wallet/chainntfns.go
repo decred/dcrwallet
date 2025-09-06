@@ -256,13 +256,7 @@ func (w *Wallet) ChainSwitch(ctx context.Context, forest *SidechainForest, chain
 			}
 
 			// Remove pruned tickets from database.
-			_, err = udb.GetVSPTicket(dbtx, *hash)
-			switch {
-			case errors.Is(err, errors.NotExist):
-				err = nil
-			case err == nil:
-				err = udb.DeleteVSPTicket(dbtx, *hash)
-			}
+			err := udb.DeleteVSPTicket(dbtx, *hash)
 			if err != nil {
 				log.Errorf("Failed to remove pruned ticket from db: %v", err)
 			}
