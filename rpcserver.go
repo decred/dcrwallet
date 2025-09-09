@@ -403,7 +403,11 @@ func serviceName(method string) string {
 	// Slice off first /
 	method = method[1:]
 	// Keep everything before the next /
-	return method[:strings.IndexRune(method, '/')]
+	idx := strings.IndexRune(method, '/')
+	if idx == -1 {
+		return ""
+	}
+	return method[:idx]
 }
 
 func interceptStreaming(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
