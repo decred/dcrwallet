@@ -933,7 +933,7 @@ func (src *scriptChangeSource) ScriptSize() int {
 }
 
 func makeScriptChangeSource(address string, params *chaincfg.Params) (*scriptChangeSource, error) {
-	destinationAddress, err := stdaddr.DecodeAddress(address, params)
+	destinationAddress, err := decodeAddress(address, params)
 	if err != nil {
 		return nil, err
 	}
@@ -1958,7 +1958,7 @@ func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTi
 
 	// Translate [][]byte to []*chainhash.Hash
 	in, err := decodeHashes(req.Tickets)
-		if err != nil {
+	if err != nil {
 		return &pb.CommittedTicketsResponse{}, err
 	}
 
@@ -3510,9 +3510,9 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 
 	var valid bool
 
-	addr, err := stdaddr.DecodeAddress(req.Address, s.chainParams)
+	addr, err := decodeAddress(req.Address, s.chainParams)
 	if err != nil {
-		return nil, translateError(err)
+		return nil, err
 	}
 
 	// Addresses must have an associated secp256k1 private key and must be P2PKH
