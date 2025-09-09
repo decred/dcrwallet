@@ -1957,15 +1957,9 @@ func (s *walletServer) CommittedTickets(ctx context.Context, req *pb.CommittedTi
 	*pb.CommittedTicketsResponse, error) {
 
 	// Translate [][]byte to []*chainhash.Hash
-	in := make([]*chainhash.Hash, 0, len(req.Tickets))
-	for _, v := range req.Tickets {
-		hash, err := chainhash.NewHash(v)
+	in, err := decodeHashes(req.Tickets)
 		if err != nil {
-			return &pb.CommittedTicketsResponse{},
-				status.Error(codes.InvalidArgument,
-					"invalid hash "+hex.EncodeToString(v))
-		}
-		in = append(in, hash)
+		return &pb.CommittedTicketsResponse{}, err
 	}
 
 	// Figure out which tickets we own
