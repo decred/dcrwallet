@@ -191,7 +191,7 @@ type seedServer struct {
 // account mixing privacy service.
 type accountMixerServer struct {
 	ready  atomic.Bool
-	loader *loader.Loader
+	wallet *wallet.Wallet
 	pb.UnimplementedAccountMixerServiceServer
 }
 
@@ -199,7 +199,7 @@ type accountMixerServer struct {
 // automatic ticket buyer service.
 type ticketbuyerServer struct {
 	ready  atomic.Bool
-	loader *loader.Loader
+	wallet *wallet.Wallet
 	pb.UnimplementedTicketBuyerServiceServer
 }
 
@@ -2508,8 +2508,8 @@ func (s *loaderServer) checkReady() bool {
 }
 
 // StartAccountMixerService starts the AccountMixerService.
-func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
-	accountMixerService.loader = loader
+func StartAccountMixerService(server *grpc.Server, wallet *wallet.Wallet) {
+	accountMixerService.wallet = wallet
 	if accountMixerService.ready.Swap(true) {
 		panic("service already started")
 	}
@@ -2517,11 +2517,7 @@ func StartAccountMixerService(server *grpc.Server, loader *loader.Loader) {
 
 // RunAccountMixer starts the automatic account mixer for the service.
 func (t *accountMixerServer) RunAccountMixer(req *pb.RunAccountMixerRequest, svr pb.AccountMixerService_RunAccountMixerServer) error {
-	wallet, ok := t.loader.LoadedWallet()
-	if !ok {
-		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
-
+	wallet := t.wallet
 	tb := ticketbuyer.New(wallet, ticketbuyer.Config{
 		Mixing:             true,
 		MixedAccountBranch: req.MixedAccountBranch,
@@ -2562,8 +2558,8 @@ func (t *accountMixerServer) checkReady() bool {
 }
 
 // StartTicketBuyerService starts the TicketBuyerService.
-func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader) {
-	ticketBuyerService.loader = loader
+func StartTicketBuyerService(server *grpc.Server, wallet *wallet.Wallet) {
+	ticketBuyerService.wallet = wallet
 	if ticketBuyerService.ready.Swap(true) {
 		panic("service already started")
 	}
@@ -2571,10 +2567,7 @@ func StartTicketBuyerService(server *grpc.Server, loader *loader.Loader) {
 
 // RunTicketBuyer starts the automatic ticket buyer.
 func (t *ticketbuyerServer) RunTicketBuyer(req *pb.RunTicketBuyerRequest, svr pb.TicketBuyerService_RunTicketBuyerServer) error {
-	w, ok := t.loader.LoadedWallet()
-	if !ok {
-		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
-	}
+	w := t.wallet
 
 	ctx := svr.Context()
 

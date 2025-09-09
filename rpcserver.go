@@ -332,8 +332,6 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 			)
 			rpcserver.RegisterServices(server)
 			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
-			rpcserver.StartTicketBuyerService(server, walletLoader)
-			rpcserver.StartAccountMixerService(server, walletLoader)
 			rpcserver.StartAgendaService(server, activeNet.Params)
 			rpcserver.StartDecodeMessageService(server, activeNet.Params)
 			rpcserver.StartMessageVerificationService(server, activeNet.Params)
