@@ -166,6 +166,8 @@ type versionServer struct {
 
 // walletServer provides wallet services for RPC clients.
 type walletServer struct {
+	// ready indicates this service has been provided with all of its
+	// dependencies and is ready to service requests.
 	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedWalletServiceServer
@@ -174,7 +176,6 @@ type walletServer struct {
 // loaderServer provides RPC clients with the ability to load and close wallets,
 // as well as establishing a RPC connection to a dcrd consensus server.
 type loaderServer struct {
-	ready     atomic.Bool
 	loader    *loader.Loader
 	activeNet *netparams.Params
 	pb.UnimplementedWalletLoaderServiceServer
@@ -190,6 +191,8 @@ type seedServer struct {
 // accountMixerServer provides RPC clients with the ability to start/stop the
 // account mixing privacy service.
 type accountMixerServer struct {
+	// ready indicates this service has been provided with all of its
+	// dependencies and is ready to service requests.
 	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedAccountMixerServiceServer
@@ -198,18 +201,21 @@ type accountMixerServer struct {
 // ticketbuyerServer provides RPC clients with the ability to start/stop the
 // automatic ticket buyer service.
 type ticketbuyerServer struct {
+	// ready indicates this service has been provided with all of its
+	// dependencies and is ready to service requests.
 	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedTicketBuyerServiceServer
 }
 
 type agendaServer struct {
-	ready     atomic.Bool
 	activeNet *chaincfg.Params
 	pb.UnimplementedAgendaServiceServer
 }
 
 type votingServer struct {
+	// ready indicates this service has been provided with all of its
+	// dependencies and is ready to service requests.
 	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedVotingServiceServer
@@ -230,6 +236,8 @@ type decodeMessageServer struct {
 // networkServer provices RPC clients with the ability to perform network
 // related calls that are not necessarily used or backed by the wallet itself.
 type networkServer struct {
+	// ready indicates this service has been provided with all of its
+	// dependencies and is ready to service requests.
 	ready  atomic.Bool
 	wallet *wallet.Wallet
 	pb.UnimplementedNetworkServiceServer
@@ -2498,13 +2506,6 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
 	loaderService.loader = loader
 	loaderService.activeNet = activeNet
-	if loaderService.ready.Swap(true) {
-		panic("service already started")
-	}
-}
-
-func (s *loaderServer) checkReady() bool {
-	return s.ready.Load()
 }
 
 // StartAccountMixerService starts the AccountMixerService.
@@ -3173,13 +3174,6 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 
 func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
 	agendaService.activeNet = activeNet
-	if agendaService.ready.Swap(true) {
-		panic("service already started")
-	}
-}
-
-func (s *agendaServer) checkReady() bool {
-	return s.ready.Load()
 }
 
 func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb.AgendasResponse, error) {
