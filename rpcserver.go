@@ -331,10 +331,10 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 				grpc.UnaryInterceptor(interceptUnary),
 			)
 			rpcserver.RegisterServices(server)
-			rpcserver.StartWalletLoaderService(server, walletLoader, activeNet)
-			rpcserver.StartAgendaService(server, activeNet.Params)
-			rpcserver.StartDecodeMessageService(server, activeNet.Params)
-			rpcserver.StartMessageVerificationService(server, activeNet.Params)
+			rpcserver.StartWalletLoaderService(walletLoader, activeNet)
+			rpcserver.StartAgendaService(activeNet.Params)
+			rpcserver.StartDecodeMessageService(activeNet.Params)
+			rpcserver.StartMessageVerificationService(activeNet.Params)
 			for _, lis := range listeners {
 				go func() {
 					laddr := lis.Addr().String()

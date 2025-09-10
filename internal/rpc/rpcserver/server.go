@@ -319,7 +319,7 @@ func (*versionServer) Version(ctx context.Context, req *pb.VersionRequest) (*pb.
 }
 
 // StartWalletService starts the WalletService.
-func StartWalletService(server *grpc.Server, wallet *wallet.Wallet) {
+func StartWalletService(wallet *wallet.Wallet) {
 	if walletService.ready.Swap(true) {
 		panic("service already started")
 	}
@@ -2503,13 +2503,13 @@ func (s *walletServer) ConfirmationNotifications(svr pb.WalletService_Confirmati
 }
 
 // StartWalletLoaderService starts the WalletLoaderService.
-func StartWalletLoaderService(server *grpc.Server, loader *loader.Loader, activeNet *netparams.Params) {
+func StartWalletLoaderService(loader *loader.Loader, activeNet *netparams.Params) {
 	loaderService.loader = loader
 	loaderService.activeNet = activeNet
 }
 
 // StartAccountMixerService starts the AccountMixerService.
-func StartAccountMixerService(server *grpc.Server, wallet *wallet.Wallet) {
+func StartAccountMixerService(wallet *wallet.Wallet) {
 	accountMixerService.wallet = wallet
 	if accountMixerService.ready.Swap(true) {
 		panic("service already started")
@@ -2559,7 +2559,7 @@ func (t *accountMixerServer) checkReady() bool {
 }
 
 // StartTicketBuyerService starts the TicketBuyerService.
-func StartTicketBuyerService(server *grpc.Server, wallet *wallet.Wallet) {
+func StartTicketBuyerService(wallet *wallet.Wallet) {
 	ticketBuyerService.wallet = wallet
 	if ticketBuyerService.ready.Swap(true) {
 		panic("service already started")
@@ -3172,7 +3172,7 @@ func (s *seedServer) DecodeSeed(ctx context.Context, req *pb.DecodeSeedRequest) 
 	return &pb.DecodeSeedResponse{DecodedSeed: seed}, nil
 }
 
-func StartAgendaService(server *grpc.Server, activeNet *chaincfg.Params) {
+func StartAgendaService(activeNet *chaincfg.Params) {
 	agendaService.activeNet = activeNet
 }
 
@@ -3207,7 +3207,7 @@ func (s *agendaServer) Agendas(ctx context.Context, req *pb.AgendasRequest) (*pb
 }
 
 // StartVotingService starts the VotingService.
-func StartVotingService(server *grpc.Server, wallet *wallet.Wallet) {
+func StartVotingService(wallet *wallet.Wallet) {
 	votingService.wallet = wallet
 	if votingService.ready.Swap(true) {
 		panic("service already started")
@@ -3477,7 +3477,7 @@ func (s *votingServer) SetTreasuryPolicy(ctx context.Context, req *pb.SetTreasur
 }
 
 // StartMessageVerificationService starts the MessageVerification service
-func StartMessageVerificationService(server *grpc.Server, chainParams *chaincfg.Params) {
+func StartMessageVerificationService(chainParams *chaincfg.Params) {
 	messageVerificationService.chainParams = chainParams
 }
 
@@ -3508,7 +3508,7 @@ func (s *messageVerificationServer) VerifyMessage(ctx context.Context, req *pb.V
 }
 
 // StartDecodeMessageService starts the MessageDecode service
-func StartDecodeMessageService(server *grpc.Server, chainParams *chaincfg.Params) {
+func StartDecodeMessageService(chainParams *chaincfg.Params) {
 	decodeMessageService.chainParams = chainParams
 }
 
@@ -3747,7 +3747,7 @@ func (s *walletServer) AbandonTransaction(ctx context.Context, req *pb.AbandonTr
 }
 
 // StartNetworkService starts the NetworkService.
-func StartNetworkService(server *grpc.Server, wallet *wallet.Wallet) {
+func StartNetworkService(wallet *wallet.Wallet) {
 	networkService.wallet = wallet
 	if networkService.ready.Swap(true) {
 		panic("service already started")

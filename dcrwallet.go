@@ -382,11 +382,11 @@ func run(ctx context.Context) error {
 		// Start wallet, voting and network gRPC services after a wallet is
 		// loaded.
 		loader.RunAfterLoad(func(w *wallet.Wallet) {
-			rpcserver.StartWalletService(gRPCServer, w)
-			rpcserver.StartTicketBuyerService(gRPCServer, w)
-			rpcserver.StartAccountMixerService(gRPCServer, w)
-			rpcserver.StartNetworkService(gRPCServer, w)
-			rpcserver.StartVotingService(gRPCServer, w)
+			rpcserver.StartWalletService(w)
+			rpcserver.StartTicketBuyerService(w)
+			rpcserver.StartAccountMixerService(w)
+			rpcserver.StartNetworkService(w)
+			rpcserver.StartVotingService(w)
 		})
 		defer func() {
 			log.Warn("Stopping gRPC server...")
