@@ -89,7 +89,7 @@ func main() {
 		Certificates: []tls.Certificate{keypair},
 		RootCAs:      serverCAs,
 	})
-	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.NewClient("localhost:19111", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		fmt.Println(err)
 		return

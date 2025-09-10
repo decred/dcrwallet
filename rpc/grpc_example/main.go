@@ -44,7 +44,7 @@ func run() error {
 		return err
 	}
 	if !serverCAs.AppendCertsFromPEM(serverCert) {
-		return fmt.Errorf("no certificates found in %s\n", certificateFile)
+		return fmt.Errorf("no certificates found in %s", certificateFile)
 	}
 	keypair, err := tls.LoadX509KeyPair(walletClientCertFile, walletClientKeyFile)
 	if err != nil {
@@ -54,7 +54,7 @@ func run() error {
 		Certificates: []tls.Certificate{keypair},
 		RootCAs:      serverCAs,
 	})
-	conn, err := grpc.Dial("localhost:19111", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.NewClient("localhost:19111", grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return err
 	}
