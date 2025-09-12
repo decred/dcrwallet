@@ -1532,8 +1532,7 @@ func (w *Wallet) blockLocators(dbtx walletdb.ReadTx, sidechain []*BlockNode) ([]
 }
 
 // Consolidate consolidates as many UTXOs as are passed in the inputs argument.
-// If that many UTXOs can not be found, it will use the maximum it finds. This
-// will only compress UTXOs in the default account
+// If that many UTXOs can not be found, it will use the maximum it finds.
 func (w *Wallet) Consolidate(ctx context.Context, inputs int, account uint32, address stdaddr.Address) (*chainhash.Hash, error) {
 	return w.compressWallet(ctx, "wallet.Consolidate", inputs, account, address)
 }
