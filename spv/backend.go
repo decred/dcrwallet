@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Ensure Syncer implements the wallet.NetworkBackend interface.
 var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 // TODO: When using the Syncer as a NetworkBackend, keep track of in-flight
