@@ -1055,11 +1055,8 @@ func (s *walletServer) BlockInfo(ctx context.Context, req *pb.BlockInfoRequest) 
 }
 
 func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.WalletService_UnspentOutputsServer) error {
-	policy := wallet.OutputSelectionPolicy{
-		Account:               req.Account,
-		RequiredConfirmations: req.RequiredConfirmations,
-	}
-	inputDetail, err := s.wallet.SelectInputs(svr.Context(), dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(svr.Context(), dcrutil.Amount(req.TargetAmount),
+		req.Account, req.RequiredConfirmations)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
@@ -1101,11 +1098,8 @@ func (s *walletServer) UnspentOutputs(req *pb.UnspentOutputsRequest, svr pb.Wall
 func (s *walletServer) FundTransaction(ctx context.Context, req *pb.FundTransactionRequest) (
 	*pb.FundTransactionResponse, error) {
 
-	policy := wallet.OutputSelectionPolicy{
-		Account:               req.Account,
-		RequiredConfirmations: req.RequiredConfirmations,
-	}
-	inputDetail, err := s.wallet.SelectInputs(ctx, dcrutil.Amount(req.TargetAmount), policy)
+	inputDetail, err := s.wallet.SelectInputs(ctx, dcrutil.Amount(req.TargetAmount),
+		req.Account, req.RequiredConfirmations)
 	// Do not return errors to caller when there was insufficient spendable
 	// outputs available for the target amount.
 	if err != nil && !errors.Is(err, errors.InsufficientBalance) {
