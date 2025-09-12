@@ -17,16 +17,9 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-// OutputSelectionPolicy describes the rules for selecting an output from the
-// wallet.
-type OutputSelectionPolicy struct {
-	Account               uint32
-	RequiredConfirmations int32
-}
-
 // SelectInputs selects transaction inputs to redeem unspent outputs stored in
 // the wallet.  It returns an input detail summary.
-func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, policy OutputSelectionPolicy) (inputDetail *txauthor.InputDetail, err error) {
+func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, account uint32, requiredConfs int32) (inputDetail *txauthor.InputDetail, err error) {
 	const op errors.Op = "wallet.SelectInputs"
 
 	defer w.lockedOutpointMu.Unlock()
@@ -36,18 +29,18 @@ func (w *Wallet) SelectInputs(ctx context.Context, targetAmount dcrutil.Amount, 
 		addrmgrNs := dbtx.ReadBucket(waddrmgrNamespaceKey)
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
-		if policy.Account != udb.ImportedAddrAccount {
+		if account != udb.ImportedAddrAccount {
 			lastAcct, err := w.manager.LastAccount(addrmgrNs)
 			if err != nil {
 				return err
 			}
-			if policy.Account > lastAcct {
+			if account > lastAcct {
 				return errors.E(errors.NotExist, "account not found")
 			}
 		}
 
-		sourceImpl := w.txStore.MakeInputSource(dbtx, policy.Account,
-			policy.RequiredConfirmations, tipHeight, nil)
+		sourceImpl := w.txStore.MakeInputSource(dbtx, account,
+			requiredConfs, tipHeight, nil)
 		var err error
 		inputDetail, err = sourceImpl.SelectInputs(targetAmount)
 		return err
