@@ -755,8 +755,8 @@ func creditScripts(credits []Input) [][]byte {
 	return scripts
 }
 
-// compressWallet compresses all the utxos in a wallet into a single change
-// address. For use when it becomes dusty.
+// compressWallet compresses all the utxos in a wallet account into a single
+// change address. For use when it becomes dusty.
 func (w *Wallet) compressWallet(ctx context.Context, op errors.Op, maxNumIns int, account uint32, changeAddr stdaddr.Address) (*chainhash.Hash, error) {
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
