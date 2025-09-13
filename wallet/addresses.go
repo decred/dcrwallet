@@ -949,8 +949,8 @@ type p2PKHChangeSource struct {
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 	const accountName = "" // not returned, so can be faked.
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", nil, src.dbtx,
-		accountName, src.account, src.gapPolicy)
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
+		src.dbtx, accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -977,8 +977,8 @@ type p2PKHTreasuryChangeSource struct {
 // interface.
 func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
 	const accountName = "" // not returned, so can be faked.
-	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", nil, src.dbtx,
-		accountName, src.account, src.gapPolicy)
+	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
+		src.dbtx, accountName, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
