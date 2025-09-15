@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -185,15 +185,14 @@ type config struct {
 
 type ticketBuyerOptions struct {
 	BalanceToMaintainAbsolute *cfgutil.AmountFlag `long:"balancetomaintainabsolute" description:"Amount of funds to keep in wallet when purchasing tickets"`
-	Limit                     uint                `long:"limit" description:"Buy no more than specified number of tickets per block"`
-	VotingAccount             string              `long:"votingaccount" description:"Account used to derive addresses specifying voting rights"`
+	Limit                     uint                `long:"limit" description:"Buy no more than specified number of tickets per block (0 for no limit)"`
+	VotingAccount             string              `long:"votingaccount" description:"Account used to derive addresses specifying voting rights (mandatory if mixing is enabled)"`
 }
 
 type vspOptions struct {
-	// VSP - TODO: VSPServer to a []string to support multiple VSPs
 	URL    string              `long:"url" description:"Base URL of the VSP server"`
-	PubKey string              `long:"pubkey" description:"VSP server pubkey"`
-	Sync   bool                `long:"sync" description:"sync tickets to vsp"`
+	PubKey string              `long:"pubkey" description:"Base64 encoded public key of the VSP server. Can be found in the footer of the VSP website"`
+	Sync   bool                `long:"sync" description:"Sync tickets to VSP"`
 	MaxFee *cfgutil.AmountFlag `long:"maxfee" description:"Maximum VSP fee"`
 }
 
