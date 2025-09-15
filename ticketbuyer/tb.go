@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -152,21 +152,10 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				}
 			}
 
-			// Read config
-			tb.mu.Lock()
-			cfg := tb.cfg
-			tb.mu.Unlock()
-
-			multiple := 1
-			if cfg.Mixing {
-				multiple = cfg.Limit
-				cfg.Limit = 1
-			}
-
 			cancelCtx, cancel := context.WithCancel(ctx)
 			cancels = append(cancels, cancel)
-			buyTickets := func() {
-				err := tb.buy(cancelCtx, passphrase, tipHeader, expiry, &cfg)
+			go func() {
+				err := tb.buy(cancelCtx, passphrase, tipHeader, expiry)
 				if err != nil {
 					switch {
 					// silence these errors
@@ -183,12 +172,9 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 						outerCancel()
 					}
 				}
-			}
-			for i := 0; cfg.BuyTickets && i < multiple; i++ {
-				go buyTickets()
-			}
+			}()
 			go func() {
-				err := tb.mixChange(ctx, &cfg)
+				err := tb.mixChange(ctx)
 				if err != nil {
 					log.Error(err)
 				}
@@ -197,8 +183,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	}
 }
 
-func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader, expiry int32,
-	cfg *Config) error {
+func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader, expiry int32) error {
 	ctx, task := trace.NewTask(ctx, "ticketbuyer.buy")
 	defer task.End()
 
@@ -230,15 +215,17 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	}
 
 	// Read config
-	account := cfg.Account
-	maintain := cfg.Maintain
-	limit := cfg.Limit
-	mixing := cfg.Mixing
-	votingAccount := cfg.VotingAccount
-	mixedAccount := cfg.MixedAccount
-	mixedBranch := cfg.MixedAccountBranch
-	splitAccount := cfg.TicketSplitAccount
-	changeAccount := cfg.ChangeAccount
+	tb.mu.Lock()
+	account := tb.cfg.Account
+	maintain := tb.cfg.Maintain
+	limit := tb.cfg.Limit
+	mixing := tb.cfg.Mixing
+	votingAccount := tb.cfg.VotingAccount
+	mixedAccount := tb.cfg.MixedAccount
+	mixedBranch := tb.cfg.MixedAccountBranch
+	splitAccount := tb.cfg.TicketSplitAccount
+	changeAccount := tb.cfg.ChangeAccount
+	tb.mu.Unlock()
 
 	minconf := int32(minconf)
 	if mixing {
@@ -317,13 +304,15 @@ func (tb *TB) AccessConfig(f func(cfg *Config)) {
 	tb.mu.Unlock()
 }
 
-func (tb *TB) mixChange(ctx context.Context, cfg *Config) error {
+func (tb *TB) mixChange(ctx context.Context) error {
 	// Read config
-	mixing := cfg.Mixing
-	mixedAccount := cfg.MixedAccount
-	mixedBranch := cfg.MixedAccountBranch
-	changeAccount := cfg.ChangeAccount
-	mixChange := cfg.MixChange
+	tb.mu.Lock()
+	mixing := tb.cfg.Mixing
+	mixedAccount := tb.cfg.MixedAccount
+	mixedBranch := tb.cfg.MixedAccountBranch
+	changeAccount := tb.cfg.ChangeAccount
+	mixChange := tb.cfg.MixChange
+	tb.mu.Unlock()
 
 	if !mixChange || !mixing {
 		return nil
