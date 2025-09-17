@@ -1139,9 +1139,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 var errVSPFeeRequiresUTXOSplit = errors.New("paying VSP fee requires UTXO split")
 
 // purchaseTickets indicates to the wallet that a ticket should be purchased
-// using all currently available funds.   Also, when the spend limit in the
-// request is greater than or equal to 0, tickets that cost more than that limit
-// will return an error that not enough funds are available.
+// using all currently available funds.
 func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	n NetworkBackend, req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	// Ensure the minimum number of required confirmations is positive.
