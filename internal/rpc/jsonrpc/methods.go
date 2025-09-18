@@ -53,8 +53,8 @@ import (
 
 // API version constants
 const (
-	jsonrpcSemverString = "10.0.0"
-	jsonrpcSemverMajor  = 10
+	jsonrpcSemverString = "11.0.0"
+	jsonrpcSemverMajor  = 11
 	jsonrpcSemverMinor  = 0
 	jsonrpcSemverPatch  = 0
 )
@@ -3293,7 +3293,6 @@ func (s *Server) lockUnspent(ctx context.Context, icmd any) (any, error) {
 // using all currently available funds. If the ticket could not be purchased
 // because there are not enough eligible funds, an error will be returned.
 func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
-	// Enforce valid and positive spend limit.
 	cmd := icmd.(*types.PurchaseTicketCmd)
 	w, ok := s.walletLoader.LoadedWallet()
 	if !ok {
@@ -3303,14 +3302,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	n, err := w.NetworkBackend()
 	if err != nil {
 		return nil, err
-	}
-
-	spendLimit, err := dcrutil.NewAmount(cmd.SpendLimit)
-	if err != nil {
-		return nil, rpcError(dcrjson.ErrRPCInvalidParameter, err)
-	}
-	if spendLimit < 0 {
-		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter, "negative spend limit")
 	}
 
 	account, err := w.AccountNumber(ctx, cmd.FromAccount)

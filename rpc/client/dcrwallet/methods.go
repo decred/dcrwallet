@@ -256,13 +256,11 @@ func (c *Client) SendManyMinConf(ctx context.Context, fromAccount string, amount
 // parameter, a nil parameter indicates the default value for the optional
 // parameter.
 func (c *Client) PurchaseTicket(ctx context.Context, fromAccount string,
-	spendLimit dcrutil.Amount, minConf *int,
-	numTickets *int, expiry *int, ticketChange *bool,
+	minConf *int, numTickets *int, expiry *int, ticketChange *bool,
 	ticketFee *dcrutil.Amount) ([]*chainhash.Hash, error) {
 
-	params := make([]any, 2, 10)
+	params := make([]any, 1, 9)
 	params[0] = fromAccount
-	params[1] = spendLimit.ToCoin()
 
 	var skipped int
 	addParam := func(nonNil bool, value func() any) {

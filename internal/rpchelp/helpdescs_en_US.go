@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -685,7 +685,6 @@ var helpDescsEnUS = map[string]string{
 	// PurchaseTicketCmd help.
 	"purchaseticket--synopsis":          "Purchase ticket using available funds.",
 	"purchaseticket--result0":           "Hash of the resulting ticket",
-	"purchaseticket-spendlimit":         "Limit on the amount to spend on ticket",
 	"purchaseticket-fromaccount":        "The account to use for purchase (default=\"default\")",
 	"purchaseticket-minconf":            "Minimum number of block confirmations required",
 	"purchaseticket-numtickets":         "The number of tickets to purchase",
