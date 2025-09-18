@@ -627,22 +627,21 @@ message PublishUnminedTransactionsResponse {}
 message PurchaseTicketsRequest {
 	bytes passphrase = 1;
 	uint32 account = 2;
-	int64 spend_limit = 3;
-	uint32 required_confirmations = 4;
-	uint32 num_tickets = 5;
-	uint32 expiry = 6;
-	int64 tx_fee = 7;
-	int64 ticket_fee = 8;
-	bool dont_sign_tx = 9;
-	bool enable_mixing = 10;
-	uint32 mixed_account = 11;
-	uint32 mixed_account_branch = 12;
-	uint32 mixed_split_account = 13;
-	uint32 change_account = 14;
-	string vsp_host = 15;
-	string vsp_pubkey = 16;
-	bool use_voting_account = 17;
-	uint32 voting_account = 18;
+	uint32 required_confirmations = 3;
+	uint32 num_tickets = 4;
+	uint32 expiry = 5;
+	int64 tx_fee = 6;
+	int64 ticket_fee = 7;
+	bool dont_sign_tx = 8;
+	bool enable_mixing = 9;
+	uint32 mixed_account = 10;
+	uint32 mixed_account_branch = 11;
+	uint32 mixed_split_account = 12;
+	uint32 change_account = 13;
+	string vsp_host = 14;
+	string vsp_pubkey = 15;
+	bool use_voting_account = 16;
+	uint32 voting_account = 17;
 }
 message PurchaseTicketsResponse {
 	repeated bytes ticket_hashes = 1;

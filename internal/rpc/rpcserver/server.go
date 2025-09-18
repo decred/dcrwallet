@@ -61,8 +61,8 @@ import (
 
 // Public API version constants
 const (
-	semverString = "9.0.0"
-	semverMajor  = 9
+	semverString = "10.0.0"
+	semverMajor  = 10
 	semverMinor  = 0
 	semverPatch  = 0
 )
@@ -1792,12 +1792,6 @@ func (s *walletServer) PurchaseTickets(ctx context.Context,
 	req *pb.PurchaseTicketsRequest) (*pb.PurchaseTicketsResponse, error) {
 	// Unmarshall the received data and prepare it as input for the ticket
 	// purchase request.
-	spendLimit := dcrutil.Amount(req.SpendLimit)
-	if spendLimit < 0 {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Negative spend limit given")
-	}
-
 	minConf := int32(req.RequiredConfirmations)
 
 	var err error
