@@ -183,7 +183,7 @@ func (v *VSPTicket) AgendaChoices(ctx context.Context) (map[string]string, error
 	return choices, nil
 }
 
-// TSpendPolicyForTicket returns all of the tspend policies set for a single
+// TSpendPolicy returns all of the tspend policies set for a single
 // ticket. It does not consider the global wallet setting.
 func (v *VSPTicket) TSpendPolicy() map[string]string {
 	w := v.wallet

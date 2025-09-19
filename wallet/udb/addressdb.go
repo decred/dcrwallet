@@ -719,7 +719,7 @@ func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return account, nil
 }
 
-// fetchLastAccount retreives the last imported xpub account from the
+// fetchLastImportedAccount retreives the last imported xpub account from the
 // database.
 func fetchLastImportedAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
