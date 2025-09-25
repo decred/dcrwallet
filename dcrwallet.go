@@ -170,7 +170,7 @@ func run(ctx context.Context) error {
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
 		cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled, cfg.ManualTickets,
-		cfg.MixSplitLimit, cfg.dial)
+		cfg.MixSplitLimit, cfg.MixChangeLimit, cfg.dial)
 
 	// Stop any services started by the loader after the shutdown procedure is
 	// initialized and this function returns.

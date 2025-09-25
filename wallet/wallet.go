@@ -155,10 +155,11 @@ type Wallet struct {
 	passphraseTimeoutCancel chan struct{}
 
 	// Mixing
-	mixingEnabled bool
-	mixpool       *mixpool.Pool
-	mixSems       mixSemaphores
-	mixClient     *mixclient.Client
+	mixingEnabled  bool
+	mixpool        *mixpool.Pool
+	mixSems        mixSemaphores
+	mixChangeLimit int
+	mixClient      *mixclient.Client
 
 	// Cached Blake3 anchor candidate
 	cachedBlake3WorkDiffCandidateAnchor   *wire.BlockHeader
@@ -190,6 +191,7 @@ type Config struct {
 	WatchLast               uint32
 	AccountGapLimit         int
 	MixSplitLimit           int
+	MixChangeLimit          int
 	DisableCoinTypeUpgrades bool
 	MixingEnabled           bool
 
@@ -5420,8 +5422,9 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 		addressBuffers: make(map[uint32]*bip0044AccountData),
 
-		mixSems:       newMixSemaphores(cfg.MixSplitLimit),
-		mixingEnabled: cfg.MixingEnabled,
+		mixSems:        newMixSemaphores(cfg.MixSplitLimit),
+		mixChangeLimit: cfg.MixChangeLimit,
+		mixingEnabled:  cfg.MixingEnabled,
 
 		vspMaxFee:  cfg.VSPMaxFee,
 		vspClients: make(map[string]*VSPClient),

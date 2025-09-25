@@ -116,7 +116,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
 		cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled, cfg.ManualTickets,
-		cfg.MixSplitLimit, cfg.dial)
+		cfg.MixSplitLimit, cfg.MixChangeLimit, cfg.dial)
 
 	var privPass, pubPass, seed []byte
 	var imported bool
