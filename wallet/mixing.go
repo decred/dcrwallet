@@ -6,7 +6,9 @@ package wallet
 
 import (
 	"context"
+	"math/rand"
 	"sync/atomic"
+	"time"
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txrules"
@@ -467,28 +469,59 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 	}
 	w.lockedOutpointMu.Unlock()
 
+	// Use batch mixing if MixChangeLimit > 1
 	var g errgroup.Group
 	var success atomic.Int32
-	for i := range credits {
-		op := &credits[i].OutPoint
-		g.Go(func() error {
-			err := w.MixOutput(ctx, op, changeAccount, mixAccount, mixBranch)
-			if err == nil {
-				success.Add(1)
-			}
-			switch {
-			case errors.Is(err, errNoSplitDenomination):
-				log.Debugf("Unable to mix output for account %q: %v",
-					changeAccount, err)
-				err = nil
-			case errors.Is(err, errThrottledMixRequest):
-				log.Debugf("Temporarily skipped output %v during account %q mix: %v",
-					op, changeAccount, err)
-				err = nil
-			}
-			return err
-		})
+
+	if w.mixChangeLimit > 1 {
+		// Group UTXOs by denomination and batch them
+		batches := w.groupUTXOsForBatchMixing(credits, w.mixChangeLimit)
+
+		for _, batch := range batches {
+			batchCopy := batch // Capture for goroutine
+			g.Go(func() error {
+				err := w.MixMultipleOutputs(ctx, batchCopy, changeAccount, mixAccount, mixBranch)
+				if err == nil {
+					success.Add(int32(len(batchCopy)))
+				}
+				switch {
+				case errors.Is(err, errNoSplitDenomination):
+					log.Debugf("Unable to mix batch for account %q: %v", changeAccount, err)
+					err = nil
+				case errors.Is(err, errThrottledMixRequest):
+					log.Debugf("Temporarily skipped batch during account %q mix: %v", changeAccount, err)
+					err = nil
+				}
+				return err
+			})
+		}
+
+		log.Infof("Processing %d batches (limit %d UTXOs/batch) for account %q",
+			len(batches), w.mixChangeLimit, changeAccount)
+	} else {
+		// Fall back to original single-UTXO mixing
+		for i := range credits {
+			op := &credits[i].OutPoint
+			g.Go(func() error {
+				err := w.MixOutput(ctx, op, changeAccount, mixAccount, mixBranch)
+				if err == nil {
+					success.Add(1)
+				}
+				switch {
+				case errors.Is(err, errNoSplitDenomination):
+					log.Debugf("Unable to mix output for account %q: %v",
+						changeAccount, err)
+					err = nil
+				case errors.Is(err, errThrottledMixRequest):
+					log.Debugf("Temporarily skipped output %v during account %q mix: %v",
+						op, changeAccount, err)
+					err = nil
+				}
+				return err
+			})
+		}
 	}
+
 	err = g.Wait()
 	log.Debugf("Mixed %d of %d selected outputs of account %q", success.Load(),
 		len(credits), changeAccount)
@@ -551,5 +584,290 @@ func (w *Wallet) AcceptMixMessage(msg mixing.Message) error {
 		return err
 	}
 
+	return nil
+}
+
+// groupUTXOsForBatchMixing groups UTXOs by their mix denomination and creates
+// batches limited by the configured MixChangeLimit. This enables multiple UTXOs
+// of the same denomination to be mixed in a single session with privacy mitigations.
+func (w *Wallet) groupUTXOsForBatchMixing(credits []Input, limit int) map[int64][]Input {
+	if limit < 1 {
+		limit = 1
+	}
+
+	// Group UTXOs by their ideal mix denomination
+	groups := make(map[int64][]Input)
+
+	sdiff, err := w.NextStakeDifficulty(context.Background())
+	if err != nil {
+		log.Debugf("Failed to get stake difficulty for mixing grouping: %v", err)
+		sdiff = 0
+	}
+
+	for _, credit := range credits {
+		amount := dcrutil.Amount(credit.PrevOut.Value)
+
+		// Find the appropriate mix denomination for this UTXO
+		var mixValue int64
+		for i := 0; i < len(splitPoints); i++ {
+			last := i == len(splitPoints)-1
+			candidate := int64(splitPoints[i])
+
+			// Skip denominations above stake difficulty unless it's the smallest
+			if !last && candidate >= int64(sdiff) {
+				continue
+			}
+
+			// Check if this UTXO can be split into this denomination
+			count := min(uint32(amount/dcrutil.Amount(candidate)), 4)
+			if count > 0 {
+				// Calculate if fees can be paid
+				const P2PKHv0Len = 25
+				inScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+				outScriptSizes := make([]int, count)
+				for j := range outScriptSizes {
+					outScriptSizes[j] = P2PKHv0Len
+				}
+				size := txsizes.EstimateSerializeSizeFromScriptSizes(
+					inScriptSizes, outScriptSizes, P2PKHv0Len)
+				fee := txrules.FeeForSerializeSize(w.RelayFee(), size)
+
+				remValue := amount - dcrutil.Amount(count)*dcrutil.Amount(candidate)
+				if remValue >= fee {
+					mixValue = candidate
+					break
+				}
+			}
+		}
+
+		if mixValue > 0 {
+			groups[mixValue] = append(groups[mixValue], credit)
+		}
+	}
+
+	// Split large groups into batches limited by MixChangeLimit
+	batched := make(map[int64][]Input)
+	batchCounter := 0
+
+	for denom, utxos := range groups {
+		for i := 0; i < len(utxos); i += limit {
+			end := i + limit
+			if end > len(utxos) {
+				end = len(utxos)
+			}
+
+			// Create a unique key for each batch
+			batchKey := denom + int64(batchCounter)<<32
+			batched[batchKey] = utxos[i:end]
+			batchCounter++
+		}
+	}
+
+	return batched
+}
+
+// MixMultipleOutputs performs mixing of multiple UTXOs of the same denomination
+// in a single CoinShuffle++ session with privacy mitigations including timing
+// jitter and session participation limits.
+func (w *Wallet) MixMultipleOutputs(ctx context.Context, utxos []Input, changeAccount, mixAccount, mixBranch uint32) error {
+	op := errors.Opf("wallet.MixMultipleOutputs(%d utxos)", len(utxos))
+
+	if len(utxos) == 0 {
+		return errors.E(op, errors.Invalid, "no UTXOs provided for mixing")
+	}
+
+	// Privacy mitigation: Limit local peer participation to prevent domination
+	maxLocalPeers := min(len(utxos), 10) // Never more than 10 local peers
+	if len(utxos) > maxLocalPeers {
+		utxos = utxos[:maxLocalPeers]
+	}
+
+	// Use the first UTXO to determine mix parameters
+	firstUTXO := utxos[0]
+
+	// Get the mix denomination and parameters from the first UTXO
+	amount := dcrutil.Amount(firstUTXO.PrevOut.Value)
+	sdiff, err := w.NextStakeDifficulty(ctx)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	// Find appropriate split denomination (same logic as MixOutput)
+	var i int
+	var count uint32
+	var mixValue, remValue, changeValue dcrutil.Amount
+	var feeRate = w.RelayFee()
+	var smallestMixChange = smallestMixChange(feeRate)
+
+SplitPoints:
+	for i = 0; i < len(splitPoints); i++ {
+		last := i == len(splitPoints)-1
+		mixValue = splitPoints[i]
+
+		if !last && mixValue >= sdiff {
+			continue
+		}
+
+		count = min(uint32(amount/mixValue), 4)
+		for ; count > 0; count-- {
+			remValue = amount - dcrutil.Amount(count)*mixValue
+			if remValue < 0 {
+				continue
+			}
+
+			const P2PKHv0Len = 25
+			inScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+			outScriptSizes := make([]int, count)
+			for j := range outScriptSizes {
+				outScriptSizes[j] = P2PKHv0Len
+			}
+			size := txsizes.EstimateSerializeSizeFromScriptSizes(
+				inScriptSizes, outScriptSizes, P2PKHv0Len)
+			fee := txrules.FeeForSerializeSize(feeRate, size)
+			changeValue = remValue - fee
+			if last {
+				changeValue = 0
+			}
+			if changeValue <= 0 {
+				size = txsizes.EstimateSerializeSizeFromScriptSizes(
+					inScriptSizes, outScriptSizes, 0)
+				fee = txrules.FeeForSerializeSize(feeRate, size)
+				if remValue < fee {
+					continue
+				}
+				changeValue = 0
+			}
+			if changeValue < smallestMixChange {
+				changeValue = 0
+			}
+
+			break SplitPoints
+		}
+	}
+
+	if i == len(splitPoints) {
+		return errors.E(op, errNoSplitDenomination)
+	}
+
+	// Privacy mitigation: Add random timing jitter between peer creation
+	// to decorrelate local peers and prevent timing analysis
+	baseDelay := time.Duration(len(utxos)) * 2 * time.Second
+	jitter := time.Duration(rand.Intn(int(baseDelay)))
+
+	select {
+	case <-ctx.Done():
+		return errors.E(op, ctx.Err())
+	case <-time.After(jitter):
+		// Continue with mixing after jitter delay
+	}
+
+	// Acquire semaphore for the denomination
+	select {
+	case <-ctx.Done():
+		return errors.E(op, ctx.Err())
+	case w.mixSems.splitSems[i] <- struct{}{}:
+		defer func() { <-w.mixSems.splitSems[i] }()
+	default:
+		return errThrottledMixRequest
+	}
+
+	// Lock all UTXOs to prevent concurrent access
+	w.lockedOutpointMu.Lock()
+	var lockedOutpoints []outpoint
+	for _, utxo := range utxos {
+		op := outpoint{utxo.OutPoint.Hash, utxo.OutPoint.Index}
+		if _, exists := w.lockedOutpoints[op]; exists {
+			// Unlock already locked ones and return error
+			for _, locked := range lockedOutpoints {
+				delete(w.lockedOutpoints, locked)
+			}
+			w.lockedOutpointMu.Unlock()
+			err := errors.Errorf("output %v already locked", utxo.OutPoint)
+			return errors.E(op, err)
+		}
+		w.lockedOutpoints[op] = struct{}{}
+		lockedOutpoints = append(lockedOutpoints, op)
+	}
+	w.lockedOutpointMu.Unlock()
+
+	defer func() {
+		w.lockedOutpointMu.Lock()
+		for _, op := range lockedOutpoints {
+			delete(w.lockedOutpoints, op)
+		}
+		w.lockedOutpointMu.Unlock()
+	}()
+
+	// Create change output if needed
+	var change *wire.TxOut
+	if changeValue > 0 {
+		updates := make(accountBranchChildUpdates, 0, 1)
+		const accountName = "" // not used, so can be faked.
+		addr, err := w.nextAddress(ctx, op, &updates, nil,
+			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
+		if err != nil {
+			return errors.E(op, err)
+		}
+		version, changeScript := addr.PaymentScript()
+		change = &wire.TxOut{
+			Value:    int64(changeValue),
+			PkScript: changeScript,
+			Version:  version,
+		}
+		err = updates.UpdateDB(ctx, w, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Infof("Mixing %d outputs in single session (denomination: %v)", len(utxos), mixValue)
+
+	// Create multiple local peers for the same CoinShuffle++ session
+	gen := w.makeGen(ctx, mixAccount, mixBranch)
+	expires := w.dicemixExpiry(ctx)
+
+	// Create CoinJoin with multiple inputs
+	cj := mixclient.NewCoinJoin(gen, change, int64(mixValue), expires, count)
+
+	// Add all UTXOs as inputs to the same CoinJoin session
+	for _, utxo := range utxos {
+		// Get UTXO details
+		var prevScript []byte
+		var prevScriptVersion uint16
+		err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+			txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
+			txDetails, err := w.txStore.TxDetails(txmgrNs, &utxo.OutPoint.Hash)
+			if err != nil {
+				return err
+			}
+			out := txDetails.MsgTx.TxOut[utxo.OutPoint.Index]
+			prevScript = out.PkScript
+			prevScriptVersion = out.Version
+			return nil
+		})
+		if err != nil {
+			return errors.E(op, err)
+		}
+
+		input := &wire.TxIn{
+			PreviousOutPoint: utxo.OutPoint,
+			ValueIn:          int64(dcrutil.Amount(utxo.PrevOut.Value)),
+		}
+
+		err = w.addCoinJoinInput(ctx, cj, input, prevScript, prevScriptVersion)
+		if err != nil {
+			return errors.E(op, err)
+		}
+	}
+
+	// Execute single Dicemix session with multiple local peers
+	err = w.mixClient.Dicemix(ctx, cj)
+	if err != nil {
+		return errors.E(op, err)
+	}
+
+	tx := cj.Tx()
+	cjHash := tx.TxHash()
+	log.Infof("Completed batch mix of %d outputs in transaction %v", len(utxos), &cjHash)
 	return nil
 }

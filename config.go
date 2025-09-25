@@ -60,6 +60,7 @@ const (
 	defaultDisableCoinTypeUpgrades = false
 	defaultCircuitLimit            = 32
 	defaultMixSplitLimit           = 10
+	defaultMixChangeLimit          = 1
 	defaultVSPMaxFee               = dcrutil.Amount(0.2e8)
 
 	// ticket buyer options
@@ -177,6 +178,7 @@ type config struct {
 	ChangeAccount      string `long:"changeaccount" description:"Account used to derive unmixed CoinJoin outputs in CoinShuffle++ protocol"`
 	MixChange          bool   `long:"mixchange" description:"Use CoinShuffle++ to mix change account outputs into mix account"`
 	MixSplitLimit      int    `long:"mixsplitlimit" description:"Connection limit to CoinShuffle++ server per change amount"`
+	MixChangeLimit     int    `long:"mixchangelimit" description:"Maximum number of change UTXOs to mix in a single CoinShuffle++ session (1-10, default: 1)"`
 
 	TBOpts ticketBuyerOptions `group:"Ticket Buyer Options" namespace:"ticketbuyer"`
 
@@ -375,6 +377,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		DisableCoinTypeUpgrades: defaultDisableCoinTypeUpgrades,
 		CircuitLimit:            defaultCircuitLimit,
 		MixSplitLimit:           defaultMixSplitLimit,
+		MixChangeLimit:          defaultMixChangeLimit,
 		CSPPSolver:              cfgutil.NewExplicitString(solverrpc.SolverProcess),
 
 		// Ticket Buyer Options
@@ -568,6 +571,13 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 	if cfg.TBOpts.BalanceToMaintainAbsolute.ToCoin() < 0 {
 		str := "%s: balancetomaintainabsolute cannot be negative: %v"
 		err := errors.Errorf(str, funcName, cfg.TBOpts.BalanceToMaintainAbsolute)
+		fmt.Fprintln(os.Stderr, err)
+		return loadConfigError(err)
+	}
+	// Sanity check MixChangeLimit
+	if cfg.MixChangeLimit < 1 || cfg.MixChangeLimit > 10 {
+		str := "%s: mixchangelimit must be between 1 and 10: %v"
+		err := errors.Errorf(str, funcName, cfg.MixChangeLimit)
 		fmt.Fprintln(os.Stderr, err)
 		return loadConfigError(err)
 	}

@@ -48,6 +48,7 @@ type Loader struct {
 	relayFee                dcrutil.Amount
 	vspMaxFee               dcrutil.Amount
 	mixSplitLimit           int
+	mixChangeLimit          int
 	dialer                  wallet.DialFunc
 
 	mu sync.Mutex
@@ -56,7 +57,7 @@ type Loader struct {
 // NewLoader constructs a Loader.
 func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, vspMaxFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
+	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int, mixChangeLimit int, dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
@@ -72,6 +73,7 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled boo
 		relayFee:                relayFee,
 		vspMaxFee:               vspMaxFee,
 		mixSplitLimit:           mixSplitLimit,
+		mixChangeLimit:          mixChangeLimit,
 		dialer:                  dialer,
 	}
 }
@@ -180,6 +182,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 		RelayFee:                l.relayFee,
 		VSPMaxFee:               l.vspMaxFee,
 		MixSplitLimit:           l.mixSplitLimit,
+		MixChangeLimit:          l.mixChangeLimit,
 		Params:                  l.chainParams,
 		Dialer:                  l.dialer,
 	}
@@ -329,6 +332,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 		RelayFee:                l.relayFee,
 		VSPMaxFee:               l.vspMaxFee,
 		MixSplitLimit:           l.mixSplitLimit,
+		MixChangeLimit:          l.mixChangeLimit,
 		Params:                  l.chainParams,
 		Dialer:                  l.dialer,
 	}
