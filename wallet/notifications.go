@@ -319,7 +319,7 @@ func (s *NotificationServer) sendAttachedBlockNotification(ctx context.Context) 
 	// hashes of all detached blocks are reported, and all transactions
 	// moved from a mined block back to unconfirmed are either in the
 	// UnminedTransactionHashes slice or don't exist due to conflicting with
-	// a mined transaction in the new best chain, there is no possiblity of
+	// a mined transaction in the new best chain, there is no possibility of
 	// a new, previously unseen transaction appearing in unconfirmed.
 
 	var (

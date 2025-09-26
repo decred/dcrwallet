@@ -41,7 +41,7 @@ type InputDetail struct {
 
 // InputSource provides transaction inputs referencing spendable outputs to
 // construct a transaction outputting some target amount.  If the target amount
-// can not be satisified, this can be signaled by returning a total amount less
+// can not be satisfied, this can be signaled by returning a total amount less
 // than the target or by returning a more detailed error.
 type InputSource func(target dcrutil.Amount) (detail *InputDetail, err error)
 

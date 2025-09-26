@@ -2475,7 +2475,7 @@ func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key 
 	// those that are derived from a BIP0044 account and addresses for imported
 	// keys.  For BIP0044 addresses, the private key must be derived using the
 	// account xpriv with the correct branch and child indexes.  For imported
-	// keys, the encrypted private key is simply retreived from the database and
+	// keys, the encrypted private key is simply retrieved from the database and
 	// decrypted.
 	id, err := addressID(normalizeAddress(addr))
 	if err != nil {

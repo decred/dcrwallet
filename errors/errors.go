@@ -132,7 +132,7 @@ func (k Kind) Error() string {
 // If target points to an *Error (i.e. target has type **Error), target is
 // assigned an *Error using k as its Kind.
 // If target points to a Kind, target is assigned the kind and As returns true.
-// Else, target is not assinged and As returns false.
+// Else, target is not assigned and As returns false.
 func (k Kind) As(target any) bool {
 	if k == Other {
 		return false
@@ -307,7 +307,7 @@ func (e *Error) Unwrap() error {
 // assigned e and As returns true.
 // If target points to a Kind and e's Kind is not Other, target is assigned
 // the kind and As returns true.
-// Else, target is not assinged and As returns false.
+// Else, target is not assigned and As returns false.
 func (e *Error) As(target any) bool {
 	switch target := target.(type) {
 	case **Error:

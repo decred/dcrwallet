@@ -137,7 +137,7 @@ const (
 	// in the upgrade.
 	unencryptedRedeemScriptsVersion = 14
 
-	// blockcf2Version is the 15th version of the databse. This upgrade
+	// blockcf2Version is the 15th version of the database. This upgrade
 	// drops the existing cfilter bucket and recreates it, triggering a
 	// re-download of missing cfilters. This is intended to switch the
 	// wallet to using the new, consensus-enforced version 2 committed
@@ -1696,7 +1696,7 @@ func Upgrade(ctx context.Context, db walletdb.DB, publicPassphrase []byte, param
 		var err error
 		metadataBucket := tx.ReadBucket(unifiedDBMetadata{}.rootBucketKey())
 		if metadataBucket == nil {
-			// This could indicate either an unitialized db or one that hasn't
+			// This could indicate either an uninitialized db or one that hasn't
 			// yet been migrated.
 			return errors.E(errors.IO, "missing metadata bucket")
 		}
