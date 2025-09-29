@@ -839,7 +839,7 @@ func (w *Wallet) CFilterV2(ctx context.Context, blockHash *chainhash.Hash) ([gcs
 }
 
 // RangeCFiltersV2 calls the function `f` for the set of version 2 committed
-// filters for the main chain within the specificed block range.
+// filters for the main chain within the specified block range.
 //
 // The default behavior for an unspecified range is to loop over the entire
 // main chain.
@@ -956,7 +956,7 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 		hd := hdAccounts[acct]
 
 		// Update the in-memory address tracking with the latest last
-		// used index retreived from the db.
+		// used index retrieved from the db.
 		// Because the cursor may be advanced ahead of what the database
 		// would otherwise record as the last returned address, due to
 		// delayed db updates during some operations, a delta is
@@ -3343,7 +3343,7 @@ type AccountResult struct {
 	TotalBalance dcrutil.Amount
 }
 
-// AccountsResult is the resutl of the wallet's Accounts method.  See that
+// AccountsResult is the result of the wallet's Accounts method.  See that
 // method for more details.
 type AccountsResult struct {
 	Accounts           []AccountResult
@@ -3421,7 +3421,7 @@ func (w *Wallet) Accounts(ctx context.Context) (*AccountsResult, error) {
 	}, nil
 }
 
-// creditSlice satisifies the sort.Interface interface to provide sorting
+// creditSlice satisfies the sort.Interface interface to provide sorting
 // transaction credits from oldest to newest.  Credits with the same receive
 // time and mined in the same block are not guaranteed to be sorted by the order
 // they appear in the block.  Credits from the same transaction are sorted by

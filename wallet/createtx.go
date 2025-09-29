@@ -2005,7 +2005,7 @@ func (w *Wallet) signP2PKHMsgTx(msgtx *wire.MsgTx, prevOutputs []Input, addrmgrN
 // signVoteOrRevocation signs a vote or revocation, specified by the isVote
 // argument.  This signs the transaction by modifying tx's input scripts.
 func (w *Wallet) signVoteOrRevocation(addrmgrNs walletdb.ReadBucket, ticketPurchase, tx *wire.MsgTx, isVote bool) error {
-	// Create a slice of functions to run after the retreived secrets are no
+	// Create a slice of functions to run after the retrieved secrets are no
 	// longer needed.
 	doneFuncs := make([]func(), 0, len(tx.TxIn))
 	defer func() {
