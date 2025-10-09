@@ -2201,7 +2201,6 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 	if n, err := w.NetworkBackend(); err == nil {
 		errs := make(chan error, 2)
 		for _, branchKey := range []*hdkeychain.ExtendedKey{extKey, intKey} {
-			branchKey := branchKey
 			go func() {
 				addrs, err := deriveChildAddresses(branchKey, 0,
 					w.gapLimit, w.chainParams)
