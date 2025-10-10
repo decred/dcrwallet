@@ -1245,7 +1245,6 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 		requestUnknownPRs := make(map[chainhash.Hash]struct{})
 		unknownPRs := make([]*chainhash.Hash, 0, len(requestUnknownPRs))
 		for hash := range requestUnknownPRs {
-			hash := hash
 			unknownPRs = append(unknownPRs, &hash)
 		}
 		s.handleMixInvs(ctx, rp, unknownPRs, unknownPRIDs)

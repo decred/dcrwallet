@@ -113,7 +113,6 @@ func run(ctx context.Context) error {
 		profileRedirect := http.RedirectHandler("/debug/pprof", http.StatusSeeOther)
 		http.Handle("/", profileRedirect)
 		for _, listenAddr := range cfg.Profile {
-			listenAddr := listenAddr // copy for closure
 			go func() {
 				log.Infof("Starting profile server on %s", listenAddr)
 				err := http.ListenAndServe(listenAddr, nil)

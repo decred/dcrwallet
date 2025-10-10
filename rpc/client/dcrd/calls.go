@@ -324,7 +324,6 @@ func (r *RPC) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*wir
 	blocks := make([]*wire.MsgBlock, len(blockHashes))
 	var g errgroup.Group
 	for i := range blockHashes {
-		i := i
 		g.Go(func() error {
 			blocks[i] = new(wire.MsgBlock)
 			return r.Call(ctx, "getblock", unhex(blocks[i]), blockHashes[i].String(), false)
@@ -369,7 +368,6 @@ func (r *RPC) CFiltersV2(ctx context.Context, blockHashes []*chainhash.Hash) ([]
 	filters := make([]filterProof, len(blockHashes))
 	var g errgroup.Group
 	for i := range blockHashes {
-		i := i
 		g.Go(func() error {
 			var res cfilterV2Reply
 			err := r.Call(ctx, "getcfilterv2", &res, blockHashes[i].String())

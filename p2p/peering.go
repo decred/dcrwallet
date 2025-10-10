@@ -370,7 +370,6 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 		}
 	}()
 	for _, host := range seeders {
-		host := host
 		url.Host = host
 		ctx, cancel := context.WithTimeout(ctx, time.Minute)
 		cancels = append(cancels, cancel)

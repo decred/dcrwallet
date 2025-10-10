@@ -256,7 +256,6 @@ func (a *addrFinder) find(ctx context.Context, start *chainhash.Hash, n NetworkB
 		var wg sync.WaitGroup
 		wg.Add(len(a.commitments))
 		for hash, commitments := range a.commitments {
-			hash, commitments := hash, commitments
 			go func() {
 				for _, scr := range data {
 					if _, ok := commitments[string(scr)]; !ok {
@@ -346,7 +345,6 @@ func (a *addrFinder) filter(ctx context.Context, fs []*udb.BlockCFilter, data bl
 				return err
 			}
 			for i, b := range blocks {
-				i, b := i, b
 				g.Go(func() error {
 					// validate blocks
 					err := validate.MerkleRoots(b)

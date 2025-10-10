@@ -45,7 +45,6 @@ func TestUpgrades(t *testing.T) {
 
 	t.Run("group", func(t *testing.T) {
 		for i, test := range dbUpgradeTests {
-			test := test
 			name := fmt.Sprintf("test%d", i)
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()

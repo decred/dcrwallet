@@ -738,7 +738,6 @@ func (s *NotificationServer) notifyMainChainTipChanged(n *MainTipChangedNotifica
 		var wg sync.WaitGroup
 		wg.Add(len(s.confClients))
 		for _, c := range s.confClients {
-			c := c
 			go func() {
 				c.process(n.NewHeight)
 				wg.Done()
@@ -926,7 +925,6 @@ func (c *ConfirmationNotificationsClient) process(tipHeight int32) {
 	err := walletdb.View(c.ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		txmgrNs := dbtx.ReadBucket(wtxmgrNamespaceKey)
 		for txHash, stopAfter := range c.watched {
-			txHash := txHash // copy
 			height, err := w.txStore.TxBlockHeight(dbtx, &txHash)
 			var confs int32
 			switch {
