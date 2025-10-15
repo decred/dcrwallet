@@ -6,9 +6,7 @@ package wallet
 
 import (
 	"context"
-	"math/rand"
 	"sync/atomic"
-	"time"
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txrules"
@@ -477,6 +475,7 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 		// Group UTXOs by denomination and batch them
 		batches := w.groupUTXOsForBatchMixing(credits, w.mixChangeLimit)
 
+		// Process all batches concurrently (like original single-UTXO code)
 		for _, batch := range batches {
 			batchCopy := batch // Capture for goroutine
 			g.Go(func() error {
@@ -749,18 +748,6 @@ SplitPoints:
 		return errors.E(op, errNoSplitDenomination)
 	}
 
-	// Privacy mitigation: Add random timing jitter between peer creation
-	// to decorrelate local peers and prevent timing analysis
-	baseDelay := time.Duration(len(utxos)) * 2 * time.Second
-	jitter := time.Duration(rand.Intn(int(baseDelay)))
-
-	select {
-	case <-ctx.Done():
-		return errors.E(op, ctx.Err())
-	case <-time.After(jitter):
-		// Continue with mixing after jitter delay
-	}
-
 	// Acquire semaphore for the denomination
 	select {
 	case <-ctx.Done():
@@ -820,7 +807,11 @@ SplitPoints:
 		}
 	}
 
-	log.Infof("Mixing %d outputs in single session (denomination: %v)", len(utxos), mixValue)
+	// Log each UTXO individually to match original behavior
+	for _, utxo := range utxos {
+		amount := dcrutil.Amount(utxo.PrevOut.Value)
+		log.Infof("Mixing output %v (%v)", &utxo.OutPoint, amount)
+	}
 
 	// Create multiple local peers for the same CoinShuffle++ session
 	gen := w.makeGen(ctx, mixAccount, mixBranch)
