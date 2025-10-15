@@ -6,6 +6,7 @@ package wallet
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -248,6 +249,9 @@ func newMixSemaphores(n int) mixSemaphores {
 var (
 	errNoSplitDenomination = errors.New("no suitable split denomination")
 	errThrottledMixRequest = errors.New("throttled mix request for split denomination")
+
+	// batchLogMu synchronizes batch mixing log output to prevent interleaving
+	batchLogMu sync.Mutex
 )
 
 // MixOutput performs a mix of a single output into standard sized outputs
@@ -807,11 +811,14 @@ SplitPoints:
 		}
 	}
 
-	// Log each UTXO individually to match original behavior
+	// Log batch header and UTXOs with mutex to prevent interleaving
+	batchLogMu.Lock()
+	log.Infof("Starting batch mix of %d outputs (denomination: %v)", len(utxos), mixValue)
 	for _, utxo := range utxos {
 		amount := dcrutil.Amount(utxo.PrevOut.Value)
-		log.Infof("Mixing output %v (%v)", &utxo.OutPoint, amount)
+		log.Infof("  Mixing output %v (%v)", &utxo.OutPoint, amount)
 	}
+	batchLogMu.Unlock()
 
 	// Create multiple local peers for the same CoinShuffle++ session
 	gen := w.makeGen(ctx, mixAccount, mixBranch)
@@ -859,6 +866,8 @@ SplitPoints:
 
 	tx := cj.Tx()
 	cjHash := tx.TxHash()
+	batchLogMu.Lock()
 	log.Infof("Completed batch mix of %d outputs in transaction %v", len(utxos), &cjHash)
+	batchLogMu.Unlock()
 	return nil
 }
