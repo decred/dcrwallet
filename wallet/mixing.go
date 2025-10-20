@@ -408,8 +408,6 @@ SplitPoints:
 		}
 	}
 
-	log.Infof("Mixing output %v (%v)", output, amount)
-
 	gen := w.makeGen(ctx, mixAccount, mixBranch)
 	expires := w.dicemixExpiry(ctx)
 	cj := mixclient.NewCoinJoin(gen, change, int64(mixValue), expires, count)
@@ -421,6 +419,8 @@ SplitPoints:
 	if err != nil {
 		return errors.E(op, err)
 	}
+
+	log.Infof("Mixing output %v (%v)", output, amount)
 
 	err = w.mixClient.Dicemix(ctx, cj)
 	if err != nil {
