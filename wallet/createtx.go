@@ -1035,17 +1035,20 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		if err != nil {
 			return err
 		}
-		for _, in := range atx.Tx.TxIn {
-			prev := &in.PreviousOutPoint
-			w.lockedOutpoints[outpoint{prev.Hash, prev.Index}] = struct{}{}
-			unlockOutpoints = append(unlockOutpoints, prev)
-		}
 		return nil
 	})
-	w.lockedOutpointMu.Unlock()
 	if err != nil {
+		w.lockedOutpointMu.Unlock()
 		return
 	}
+
+	for _, in := range atx.Tx.TxIn {
+		prev := &in.PreviousOutPoint
+		w.lockedOutpoints[outpoint{prev.Hash, prev.Index}] = struct{}{}
+		unlockOutpoints = append(unlockOutpoints, prev)
+	}
+	w.lockedOutpointMu.Unlock()
+
 	for _, in := range atx.Tx.TxIn {
 		log.Infof("selected input %v (%v) for ticket purchase split transaction",
 			in.PreviousOutPoint, dcrutil.Amount(in.ValueIn))
