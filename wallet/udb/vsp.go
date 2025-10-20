@@ -94,7 +94,7 @@ func DeleteVSPTicket(dbtx walletdb.ReadWriteTx, ticketHash chainhash.Hash) error
 }
 
 // GetVSPTicket gets a specific ticket by its hash. Returns errors.NotExist if
-// the the ticket does not exists.
+// the ticket does not exists.
 func GetVSPTicket(dbtx walletdb.ReadTx, tickethash chainhash.Hash) (*VSPTicket, error) {
 	bucket := dbtx.ReadBucket(vspBucketKey)
 	serializedTicket := bucket.Get(tickethash[:])
