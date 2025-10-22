@@ -296,7 +296,7 @@ func SupportedDrivers() []string {
 	return supportedDBs
 }
 
-// Create intializes and opens a database for the specified type.  The arguments
+// Create initializes and opens a database for the specified type.  The arguments
 // are specific to the database type driver.  See the documentation for the
 // database driver for further details.
 func Create(dbType string, args ...any) (DB, error) {

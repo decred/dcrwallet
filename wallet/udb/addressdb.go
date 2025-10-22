@@ -707,7 +707,7 @@ func forEachAccount(ns walletdb.ReadBucket, fn func(account uint32) error) error
 	})
 }
 
-// fetchLastAccount retreives the last BIP0044 account from the database.
+// fetchLastAccount retrieves the last BIP0044 account from the database.
 func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
 
@@ -719,7 +719,7 @@ func fetchLastAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return account, nil
 }
 
-// fetchLastImportedAccount retreives the last imported xpub account from the
+// fetchLastImportedAccount retrieves the last imported xpub account from the
 // database.
 func fetchLastImportedAccount(ns walletdb.ReadBucket) (uint32, error) {
 	bucket := ns.NestedReadBucket(metaBucketName)
@@ -740,7 +740,7 @@ func fetchLastImportedAccount(ns walletdb.ReadBucket) (uint32, error) {
 	return account, nil
 }
 
-// fetchAccountName retreives the account name given an account number from
+// fetchAccountName retrieves the account name given an account number from
 // the database.
 func fetchAccountName(ns walletdb.ReadBucket, account uint32) (string, error) {
 	bucket := ns.NestedReadBucket(acctIDIdxBucketName)
@@ -756,7 +756,7 @@ func fetchAccountName(ns walletdb.ReadBucket, account uint32) (string, error) {
 	return acctName, nil
 }
 
-// fetchAccountByName retreives the account number given an account name
+// fetchAccountByName retrieves the account number given an account name
 // from the database.
 func fetchAccountByName(ns walletdb.ReadBucket, name string) (uint32, error) {
 	bucket := ns.NestedReadBucket(acctNameIdxBucketName)

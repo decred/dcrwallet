@@ -568,7 +568,7 @@ func TestPreviousPkScripts(t *testing.T) {
 		scriptC1 = []byte("tx C output 1")
 	)
 
-	// Create a transaction spending two prevous outputs and generating two
+	// Create a transaction spending two previous outputs and generating two
 	// new outputs the passed pkScipts.  Spends outputs 0 and 1 from prevHash.
 	buildTx := func(prevHash *chainhash.Hash, script0, script1 []byte) *wire.MsgTx {
 		return &wire.MsgTx{
