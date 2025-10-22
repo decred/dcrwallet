@@ -2460,8 +2460,8 @@ func (m *Manager) ForEachActiveAddress(ns walletdb.ReadBucket, fn func(addr stda
 	return forEachActiveAddress(ns, addrFn)
 }
 
-// PrivateKey retreives the private key for a P2PK or P2PKH address.  The
-// retured 'done' function should be called after the key is no longer needed to
+// PrivateKey retrieves the private key for a P2PK or P2PKH address.  The
+// returned 'done' function should be called after the key is no longer needed to
 // overwrite the key with zeros.
 func (m *Manager) PrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (key *secp256k1.PrivateKey, done func(), err error) {
 	// Lock the manager mutex for writes.  This protects read access to m.locked
@@ -2542,7 +2542,7 @@ func (m *Manager) HavePrivateKey(ns walletdb.ReadBucket, addr stdaddr.Address) (
 	return false, nil
 }
 
-// RedeemScript retreives the redeem script to redeem an output paid to a P2SH
+// RedeemScript retrieves the redeem script to redeem an output paid to a P2SH
 // address.
 func (m *Manager) RedeemScript(ns walletdb.ReadBucket, addr stdaddr.Address) ([]byte, error) {
 	id, err := addressID(normalizeAddress(addr))
@@ -2798,7 +2798,7 @@ func CoinTypes(params *chaincfg.Params) (legacyCoinType, slip0044CoinType uint32
 	return params.LegacyCoinType, params.SLIP0044CoinType
 }
 
-// HDKeysFromSeed creates legacy and slip0044 coin keys and accout zero keys
+// HDKeysFromSeed creates legacy and slip0044 coin keys and account zero keys
 // from seed. Keys are zeroed upon any error.
 func HDKeysFromSeed(seed []byte, params *chaincfg.Params) (coinTypeLegacyKeyPriv, coinTypeSLIP0044KeyPriv, acctKeyLegacyPriv, acctKeySLIP0044Priv *hdkeychain.ExtendedKey, err error) {
 	// fail will zero any successfully created keys before returning.

@@ -1266,7 +1266,7 @@ func (s *Store) InsertMinedTx(dbtx walletdb.ReadWriteTx, rec *TxRecord, blockHas
 			// for those cases instead).  There is also a good
 			// chance that all unmined transaction handling will
 			// move entirely to the db rather than being handled in
-			// memory for atomicity reasons, so the simplist
+			// memory for atomicity reasons, so the simplest
 			// implementation is currently used.
 			continue
 		}

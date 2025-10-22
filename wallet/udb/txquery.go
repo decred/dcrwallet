@@ -347,7 +347,7 @@ func (s *Store) TxBlockHeight(dbtx walletdb.ReadTx, txHash *chainhash.Hash) (int
 
 // rangeUnminedTransactions executes the function f with TxDetails for every
 // unmined transaction.  f is not executed if no unmined transactions exist.
-// Error returns from f (if any) are propigated to the caller.  Returns true
+// Error returns from f (if any) are propagated to the caller.  Returns true
 // (signaling breaking out of a RangeTransactions) iff f executes and returns
 // true.
 func (s *Store) rangeUnminedTransactions(ctx context.Context, ns walletdb.ReadBucket, f func([]TxDetails) (bool, error)) (bool, error) {
