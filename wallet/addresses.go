@@ -270,6 +270,7 @@ type xpubAddress struct {
 	child       uint32
 }
 
+// Enforce xpubAddress satisfies the BIP0044Address and stakeAddress interfaces.
 var _ BIP0044Address = (*xpubAddress)(nil)
 var _ stakeAddress = (*xpubAddress)(nil)
 

@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Enforce Syncer satisfies the wallet.NetworkBackend interface.
 var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 // TODO: When using the Syncer as a NetworkBackend, keep track of in-flight
