@@ -57,6 +57,13 @@ type TB struct {
 
 // New returns a new TB to buy tickets from a wallet.
 func New(w *wallet.Wallet, cfg Config) *TB {
+	// Ensure Limit has a sane value from 1 to MaxFreshStakePerBlock (20). Zero
+	// translates to max.
+	maxLimit := int(w.ChainParams().MaxFreshStakePerBlock)
+	if cfg.Limit < 1 || cfg.Limit > maxLimit {
+		cfg.Limit = maxLimit
+	}
+
 	return &TB{wallet: w, cfg: cfg}
 }
 
@@ -275,11 +282,28 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	} else {
 		buy = int(w.ChainParams().MaxFreshStakePerBlock)
 	}
-	if limit == 0 && mixing {
+	if mixing {
 		buy = 1
-	} else if limit > 0 && buy > limit {
+	} else if buy > limit {
 		buy = limit
 	}
+
+	// bal, err := w.AccountBalance(ctx, account, minconf)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// // Determine how many tickets can be bought with the currently available
+	// // balance, remembering to subtract balance to maintain.
+	// buy := int((bal.Spendable - maintain) / sdiff)
+
+	// // Don't buy more than the max limit.
+	// buy = min(buy, limit)
+
+	// if buy <= 0 {
+	// 	log.Debugf("Skipping purchase: low available balance")
+	// 	return nil
+	// }
 
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
 		Count:         buy,

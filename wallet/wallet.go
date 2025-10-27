@@ -1584,6 +1584,13 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 
 	const op errors.Op = "wallet.PurchaseTickets"
 
+	// In a perfect world calling code would never send req.Count==0, but check
+	// it anyway just to be safe.
+
+	// if req.Count == 0 {
+	// 	return nil, nicd .l
+	// }
+
 	// Mixing requests require wallet mixing support.
 	if req.Mixing && !w.mixingEnabled {
 		s := "wallet mixing support is disabled"
