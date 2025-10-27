@@ -465,7 +465,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				if err != nil {
 					return nil, err
 				}
-				log.Debugf("Marked address %v used", addr)
 			}
 
 			// Add the script to the script databases.
@@ -573,7 +572,6 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 				outpoint.Index = uint32(i)
 				watchOutPoints = append(watchOutPoints, outpoint)
 			}
-			log.Debugf("Marked address %v used", addr)
 		}
 
 		// Handle P2SH addresses that are multisignature scripts

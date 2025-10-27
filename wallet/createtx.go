@@ -288,7 +288,6 @@ func (w *Wallet) insertCreditsIntoTxMgr(op errors.Op, dbtx walletdb.ReadWriteTx,
 				if err != nil {
 					return err
 				}
-				log.Debugf("Marked address %v used", addr)
 				continue
 			}
 
