@@ -14,8 +14,6 @@ import (
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 
-const minconf = 1
-
 // Config modifies the behavior of TB.
 type Config struct {
 	BuyTickets bool
@@ -246,7 +244,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 	splitAccount := cfg.TicketSplitAccount
 	changeAccount := cfg.ChangeAccount
 
-	minconf := int32(minconf)
+	minconf := int32(1)
 	if mixing {
 		minconf = 2
 	}
