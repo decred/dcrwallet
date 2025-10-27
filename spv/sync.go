@@ -1227,7 +1227,7 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 		var missingPRErr *mixpool.MissingOwnPRError
 		if errors.As(err, &missingPRErr) {
 			ke := msg.(*wire.MsgMixKeyExchange)
-			log.Debugf("will request unknown PR from %x", ke.Identity[:])
+			log.Debugf("Will request unknown PR from %x", ke.Identity[:])
 			requestUnknownPRs[missingPRErr.MissingPR] = struct{}{}
 			unknownPRIDs[ke.Identity] = struct{}{}
 		} else if err != nil {

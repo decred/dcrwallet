@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2024 The Decred developers
+// Copyright (c) 2023-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -536,7 +536,7 @@ func (fp *vspFeePayment) submitPayment() (err error) {
 			feeHash := feeTx.TxHash()
 			err := w.AbandonTransaction(ctx, &feeHash)
 			if err != nil {
-				fp.client.log.Errorf("error abandoning expired fee tx %v", err)
+				fp.client.log.Errorf("Error abandoning expired fee tx %v", err)
 			}
 			fp.mu.Lock()
 			fp.feeTx = nil
@@ -547,7 +547,7 @@ func (fp *vspFeePayment) submitPayment() (err error) {
 
 	// TODO - validate server timestamp?
 
-	fp.client.log.Infof("Fee sent to VSP for ticket %v", fp.ticket)
+	fp.client.log.Infof("Successfully processed %v", fp.ticket)
 	return nil
 }
 

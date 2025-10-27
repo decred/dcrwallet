@@ -3327,7 +3327,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 			case stdscript.STPubKeyEcdsaSecp256k1:
 				scriptSize = txsizes.RedeemP2PKSigScriptSize
 			default:
-				log.Errorf("unexpected script class for credit: %v", scriptClass)
+				log.Errorf("Unexpected script class for credit: %v", scriptClass)
 				continue
 			}
 

@@ -1249,7 +1249,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 			}
 
 			if bestAddr == nil {
-				log.Debugf("no best address")
+				log.Debugf("No best address")
 				continue
 			}
 
@@ -1261,7 +1261,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 			}
 			if hash160 == nil || !w.manager.ExistsHash160(
 				addrmgrNs, hash160) {
-				log.Debugf("not our address: hash160=%x", hash160)
+				log.Debugf("Not our address: hash160=%x", hash160)
 				continue
 			}
 			ticketHash := tx.TxHash()
@@ -4700,7 +4700,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 
 	addr, err := w.NewChangeAddress(ctx, changeAcct)
 	if err != nil {
-		log.Warnf("failed to get new change address: %v", err)
+		log.Warnf("Failed to get new change address: %v", err)
 		return err
 	}
 	var changeOut *wire.TxOut
@@ -4736,7 +4736,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 
 	sigErrs, err := w.SignTransaction(ctx, tx, txscript.SigHashAll, nil, nil, nil)
 	if err != nil || len(sigErrs) > 0 {
-		log.Errorf("failed to sign transaction: %v", err)
+		log.Errorf("Failed to sign transaction: %v", err)
 		sigErrStr := ""
 		for _, sigErr := range sigErrs {
 			log.Errorf("\t%v", sigErr)

@@ -1050,7 +1050,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		return
 	}
 	for _, in := range atx.Tx.TxIn {
-		log.Infof("selected input %v (%v) for ticket purchase split transaction",
+		log.Infof("Selected input %v (%s) for ticket purchase split transaction",
 			in.PreviousOutPoint, dcrutil.Amount(in.ValueIn))
 	}
 
@@ -1295,7 +1295,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 			if unlockCredits {
 				for _, credit := range vspFeeCredits {
 					for _, c := range credit {
-						log.Debugf("unlocked unneeded credit for vsp fee tx: %v",
+						log.Debugf("Unlocked unneeded credit for VSP fee tx: %s",
 							c.OutPoint.String())
 						w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
 					}
@@ -1344,7 +1344,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		for _, credits := range ticketCredits {
 			for _, c := range credits {
-				log.Debugf("unlocked credit for ticket tx: %v",
+				log.Debugf("Unlocked credit for ticket tx: %s",
 					c.OutPoint.String())
 				w.UnlockOutpoint(&c.OutPoint.Hash, c.OutPoint.Index)
 			}

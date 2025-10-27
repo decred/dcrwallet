@@ -527,7 +527,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			addr, err := stake.AddrFromSStxPkScrCommitment(output.PkScript,
 				w.chainParams)
 			if err != nil {
-				log.Warnf("failed to decode ticket commitment script of %s:%d",
+				log.Warnf("Failed to decode ticket commitment script of %s:%d",
 					rec.Hash, i)
 				continue
 			}
@@ -581,7 +581,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 			for _, addr := range addrs {
 				expandedScript, err = w.manager.RedeemScript(addrmgrNs, addr)
 				if err != nil {
-					log.Debugf("failed to find redeemscript for "+
+					log.Debugf("Failed to find redeemscript for "+
 						"address %v in address manager: %v",
 						addr, err)
 					continue
@@ -606,7 +606,7 @@ func (w *Wallet) processTransactionRecord(ctx context.Context, dbtx walletdb.Rea
 						// This will throw if there are multiple private keys
 						// for this multisignature output owned by the wallet,
 						// so it's routed to debug.
-						log.Debugf("unable to add multisignature output: %v", err)
+						log.Debugf("Unable to add multisignature output: %v", err)
 					}
 				}
 			}
@@ -743,7 +743,7 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 			dp := w.DisapprovePercent()
 			if dp > 0 {
 				if w.chainParams.Net == wire.MainNet {
-					log.Warnf("block disapprove percent set on mainnet")
+					log.Warnf("Block disapprove percent set on mainnet")
 				} else if int64(dp) > rand.Int64N(100) {
 					log.Infof("Disapproving block %v voted with ticket %v",
 						blockHash, ticketHash)

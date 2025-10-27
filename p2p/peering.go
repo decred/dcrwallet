@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2023 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1060,7 +1060,7 @@ func (rp *RemotePeer) deleteRequestedCFilterV2(hash *chainhash.Hash) {
 }
 
 func (rp *RemotePeer) receivedCFilterV2(ctx context.Context, msg *wire.MsgCFilterV2) {
-	log.Debugf("received cfilter for block %v", &msg.BlockHash)
+	log.Debugf("Received cfilter for block %v", &msg.BlockHash)
 	const opf = "remotepeer(%v).receivedCFilterV2(%v)"
 	var k any = msg.BlockHash
 	v, ok := rp.requestedCFiltersV2.Load(k)
