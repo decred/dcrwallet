@@ -1418,7 +1418,6 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 	}
 
-	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	var splitTx *wire.MsgTx
 	var splitOutputIndexes []int
 	for {
@@ -1443,6 +1442,8 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		}
 		break
 	}
+
+	purchaseTicketsResponse := &PurchaseTicketsResponse{}
 	purchaseTicketsResponse.SplitTx = splitTx
 
 	// Process and publish split tx.
