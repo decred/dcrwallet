@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020 The Decred developers
+ * Copyright (c) 2016-2025 The Decred developers
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
@@ -56,13 +57,10 @@ func parseOutPoint(input *types.ListUnspentResult) (wire.OutPoint, error) {
 	return wire.OutPoint{Hash: *txHash, Index: input.Vout, Tree: input.Tree}, nil
 }
 
-// noInputValue describes an error returned by the input source when no inputs
+// errNoInputValue describes an error returned by the input source when no inputs
 // were selected because each previous output value was zero.  Callers of
 // txauthor.NewUnsignedTransaction need not report these errors to the user.
-type noInputValue struct {
-}
-
-func (noInputValue) Error() string { return "no input value" }
+var errNoInputValue = errors.New("no input value")
 
 // makeInputSource creates an InputSource that creates inputs for every unspent
 // output with non-zero output values.  The target amount is ignored since every
@@ -107,7 +105,7 @@ func makeInputSource(outputs []types.ListUnspentResult) (dcrutil.Amount, txautho
 	}
 
 	if sourceErr == nil && totalInputValue == 0 {
-		sourceErr = noInputValue{}
+		sourceErr = errNoInputValue
 	}
 
 	return totalInputValue, func(dcrutil.Amount) (*txauthor.InputDetail, error) {
