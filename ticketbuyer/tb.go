@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -201,13 +201,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	cfg *Config) error {
 	ctx, task := trace.NewTask(ctx, "ticketbuyer.buy")
 	defer task.End()
-
-	tb.mu.Lock()
-	buyTickets := tb.cfg.BuyTickets
-	tb.mu.Unlock()
-	if !buyTickets {
-		return nil
-	}
 
 	w := tb.wallet
 
