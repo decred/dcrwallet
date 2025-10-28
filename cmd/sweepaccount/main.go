@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2020 The Decred developers
+// Copyright (c) 2016-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -172,13 +172,10 @@ func init() {
 	}
 }
 
-// noInputValue describes an error returned by the input source when no inputs
+// errNoInputValue describes an error returned by the input source when no inputs
 // were selected because each previous output value was zero.  Callers of
 // txauthor.NewUnsignedTransaction need not report these errors to the user.
-type noInputValue struct {
-}
-
-func (noInputValue) Error() string { return "no input value" }
+var errNoInputValue = errors.New("no input value")
 
 // makeInputSource creates an InputSource that creates inputs for every unspent
 // output with non-zero output values.  The target amount is ignored since every
@@ -223,7 +220,7 @@ func makeInputSource(outputs []types.ListUnspentResult) txauthor.InputSource {
 	}
 
 	if sourceErr == nil && totalInputValue == 0 {
-		sourceErr = noInputValue{}
+		sourceErr = errNoInputValue
 	}
 
 	return func(dcrutil.Amount) (*txauthor.InputDetail, error) {
@@ -406,7 +403,7 @@ func sweep(ctx context.Context) error {
 		}
 
 		if err != nil {
-			if !errors.Is(err, (noInputValue{})) {
+			if !errors.Is(err, errNoInputValue) {
 				reportError("Failed to create unsigned transaction: %v", err)
 			}
 			continue
