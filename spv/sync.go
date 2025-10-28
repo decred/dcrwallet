@@ -733,7 +733,7 @@ func (s *Syncer) forRemotes(f func(rp *p2p.RemotePeer) error) error {
 	return nil
 }
 
-// waitForAnyRemote blocks until there is one or more remote peers available or
+// waitForRemote blocks until there is one or more remote peers available or
 // the context is canceled.
 //
 // The [isEligible] callback determines which peers are eligible for selection.
@@ -1251,7 +1251,7 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 	}
 }
 
-// receiveHeaderAnnouncements receives all block announcements through pushed
+// receiveHeadersAnnouncements receives all block announcements through pushed
 // headers messages from peers and starts goroutines to handle the announced
 // header.
 func (s *Syncer) receiveHeadersAnnouncements(ctx context.Context) error {
