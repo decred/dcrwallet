@@ -1983,15 +1983,3 @@ func (s *Syncer) handleMempool(ctx context.Context) error {
 		}
 	}
 }
-
-// handleMixMessage handles mixing messages announced by peers.  It adds the
-// messages to the wallet's mixing pool, thereby allowing the wallet to perform
-// the mixing protocol.
-func (s *Syncer) handleMixMessage(ctx context.Context, rp *p2p.RemotePeer, msg mixing.Message) (err error) {
-	err = s.wallet.AcceptMixMessage(msg)
-	if err != nil {
-		return err
-	}
-
-	return
-}
