@@ -666,7 +666,7 @@ func (w *Wallet) signingAddressAtIdx(ctx context.Context, op errors.Op,
 	return addr, nil
 }
 
-// AddressAtIndex returns the address at branch and childIdx. It does not persist
+// AddressAtIdx returns the address at branch and childIdx. It does not persist
 // the returned address in the database.
 func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
 	childIdx uint32) (stdaddr.Address, error) {
