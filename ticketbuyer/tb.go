@@ -12,7 +12,6 @@ import (
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/wire"
 )
 
 const minconf = 1
@@ -152,6 +151,12 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				}
 			}
 
+			sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tipHeader)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
 			// Read config
 			tb.mu.Lock()
 			cfg := tb.cfg
@@ -166,7 +171,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			cancelCtx, cancel := context.WithCancel(ctx)
 			cancels = append(cancels, cancel)
 			buyTickets := func() {
-				err := tb.buy(cancelCtx, passphrase, tipHeader, expiry, &cfg)
+				err := tb.buy(cancelCtx, passphrase, sdiff, expiry, &cfg)
 				if err != nil {
 					switch {
 					// silence these errors
@@ -197,7 +202,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	}
 }
 
-func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader, expiry int32,
+func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, expiry int32,
 	cfg *Config) error {
 	ctx, task := trace.NewTask(ctx, "ticketbuyer.buy")
 	defer task.End()
@@ -236,11 +241,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	minconf := int32(minconf)
 	if mixing {
 		minconf = 2
-	}
-
-	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tip)
-	if err != nil {
-		return err
 	}
 
 	// Determine how many tickets to buy
