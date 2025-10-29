@@ -1590,7 +1590,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		return nil, errors.E(op, errors.Invalid, s)
 	}
 
-	ctx, cancel := WrapNetworkBackendContext(n, ctx)
+	ctx, cancel := n.WrapContext(ctx)
 	defer cancel()
 
 	resp, err := w.purchaseTickets(ctx, op, n, req)

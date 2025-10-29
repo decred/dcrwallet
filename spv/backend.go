@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -622,23 +622,19 @@ func (s *Syncer) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) {
 	return 0, errors.E(errors.Invalid, "stake difficulty is not queryable over wire protocol")
 }
 
-func (s *Syncer) Done() <-chan struct{} {
-	s.doneMu.Lock()
-	c := s.done
-	s.doneMu.Unlock()
-	return c
-}
+// WrapContext returns a derived context that is canceled when the Syncer is
+// disconnected.  The cancel func must be called (e.g. using defer) otherwise a
+// goroutine leak may occur.
+func (s *Syncer) WrapContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	childCtx, cancel := context.WithCancel(ctx)
 
-func (s *Syncer) Err() error {
-	s.doneMu.Lock()
-	c := s.done
-	err := s.err
-	s.doneMu.Unlock()
+	go func() {
+		select {
+		case <-s.done:
+			cancel()
+		case <-childCtx.Done():
+		}
+	}()
 
-	select {
-	case <-c:
-		return err
-	default:
-		return nil
-	}
+	return childCtx, cancel
 }

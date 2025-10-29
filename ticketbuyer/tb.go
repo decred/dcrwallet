@@ -222,7 +222,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 	if err != nil {
 		return err
 	}
-	ctx, cancel := wallet.WrapNetworkBackendContext(n, ctx)
+	ctx, cancel := n.WrapContext(ctx)
 	defer cancel()
 
 	if len(passphrase) > 0 {
