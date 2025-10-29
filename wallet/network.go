@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019 The Decred developers
+// Copyright (c) 2017-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -6,7 +6,6 @@ package wallet
 
 import (
 	"context"
-	"sync"
 
 	"decred.org/dcrwallet/v5/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
@@ -51,11 +50,10 @@ type NetworkBackend interface {
 	// target height that it is attempting to sync to.
 	Synced(ctx context.Context) (bool, int32)
 
-	// Done return a channel that is closed after the syncer disconnects.
-	// The error (if any) can be returned via Err.
-	// These semantics match that of context.Context.
-	Done() <-chan struct{}
-	Err() error
+	// WrapContext returns a derived context that is canceled when the
+	// NetworkBackend is disconnected.  The cancel func must be called (e.g.
+	// using defer) otherwise a goroutine leak may occur.
+	WrapContext(context.Context) (context.Context, context.CancelFunc)
 }
 
 // NetworkBackend returns the currently associated network backend of the
@@ -78,47 +76,6 @@ func (w *Wallet) SetNetworkBackend(n NetworkBackend) {
 	w.networkBackendMu.Lock()
 	w.networkBackend = n
 	w.networkBackendMu.Unlock()
-}
-
-type networkContext struct {
-	context.Context
-	err error
-	mu  sync.Mutex
-}
-
-func (c *networkContext) Err() error {
-	c.mu.Lock()
-	err := c.err
-	c.mu.Unlock()
-
-	if err != nil {
-		return err
-	}
-	return c.Context.Err()
-}
-
-// WrapNetworkBackendContext returns a derived context that is canceled when
-// the NetworkBackend is disconnected.  The cancel func must be called
-// (e.g. using defer) otherwise a goroutine leak may occur.
-func WrapNetworkBackendContext(nb NetworkBackend, ctx context.Context) (context.Context, context.CancelFunc) {
-	childCtx, cancel := context.WithCancel(ctx)
-	nbContext := &networkContext{
-		Context: childCtx,
-	}
-
-	go func() {
-		select {
-		case <-nb.Done():
-			err := nb.Err()
-			nbContext.mu.Lock()
-			nbContext.err = err
-			nbContext.mu.Unlock()
-		case <-childCtx.Done():
-		}
-		cancel()
-	}()
-
-	return nbContext, cancel
 }
 
 // Caller provides a client interface to perform remote procedure calls.
@@ -176,12 +133,8 @@ func init() {
 	close(closedDone)
 }
 
-func (o OfflineNetworkBackend) Done() <-chan struct{} {
-	return closedDone
-}
-
-func (o OfflineNetworkBackend) Err() error {
-	return errors.E("offline")
+func (o OfflineNetworkBackend) WrapContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return ctx, func() {}
 }
 
 // Compile time check to ensure OfflineNetworkBackend fulfills the

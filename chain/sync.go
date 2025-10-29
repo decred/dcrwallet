@@ -54,9 +54,7 @@ type Syncer struct {
 
 	cb *Callbacks
 
-	done   chan struct{}
-	err    error
-	doneMu sync.Mutex
+	done chan struct{}
 }
 
 // RPCOptions specifies the network and security settings for establishing a
@@ -79,6 +77,7 @@ func NewSyncer(w *wallet.Wallet, r *RPCOptions) *Syncer {
 		wallet:         w,
 		opts:           r,
 		blake256Hasher: blake256.New(),
+		done:           make(chan struct{}),
 	}
 	s.discoverAccts.Store(!w.Locked())
 	return s
@@ -512,6 +511,9 @@ var hashStop chainhash.Hash
 // needed to fully register the wallet for notifications and synchronize it with
 // the dcrd server are performed.  Otherwise, it will listen for notifications
 // but not register for any updates.
+//
+// Run can only be called once per Syncer. A new Syncer must be created to call
+// Run again, e.g. after it has returned an error.
 func (s *Syncer) Run(ctx context.Context) (err error) {
 	defer func() {
 		if err != nil {
@@ -520,15 +522,8 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 		}
 	}()
 
-	s.doneMu.Lock()
-	s.done = make(chan struct{})
-	s.err = nil
-	s.doneMu.Unlock()
 	defer func() {
-		s.doneMu.Lock()
 		close(s.done)
-		s.err = err
-		s.doneMu.Unlock()
 	}()
 
 	params := s.wallet.ChainParams()

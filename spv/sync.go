@@ -103,8 +103,6 @@ type Syncer struct {
 
 	teardown func()
 	done     chan struct{}
-	err      error
-	doneMu   sync.Mutex
 }
 
 // Notifications struct to contain all of the upcoming callbacks that will
@@ -153,6 +151,7 @@ func NewSyncer(w *wallet.Wallet, lp *p2p.LocalPeer) *Syncer {
 		mempoolAdds:       make(chan *chainhash.Hash),
 		initialSyncDone:   make(chan struct{}),
 		backoffs:          make(map[string]backoff),
+		done:              make(chan struct{}),
 	}
 }
 
@@ -331,16 +330,12 @@ func (s *Syncer) setRequiredHeight(tipHeight int32) {
 
 // Run synchronizes the wallet, returning when synchronization fails or the
 // context is canceled.
+//
+// Run can only be called once per Syncer. A new Syncer must be created to call
+// Run again, e.g. after it has returned an error.
 func (s *Syncer) Run(ctx context.Context) (err error) {
-	s.doneMu.Lock()
-	s.done = make(chan struct{})
-	s.err = nil
-	s.doneMu.Unlock()
 	defer func() {
-		s.doneMu.Lock()
 		close(s.done)
-		s.err = err
-		s.doneMu.Unlock()
 	}()
 
 	tipHash, tipHeight := s.wallet.MainChainTip(ctx)

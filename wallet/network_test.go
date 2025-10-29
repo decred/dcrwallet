@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Decred developers
+// Copyright (c) 2019-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -35,5 +35,6 @@ func (mockNetwork) Rescan(ctx context.Context, blocks []chainhash.Hash, save fun
 }
 func (mockNetwork) StakeDifficulty(ctx context.Context) (dcrutil.Amount, error) { return 0, nil }
 func (mockNetwork) Synced(ctx context.Context) (bool, int32)                    { return false, 0 }
-func (mockNetwork) Done() <-chan struct{}                                       { return nil }
-func (mockNetwork) Err() error                                                  { return nil }
+func (mockNetwork) WrapContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return ctx, func() {}
+}

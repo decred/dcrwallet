@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -216,7 +216,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	if err != nil {
 		return err
 	}
-	ctx, cancel := wallet.WrapNetworkBackendContext(n, ctx)
+	ctx, cancel := n.WrapContext(ctx)
 	defer cancel()
 
 	if len(passphrase) > 0 {
