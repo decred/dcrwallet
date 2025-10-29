@@ -785,7 +785,6 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, 
 		if lastUsed != 0 {
 			var lastRecorded uint32
 			acctXpubs := make(map[uint32]*hd.ExtendedKey)
-			w.addressBuffersMu.Lock()
 			err := walletdb.Update(ctx, w.db, func(tx walletdb.ReadWriteTx) error {
 				ns := tx.ReadWriteBucket(waddrmgrNamespaceKey)
 				var err error
@@ -807,9 +806,9 @@ func (w *Wallet) DiscoverActiveAddresses(ctx context.Context, n NetworkBackend, 
 				return nil
 			})
 			if err != nil {
-				w.addressBuffersMu.Unlock()
 				return errors.E(op, err)
 			}
+			w.addressBuffersMu.Lock()
 			for acct := lastRecorded + 1; acct <= lastUsed; acct++ {
 				_, ok := w.addressBuffers[acct]
 				if !ok {
