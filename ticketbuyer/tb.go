@@ -151,11 +151,15 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				}
 			}
 
-			sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tipHeader)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+			// Ensure sdiff is only calculated one time if it is needed below.
+			sdiff := sync.OnceValue(func() dcrutil.Amount {
+				sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tipHeader)
+				if err != nil {
+					log.Errorf("Calculating sdiff failed: %v", err)
+					return 0
+				}
+				return sdiff
+			})
 
 			// Read config
 			tb.mu.Lock()
@@ -171,6 +175,10 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			cancelCtx, cancel := context.WithCancel(ctx)
 			cancels = append(cancels, cancel)
 			buyTickets := func() {
+				sdiff := sdiff()
+				if sdiff == 0 {
+					return
+				}
 				err := tb.buy(cancelCtx, passphrase, sdiff, expiry, &cfg)
 				if err != nil {
 					switch {
