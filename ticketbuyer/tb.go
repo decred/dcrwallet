@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2024 The Decred developers
+// Copyright (c) 2018-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,7 +12,6 @@ import (
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet"
 	"github.com/decred/dcrd/dcrutil/v4"
-	"github.com/decred/dcrd/wire"
 )
 
 const minconf = 1
@@ -152,6 +151,16 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				}
 			}
 
+			// Ensure sdiff is only calculated one time if it is needed below.
+			sdiff := sync.OnceValue(func() dcrutil.Amount {
+				sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tipHeader)
+				if err != nil {
+					log.Errorf("Calculating sdiff failed: %v", err)
+					return 0
+				}
+				return sdiff
+			})
+
 			// Read config
 			tb.mu.Lock()
 			cfg := tb.cfg
@@ -166,7 +175,11 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			cancelCtx, cancel := context.WithCancel(ctx)
 			cancels = append(cancels, cancel)
 			buyTickets := func() {
-				err := tb.buy(cancelCtx, passphrase, tipHeader, expiry, &cfg)
+				sdiff := sdiff()
+				if sdiff == 0 {
+					return
+				}
+				err := tb.buy(cancelCtx, passphrase, sdiff, expiry, &cfg)
 				if err != nil {
 					switch {
 					// silence these errors
@@ -197,17 +210,10 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 	}
 }
 
-func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader, expiry int32,
+func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, expiry int32,
 	cfg *Config) error {
 	ctx, task := trace.NewTask(ctx, "ticketbuyer.buy")
 	defer task.End()
-
-	tb.mu.Lock()
-	buyTickets := tb.cfg.BuyTickets
-	tb.mu.Unlock()
-	if !buyTickets {
-		return nil
-	}
 
 	w := tb.wallet
 
@@ -243,11 +249,6 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, tip *wire.BlockHeader,
 	minconf := int32(minconf)
 	if mixing {
 		minconf = 2
-	}
-
-	sdiff, err := w.NextStakeDifficultyAfterHeader(ctx, tip)
-	if err != nil {
-		return err
 	}
 
 	// Determine how many tickets to buy
