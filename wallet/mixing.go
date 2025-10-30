@@ -320,18 +320,19 @@ SplitPoints:
 		last := i == len(splitPoints)-1
 		mixValue = splitPoints[i]
 
-		// When the sdiff is more than this mixed output amount, there
+		// When the sdiff is less than this mixed output amount, there
 		// is a smaller common mixed amount with more pairing activity
 		// (due to CoinShuffle++ participation from ticket buyers).
 		// Skipping this amount and moving to the next smallest common
 		// mixed amount will result in quicker pairings, or pairings
-		// occurring at all.  The number of mixed outputs is capped to
-		// prevent a single mix being overwhelmingly funded by a single
-		// output, and to conserve memory resources.
+		// occurring at all.
 		if !last && mixValue >= sdiff {
 			continue
 		}
 
+		// The number of mixed outputs is capped to prevent a single mix being
+		// overwhelmingly funded by a single output, and to conserve memory
+		// resources.
 		count = min(uint32(amount/mixValue), 4)
 		for ; count > 0; count-- {
 			remValue = amount - dcrutil.Amount(count)*mixValue
