@@ -253,14 +253,6 @@ func (w *Wallet) KnownAddress(ctx context.Context, a stdaddr.Address) (KnownAddr
 	return wrapManagedAddress(ma, acctName, acctKind)
 }
 
-type stakeAddress interface {
-	voteRights() (script []byte, version uint16)
-	ticketChange() (script []byte, version uint16)
-	rewardCommitment(amount dcrutil.Amount, limits uint16) (script []byte, version uint16)
-	payVoteCommitment() (script []byte, version uint16)
-	payRevokeCommitment() (script []byte, version uint16)
-}
-
 type xpubAddress struct {
 	*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0
 	xpub        *hdkeychain.ExtendedKey
@@ -271,7 +263,6 @@ type xpubAddress struct {
 }
 
 var _ BIP0044Address = (*xpubAddress)(nil)
-var _ stakeAddress = (*xpubAddress)(nil)
 
 func (x *xpubAddress) PaymentScript() (uint16, []byte) {
 	s := []byte{
