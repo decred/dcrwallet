@@ -547,7 +547,7 @@ func (fp *vspFeePayment) submitPayment() (err error) {
 
 	// TODO - validate server timestamp?
 
-	fp.client.log.Infof("successfully processed %v", fp.ticket)
+	fp.client.log.Infof("Fee sent to VSP for ticket %v", fp.ticket)
 	return nil
 }
 
@@ -578,7 +578,7 @@ func (fp *vspFeePayment) confirmPayment() (err error) {
 		fp.schedule("confirm payment", fp.confirmPayment)
 		return nil
 	case "broadcast":
-		fp.client.log.Infof("VSP has successfully sent the fee tx for %v", fp.ticket)
+		fp.client.log.Infof("VSP has broadcast the fee tx for %v", fp.ticket)
 		// Broadcasted, but not confirmed.
 		fp.schedule("confirm payment", fp.confirmPayment)
 		return nil

@@ -507,10 +507,9 @@ func (s *Syncer) waitRPCSync(ctx context.Context, minHeight int64) error {
 var hashStop chainhash.Hash
 
 // Run synchronizes the wallet, returning when synchronization fails or the
-// context is cancelled.  If startupSync is true, all synchronization tasks
-// needed to fully register the wallet for notifications and synchronize it with
-// the dcrd server are performed.  Otherwise, it will listen for notifications
-// but not register for any updates.
+// context is cancelled. All synchronization tasks needed to fully register the
+// wallet for notifications and synchronize it with the dcrd server are
+// performed.
 //
 // Run can only be called once per Syncer. A new Syncer must be created to call
 // Run again, e.g. after it has returned an error.

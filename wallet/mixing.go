@@ -250,8 +250,9 @@ var (
 	errThrottledMixRequest = errors.New("throttled mix request for split denomination")
 )
 
-// MixOutput performs a mix of a single output into standard sized outputs
-// under the current ticket price.
+// MixOutput performs a mix of a single output into standard sized outputs under
+// the current ticket price. This is a blocking call which only returns once the
+// mix has been completed.
 func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAccount, mixAccount,
 	mixBranch uint32) error {
 
@@ -434,7 +435,8 @@ SplitPoints:
 }
 
 // MixAccount individually mixes outputs of an account into standard
-// denominations, creating newly mixed outputs for a mixed account.
+// denominations, creating newly mixed outputs for a mixed account. This is a
+// blocking call which only returns once the mix has been completed.
 //
 // Due to performance concerns of timing out in a CoinShuffle++ run, this
 // function may throttle how many of the outputs are mixed each call.

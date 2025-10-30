@@ -20,19 +20,19 @@ const minconf = 1
 type Config struct {
 	BuyTickets bool
 
-	// Account to buy tickets from
+	// Account to buy tickets from.
 	Account uint32
 
-	// Account to derive voting addresses from
+	// Account to derive voting addresses from.
 	VotingAccount uint32
 
-	// Minimum amount to maintain in purchasing account
+	// Minimum amount to maintain in purchasing account.
 	Maintain dcrutil.Amount
 
-	// Limit maximum number of purchased tickets per block
+	// Limit maximum number of purchased tickets per block.
 	Limit int
 
-	// CSPP-related options
+	// CSPP-related options.
 	Mixing             bool
 	MixedAccount       uint32
 	MixedAccountBranch uint32
@@ -40,7 +40,7 @@ type Config struct {
 	ChangeAccount      uint32
 	MixChange          bool
 
-	// VSP client
+	// VSP client.
 	VSP *wallet.VSPClient
 }
 
@@ -161,7 +161,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				return sdiff
 			})
 
-			// Read config
+			// Read config.
 			tb.mu.Lock()
 			cfg := tb.cfg
 			tb.mu.Unlock()
@@ -182,7 +182,7 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 				err := tb.buy(cancelCtx, passphrase, sdiff, expiry, &cfg)
 				if err != nil {
 					switch {
-					// silence these errors
+					// Silence these errors.
 					case errors.Is(err, errors.InsufficientBalance):
 					case errors.Is(err, context.Canceled):
 					case errors.Is(err, context.DeadlineExceeded):
@@ -235,7 +235,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 		}
 	}
 
-	// Read config
+	// Read config.
 	account := cfg.Account
 	maintain := cfg.Maintain
 	limit := cfg.Limit
@@ -251,7 +251,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 		minconf = 2
 	}
 
-	// Determine how many tickets to buy
+	// Determine how many tickets to buy.
 	var buy int
 	if maintain != 0 {
 		bal, err := w.AccountBalance(ctx, account, minconf)
@@ -289,7 +289,7 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 		MinConf:       minconf,
 		Expiry:        expiry,
 
-		// CSPP
+		// CSPP.
 		Mixing:             mixing,
 		MixedAccount:       mixedAccount,
 		MixedAccountBranch: mixedBranch,
@@ -319,7 +319,7 @@ func (tb *TB) AccessConfig(f func(cfg *Config)) {
 }
 
 func (tb *TB) mixChange(ctx context.Context, cfg *Config) error {
-	// Read config
+	// Read config.
 	mixing := cfg.Mixing
 	mixedAccount := cfg.MixedAccount
 	mixedBranch := cfg.MixedAccountBranch

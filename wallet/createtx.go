@@ -984,6 +984,10 @@ func makeTicket(params *chaincfg.Params, input *Input, addrVote stdaddr.StakeAdd
 
 var p2pkhSizedScript = make([]byte, 25)
 
+// mixedSplit participates in a mixing session to create outputs perfectly sized
+// to purchase req.Count tickets (as well as a change output if necessary). This
+// is a blocking call which only returns once the mix has been completed.
+// req.DontSignTx is ignored by this func.
 func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
 	// Use txauthor to perform input selection and change amount
 	// calculations for the unmixed portions of the coinjoin.
@@ -1079,6 +1083,10 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 	return splitTx, cj.MixedIndices(), nil
 }
 
+// individualSplit creates a transaction with outputs perfectly sized to
+// purchase req.Count tickets (as well as a change output if necessary). The
+// transaction is immediately broadcast to the network unless req.DontSignTx is
+// set, in which case the unsigned tx is returned.
 func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsRequest, neededPerTicket dcrutil.Amount) (tx *wire.MsgTx, outIndexes []int, err error) {
 	// Fetch the single use split address to break tickets into, to
 	// immediately be consumed as tickets.
@@ -1091,11 +1099,7 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 
 	vers, splitPkScript := splitTxAddr.PaymentScript()
 
-	// Create the split transaction by using txToOutputs. This varies
-	// based upon whether or not the user is using a stake pool or not.
-	// For the default stake pool implementation, the user pays out the
-	// first ticket commitment of a smaller amount to the pool, while
-	// paying themselves with the larger ticket commitment.
+	// Create the split transaction.
 	var splitOuts []*wire.TxOut
 	for i := 0; i < req.Count; i++ {
 		splitOuts = append(splitOuts, &wire.TxOut{
@@ -1138,8 +1142,14 @@ func (w *Wallet) individualSplit(ctx context.Context, req *PurchaseTicketsReques
 
 var errVSPFeeRequiresUTXOSplit = errors.New("paying VSP fee requires UTXO split")
 
-// purchaseTickets indicates to the wallet that a ticket should be purchased
-// using all currently available funds.
+// purchaseTickets indicates to the wallet that a number of tickets should be
+// purchased using all currently available funds.
+//
+// If mixing is requested this call can block for a long time because:
+//
+//   - A mixing session is required to create the split tx
+//   - Broadcasting ticket purchases is subject to a trickle delay of 20-60
+//     seconds per ticket.
 func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	n NetworkBackend, req *PurchaseTicketsRequest) (*PurchaseTicketsResponse, error) {
 	// Ensure the minimum number of required confirmations is positive.
