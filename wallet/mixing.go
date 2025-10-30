@@ -320,18 +320,19 @@ SplitPoints:
 		last := i == len(splitPoints)-1
 		mixValue = splitPoints[i]
 
-		// When the sdiff is more than this mixed output amount, there
+		// When the sdiff is less than this mixed output amount, there
 		// is a smaller common mixed amount with more pairing activity
 		// (due to CoinShuffle++ participation from ticket buyers).
 		// Skipping this amount and moving to the next smallest common
 		// mixed amount will result in quicker pairings, or pairings
-		// occurring at all.  The number of mixed outputs is capped to
-		// prevent a single mix being overwhelmingly funded by a single
-		// output, and to conserve memory resources.
+		// occurring at all.
 		if !last && mixValue >= sdiff {
 			continue
 		}
 
+		// The number of mixed outputs is capped to prevent a single mix being
+		// overwhelmingly funded by a single output, and to conserve memory
+		// resources.
 		count = min(uint32(amount/mixValue), 4)
 		for ; count > 0; count-- {
 			remValue = amount - dcrutil.Amount(count)*mixValue
@@ -467,6 +468,11 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 	}
 	w.lockedOutpointMu.Unlock()
 
+	if len(credits) == 0 {
+		log.Debugf("No outputs eligible for mixing")
+		return nil
+	}
+
 	var g errgroup.Group
 	var success atomic.Int32
 	for i := range credits {
@@ -478,19 +484,21 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 			}
 			switch {
 			case errors.Is(err, errNoSplitDenomination):
-				log.Debugf("Unable to mix output for account %q: %v",
+				log.Debugf("Unable to mix output for account %d: %v",
 					changeAccount, err)
 				err = nil
 			case errors.Is(err, errThrottledMixRequest):
-				log.Debugf("Temporarily skipped output %v during account %q mix: %v",
+				log.Debugf("Temporarily skipped output %v during account %d mix: %v",
 					op, changeAccount, err)
+				err = nil
+			case errors.Is(err, context.Canceled):
 				err = nil
 			}
 			return err
 		})
 	}
 	err = g.Wait()
-	log.Debugf("Mixed %d of %d selected outputs of account %q", success.Load(),
+	log.Debugf("Mixed %d of %d selected outputs of account %d", success.Load(),
 		len(credits), changeAccount)
 	if err != nil {
 		return errors.E(op, err)
