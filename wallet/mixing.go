@@ -56,9 +56,8 @@ func (w *Wallet) makeGen(ctx context.Context, account, branch uint32) mixclient.
 		updates := make(accountBranchChildUpdates, 0, mcount)
 
 		for i := uint32(0); i < mcount; i++ {
-			const accountName = "" // not used, so can be faked.
-			mixAddr, err := w.nextAddress(ctx, op, &updates, nil,
-				accountName, account, branch, WithGapPolicyIgnore())
+			mixAddr, _, err := w.nextAddress(ctx, op, &updates, nil,
+				account, branch, WithGapPolicyIgnore())
 			if err != nil {
 				return nil, err
 			}
@@ -390,9 +389,8 @@ SplitPoints:
 	var change *wire.TxOut
 	if changeValue > 0 {
 		updates := make(accountBranchChildUpdates, 0, 1)
-		const accountName = "" // not used, so can be faked.
-		addr, err := w.nextAddress(ctx, op, &updates, nil,
-			accountName, changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
+		addr, _, err := w.nextAddress(ctx, op, &updates, nil,
+			changeAccount, udb.InternalBranch, WithGapPolicyIgnore())
 		if err != nil {
 			return errors.E(op, err)
 		}
