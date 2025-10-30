@@ -479,11 +479,11 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 			}
 			switch {
 			case errors.Is(err, errNoSplitDenomination):
-				log.Debugf("Unable to mix output for account %q: %v",
+				log.Debugf("Unable to mix output for account %d: %v",
 					changeAccount, err)
 				err = nil
 			case errors.Is(err, errThrottledMixRequest):
-				log.Debugf("Temporarily skipped output %v during account %q mix: %v",
+				log.Debugf("Temporarily skipped output %v during account %d mix: %v",
 					op, changeAccount, err)
 				err = nil
 			}
@@ -491,7 +491,7 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 		})
 	}
 	err = g.Wait()
-	log.Debugf("Mixed %d of %d selected outputs of account %q", success.Load(),
+	log.Debugf("Mixed %d of %d selected outputs of account %d", success.Load(),
 		len(credits), changeAccount)
 	if err != nil {
 		return errors.E(op, err)
