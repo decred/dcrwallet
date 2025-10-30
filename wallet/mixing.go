@@ -486,6 +486,8 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 				log.Debugf("Temporarily skipped output %v during account %d mix: %v",
 					op, changeAccount, err)
 				err = nil
+			case errors.Is(err, context.Canceled):
+				err = nil
 			}
 			return err
 		})
