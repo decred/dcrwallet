@@ -1646,7 +1646,7 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	if err != nil {
 		return nil, err
 	}
-	version, script := addr.(Address).PaymentScript()
+	version, script := addr.PaymentScript()
 	a.outputs = append(a.outputs, &wire.TxOut{Version: version, PkScript: script})
 	txsize := txsizes.EstimateSerializeSize([]int{txsizes.RedeemP2PKHInputSize},
 		a.outputs, 0)
@@ -4701,25 +4701,20 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 		return err
 	}
 
-	vers, feeScript := feeAddr.PaymentScript()
+	feeVers, feeScript := feeAddr.PaymentScript()
 
 	addr, err := w.NewChangeAddress(ctx, changeAcct)
 	if err != nil {
 		log.Warnf("failed to get new change address: %v", err)
 		return err
 	}
-	var changeOut *wire.TxOut
-	switch addr := addr.(type) {
-	case Address:
-		vers, script := addr.PaymentScript()
-		changeOut = &wire.TxOut{PkScript: script, Version: vers}
-	default:
-		return fmt.Errorf("failed to convert '%T' to wallet.Address", addr)
-	}
+
+	vers, script := addr.PaymentScript()
+	changeOut := &wire.TxOut{PkScript: script, Version: vers}
 
 	tx.TxOut = append(tx.TxOut[:0], &wire.TxOut{
 		Value:    int64(fee),
-		Version:  vers,
+		Version:  feeVers,
 		PkScript: feeScript,
 	})
 	feeRate := w.RelayFee()

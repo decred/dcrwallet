@@ -6,7 +6,6 @@ package wallet
 
 import (
 	"context"
-	"encoding/binary"
 	"runtime/trace"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -15,7 +14,6 @@ import (
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
-	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/hdkeychain/v3"
 	"github.com/decred/dcrd/txscript/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -253,124 +251,6 @@ func (w *Wallet) KnownAddress(ctx context.Context, a stdaddr.Address) (KnownAddr
 	return wrapManagedAddress(ma, acctName, acctKind)
 }
 
-type xpubAddress struct {
-	*stdaddr.AddressPubKeyHashEcdsaSecp256k1V0
-	xpub        *hdkeychain.ExtendedKey
-	accountName string
-	account     uint32
-	branch      uint32
-	child       uint32
-}
-
-var _ BIP0044Address = (*xpubAddress)(nil)
-
-func (x *xpubAddress) PaymentScript() (uint16, []byte) {
-	s := []byte{
-		0:  txscript.OP_DUP,
-		1:  txscript.OP_HASH160,
-		2:  txscript.OP_DATA_20,
-		23: txscript.OP_EQUALVERIFY,
-		24: txscript.OP_CHECKSIG,
-	}
-	copy(s[3:23], x.Hash160()[:])
-	return 0, s
-}
-
-func (x *xpubAddress) ScriptLen() int      { return txsizes.P2PKHPkScriptSize }
-func (x *xpubAddress) AccountName() string { return x.accountName }
-
-func (x *xpubAddress) AccountKind() AccountKind {
-	if x.account > udb.ImportedAddrAccount {
-		return AccountKindImportedXpub
-	}
-	return AccountKindBIP0044
-}
-func (x *xpubAddress) Path() (account, branch, child uint32) {
-	account, branch, child = x.account, x.branch, x.child
-	if x.account > udb.ImportedAddrAccount {
-		account = 0
-	}
-	return
-}
-
-func (x *xpubAddress) PubKey() []byte {
-	// All errors are unexpected, since the P2PKH address must have already
-	// been created from the same path.
-	branchKey, err := x.xpub.Child(x.branch)
-	if err != nil {
-		panic(err)
-	}
-	childKey, err := branchKey.Child(x.child)
-	if err != nil {
-		panic(err)
-	}
-	return childKey.SerializedPubKey()
-}
-
-func (x *xpubAddress) PubKeyHash() []byte { return x.Hash160()[:] }
-
-func (x *xpubAddress) voteRights() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSTX,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.PubKeyHash())
-	return s, 0
-}
-
-func (x *xpubAddress) ticketChange() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSTXCHANGE,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.PubKeyHash())
-	return s, 0
-}
-
-func (x *xpubAddress) rewardCommitment(amount dcrutil.Amount, limits uint16) ([]byte, uint16) {
-	s := make([]byte, 32)
-	s[0] = txscript.OP_RETURN
-	s[1] = txscript.OP_DATA_30
-	copy(s[2:22], x.PubKeyHash())
-	binary.LittleEndian.PutUint64(s[22:30], uint64(amount))
-	binary.LittleEndian.PutUint16(s[30:32], limits)
-	return s, 0
-}
-
-func (x *xpubAddress) payVoteCommitment() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSGEN,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.PubKeyHash())
-	return s, 0
-}
-
-func (x *xpubAddress) payRevokeCommitment() (script []byte, version uint16) {
-	s := []byte{
-		0:  txscript.OP_SSRTX,
-		1:  txscript.OP_DUP,
-		2:  txscript.OP_HASH160,
-		3:  txscript.OP_DATA_20,
-		24: txscript.OP_EQUALVERIFY,
-		25: txscript.OP_CHECKSIG,
-	}
-	copy(s[4:24], x.PubKeyHash())
-	return s, 0
-}
-
 // DefaultGapLimit is the default unused address gap limit defined by BIP0044.
 const DefaultGapLimit = uint32(20)
 
@@ -494,11 +374,11 @@ func (s accountBranchChildUpdates) UpdateDB(ctx context.Context, w *Wallet, mayb
 // nextAddress returns the next address of an account branch.
 func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 	updates *accountBranchChildUpdates, maybeDBTX walletdb.ReadWriteTx,
-	accountName string, account, branch uint32,
-	callOpts ...NextAddressCallOption) (a stdaddr.Address, rerr error) {
+	account, branch uint32,
+	callOpts ...NextAddressCallOption) (a stdaddr.Address, childIndex uint32, rerr error) {
 
 	if updates != nil && maybeDBTX != nil {
-		return nil, errors.E(op, errors.Bug, "nextAddress must not provide both a slice "+
+		return nil, 0, errors.E(op, errors.Bug, "nextAddress must not provide both a slice "+
 			"to defer db updates and an open write transaction")
 	}
 
@@ -516,7 +396,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 
 		dbtx, err := w.db.BeginReadWriteTx()
 		if err != nil {
-			return nil, errors.E(op, err)
+			return nil, 0, errors.E(op, err)
 		}
 		defer func() {
 			if rerr != nil {
@@ -541,7 +421,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 	w.addressBuffersMu.Lock()
 	ad, ok := w.addressBuffers[account]
 	if !ok {
-		return nil, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
+		return nil, 0, errors.E(op, errors.NotExist, errors.Errorf("account %d", account))
 	}
 
 	var alb *addressBuffer
@@ -551,17 +431,17 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 	case udb.InternalBranch:
 		alb = &ad.albInternal
 	default:
-		return nil, errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
+		return nil, 0, errors.E(op, errors.Invalid, "branch must be external (0) or internal (1)")
 	}
 
 	for {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, 0, ctx.Err()
 		}
 		if alb.cursor >= w.gapLimit {
 			switch opts.policy {
 			case gapPolicyError:
-				return nil, errors.E(op, errors.Policy,
+				return nil, 0, errors.E(op, errors.Policy,
 					"generating next address violates the unused address gap limit policy")
 
 			case gapPolicyIgnore:
@@ -580,11 +460,11 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 				addrs, err := deriveChildAddresses(alb.branchXpub,
 					alb.lastUsed+1+alb.cursor, w.gapLimit, w.chainParams)
 				if err != nil {
-					return nil, errors.E(op, err)
+					return nil, 0, errors.E(op, err)
 				}
 				err = n.LoadTxFilter(ctx, false, addrs, nil)
 				if err != nil {
-					return nil, err
+					return nil, 0, err
 				}
 
 			case gapPolicyWrap:
@@ -594,7 +474,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 
 		childIndex := alb.lastUsed + 1 + alb.cursor
 		if childIndex >= hdkeychain.HardenedKeyStart {
-			return nil, errors.E(op, errors.Errorf("account %d branch %d exhausted",
+			return nil, 0, errors.E(op, errors.Errorf("account %d branch %d exhausted",
 				account, branch))
 		}
 		child, err := alb.branchXpub.Child(childIndex)
@@ -603,11 +483,11 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 			continue
 		}
 		if err != nil {
-			return nil, errors.E(op, err)
+			return nil, 0, errors.E(op, err)
 		}
 		apkh, err := compat.HD2Address(child, w.chainParams)
 		if err != nil {
-			return nil, errors.E(op, err)
+			return nil, 0, errors.E(op, err)
 		}
 		// Write the returned child index to the database, or defer
 		// the update for a later transaction.
@@ -618,22 +498,16 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 			updates[0] = accountBranchChild{account, branch, childIndex}
 			err := updates.UpdateDB(ctx, w, maybeDBTX)
 			if err != nil {
-				return nil, errors.E(op, err)
+				return nil, 0, errors.E(op, err)
 			}
 		} else {
-			return nil, errors.E(op, errors.Bug, "no method to update DB with addresses")
+			return nil, 0, errors.E(op, errors.Bug, "no method to update DB with addresses")
 		}
+
 		alb.cursor++
-		addr := &xpubAddress{
-			AddressPubKeyHashEcdsaSecp256k1V0: apkh,
-			xpub:                              ad.xpub,
-			account:                           account,
-			accountName:                       accountName,
-			branch:                            branch,
-			child:                             childIndex,
-		}
+
 		log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIndex)
-		return addr, nil
+		return apkh, childIndex, nil
 	}
 }
 
@@ -690,15 +564,9 @@ func (w *Wallet) AddressAtIdx(ctx context.Context, account, branch,
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	addr := &xpubAddress{
-		AddressPubKeyHashEcdsaSecp256k1V0: apkh,
-		xpub:                              ad.xpub,
-		account:                           account,
-		branch:                            branch,
-		child:                             childIdx,
-	}
+
 	log.Infof("Returning address (account=%v branch=%v child=%v)", account, branch, childIdx)
-	return addr, nil
+	return apkh, nil
 }
 
 // markUsedAddress updates the database, recording that the previously looked up
@@ -741,10 +609,9 @@ func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpt
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
 		return nil, err
 	}
-
-	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, nil, nil,
-		accountName, account, udb.ExternalBranch, callOpts...)
+	addr, _, err := w.nextAddress(ctx, op, nil, nil,
+		account, udb.ExternalBranch, callOpts...)
+	return addr, err
 }
 
 // NewInternalAddress returns an internal address.
@@ -755,10 +622,9 @@ func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpt
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
 		return nil, err
 	}
-
-	accountName, _ := w.AccountName(ctx, account)
-	return w.nextAddress(ctx, op, nil, nil,
-		accountName, account, udb.InternalBranch, callOpts...)
+	addr, _, err := w.nextAddress(ctx, op, nil, nil,
+		account, udb.InternalBranch, callOpts...)
+	return addr, err
 }
 
 // notVotingAcct errors if an account is a special voting type. This account
@@ -783,7 +649,7 @@ func (w *Wallet) notVotingAcct(ctx context.Context, op errors.Op, account uint32
 }
 
 func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *accountBranchChildUpdates,
-	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+	maybeDBTX walletdb.ReadWriteTx, account uint32, gap gapPolicy) (stdaddr.Address, error) {
 
 	// Imported voting accounts must not be used for change.
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
@@ -797,7 +663,8 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *ac
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, updates, maybeDBTX, accountName, account, udb.InternalBranch, withGapPolicy(gap))
+	addr, _, err := w.nextAddress(ctx, op, updates, maybeDBTX, account, udb.InternalBranch, withGapPolicy(gap))
+	return addr, err
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
@@ -806,8 +673,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *ac
 // policy.
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (stdaddr.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	accountName, _ := w.AccountName(ctx, account)
-	return w.newChangeAddress(ctx, op, nil, nil, accountName, account, gapPolicyWrap)
+	return w.newChangeAddress(ctx, op, nil, nil, account, gapPolicyWrap)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -939,9 +805,8 @@ type p2PKHChangeSource struct {
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	const accountName = "" // not returned, so can be faked.
 	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
-		src.dbtx, accountName, src.account, src.gapPolicy)
+		src.dbtx, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -967,9 +832,8 @@ type p2PKHTreasuryChangeSource struct {
 // Script returns the treasury change script and is required for change source
 // interface.
 func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
-	const accountName = "" // not returned, so can be faked.
 	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
-		src.dbtx, accountName, src.account, src.gapPolicy)
+		src.dbtx, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
