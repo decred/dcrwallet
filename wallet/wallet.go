@@ -1742,17 +1742,36 @@ func (w *Wallet) SetAccountPassphrase(ctx context.Context, account uint32, passp
 
 // UnlockAccount decrypts a uniquely-encrypted account's private keys.
 func (w *Wallet) UnlockAccount(ctx context.Context, account uint32, passphrase []byte) error {
-	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+	unlocked, err := w.AccountUnlocked(ctx, account)
+	if err != nil {
+		return err
+	}
+	if unlocked {
+		return nil
+	}
+
+	err = walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		return w.manager.UnlockAccount(dbtx, account, passphrase)
 	})
+	if err != nil {
+		return err
+	}
+
+	log.Infof("Account %d has been unlocked", account)
+	return nil
 }
 
 // LockAccount locks an individually-encrypted account by removing private key
 // access until unlocked again.
 func (w *Wallet) LockAccount(ctx context.Context, account uint32) error {
-	return walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
+	err := walletdb.View(ctx, w.db, func(dbtx walletdb.ReadTx) error {
 		return w.manager.LockAccount(dbtx, account)
 	})
+	if err != nil {
+		return err
+	}
+	log.Infof("Account %d has been locked", account)
+	return nil
 }
 
 // AccountUnlocked returns whether an individually-encrypted account is unlocked.
