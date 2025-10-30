@@ -258,14 +258,14 @@ func run(ctx context.Context) error {
 			}
 			changeAcct, err := w.AccountNumber(ctx, changeAccountName)
 			if err != nil {
-				log.Warnf("failed to get account number for "+
+				log.Warnf("Failed to get account number for "+
 					"ticket change account %q: %v",
 					changeAccountName, err)
 				return err
 			}
 			purchaseAcct, err := w.AccountNumber(ctx, cfg.PurchaseAccount)
 			if err != nil {
-				log.Warnf("failed to get account number for "+
+				log.Warnf("Failed to get account number for "+
 					"ticket purchase account %q: %v",
 					cfg.PurchaseAccount, err)
 				return err
@@ -281,7 +281,7 @@ func run(ctx context.Context) error {
 			}
 			vspClient, err = w.VSP(vspCfg)
 			if err != nil {
-				log.Errorf("vsp: %v", err)
+				log.Errorf("VSP: %v", err)
 				return err
 			}
 		}

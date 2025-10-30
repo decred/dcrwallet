@@ -1629,7 +1629,7 @@ func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap
 			addr, err := stake.AddrFromSStxPkScrCommitment(v.PkScript,
 				chainParams)
 			if err != nil {
-				log.Warnf("failed to decode ticket "+
+				log.Warnf("Failed to decode ticket "+
 					"commitment addr output for tx hash "+
 					"%v, output idx %v", mtx.TxHash(), i)
 			} else {
@@ -1637,7 +1637,7 @@ func createVoutList(mtx *wire.MsgTx, chainParams *chaincfg.Params, filterAddrMap
 			}
 			amt, err := stake.AmountFromSStxPkScrCommitment(v.PkScript)
 			if err != nil {
-				log.Warnf("failed to decode ticket "+
+				log.Warnf("Failed to decode ticket "+
 					"commitment amt output for tx hash %v"+
 					", output idx %v", mtx.TxHash(), i)
 			} else {

@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Enforce Syncer satisfies the wallet.NetworkBackend interface.
 var _ wallet.NetworkBackend = (*Syncer)(nil)
 
 // TODO: When using the Syncer as a NetworkBackend, keep track of in-flight
@@ -71,7 +72,7 @@ func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*
 		}
 		blocks, err := rp.Blocks(ctx, blockHashes)
 		if err != nil {
-			log.Debugf("unable to fetch blocks from %v: %v", rp, err)
+			log.Debugf("Unable to fetch blocks from %v: %v", rp, err)
 			continue
 		}
 		return blocks, nil

@@ -1249,7 +1249,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 			}
 
 			if bestAddr == nil {
-				log.Debugf("no best address")
+				log.Debugf("No best address")
 				continue
 			}
 
@@ -1261,7 +1261,7 @@ func (w *Wallet) CommittedTickets(ctx context.Context, tickets []*chainhash.Hash
 			}
 			if hash160 == nil || !w.manager.ExistsHash160(
 				addrmgrNs, hash160) {
-				log.Debugf("not our address: hash160=%x", hash160)
+				log.Debugf("Not our address: hash160=%x", hash160)
 				continue
 			}
 			ticketHash := tx.TxHash()
@@ -1597,6 +1597,17 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 	if err == nil || !errors.Is(err, errVSPFeeRequiresUTXOSplit) || req.DontSignTx {
 		return resp, err
 	}
+
+	// Proceeding beyond this point assumes purchaseTickets failed because there
+	// was not enough UTXOs to pay for all the tickets and all the VSP fees.
+	// Continue by:
+	//
+	//   - Creating and broadcasting a split tx which creates an output suitable
+	//     for paying the VSP fee.
+	//   - Calling purchaseTickets again. Ignore the requested number of
+	//     tickets, just attempt to buy one. Explicitly provide the newly
+	//     created output which should be used to pay for the VSP fee via
+	//     req.extraSplitOutput.
 
 	// Do not attempt to split utxos for a fee payment when spending from
 	// the mixed account.  This error is rather unlikely anyways, as mixed
@@ -4051,14 +4062,6 @@ func (w *Wallet) StakeInfo(ctx context.Context) (*StakeInfoData, error) {
 					res.Voted++
 
 					// Add the subsidy.
-					//
-					// This is not the actual subsidy that was earned by this
-					// wallet, but rather the stakebase sum.  If a user uses a
-					// stakepool for voting, this value will include the total
-					// subsidy earned by both the user and the pool together.
-					// Similarly, for stakepool wallets, this includes the
-					// customer's subsidy rather than being just the subsidy
-					// earned by fees.
 					res.TotalSubsidy += dcrutil.Amount(spender.TxIn[0].ValueIn)
 
 				case isRevocation(spender):
@@ -4176,14 +4179,6 @@ func (w *Wallet) StakeInfoPrecise(ctx context.Context, rpc *dcrd.RPC) (*StakeInf
 					res.Voted++
 
 					// Add the subsidy.
-					//
-					// This is not the actual subsidy that was earned by this
-					// wallet, but rather the stakebase sum.  If a user uses a
-					// stakepool for voting, this value will include the total
-					// subsidy earned by both the user and the pool together.
-					// Similarly, for stakepool wallets, this includes the
-					// customer's subsidy rather than being just the subsidy
-					// earned by fees.
 					res.TotalSubsidy += dcrutil.Amount(spenderTx.TxIn[0].ValueIn)
 
 				case isRevocation(spenderTx):
@@ -4705,7 +4700,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 
 	addr, err := w.NewChangeAddress(ctx, changeAcct)
 	if err != nil {
-		log.Warnf("failed to get new change address: %v", err)
+		log.Warnf("Failed to get new change address: %v", err)
 		return err
 	}
 	var changeOut *wire.TxOut
@@ -4741,7 +4736,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 
 	sigErrs, err := w.SignTransaction(ctx, tx, txscript.SigHashAll, nil, nil, nil)
 	if err != nil || len(sigErrs) > 0 {
-		log.Errorf("failed to sign transaction: %v", err)
+		log.Errorf("Failed to sign transaction: %v", err)
 		sigErrStr := ""
 		for _, sigErr := range sigErrs {
 			log.Errorf("\t%v", sigErr)

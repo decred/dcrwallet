@@ -1,5 +1,5 @@
 // Copyright (c) 2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -176,7 +176,8 @@ func (s *Store) unminedTxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash,
 
 // TxDetails looks up all recorded details regarding a transaction with some
 // hash.  In case of a hash collision, the most recent transaction with a
-// matching hash is returned.
+// matching hash is returned. If a caller only requires the wire.MsgTx in the
+// result, using Tx should be preferred as it performs less DB work.
 func (s *Store) TxDetails(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*TxDetails, error) {
 	// First, check whether there exists an unmined transaction with this
 	// hash.  Use it if found.
@@ -253,9 +254,10 @@ func (s *Store) parseTx(txHash chainhash.Hash, v []byte) (*wire.MsgTx, error) {
 	return &details.MsgTx, nil
 }
 
-// Tx looks up all the stored wire.MsgTx for a transaction with some
-// hash.  In case of a hash collision, the most recent transaction with a
-// matching hash is returned.
+// Tx looks up all the stored wire.MsgTx for a transaction with some hash.  In
+// case of a hash collision, the most recent transaction with a matching hash is
+// returned. This is similar to TxDetails but performs less work as it only
+// returns the wire.MsgTx instead of all of the recorded details.
 func (s *Store) Tx(ns walletdb.ReadBucket, txHash *chainhash.Hash) (*wire.MsgTx, error) {
 	// First, check whether there exists an unmined transaction with this
 	// hash.  Use it if found.
