@@ -529,6 +529,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 		}
 		defer func() {
 			if rerr != nil {
+				dbtx.Rollback()
 				return
 			}
 			err := updates.UpdateDB(ctx, w, dbtx)
