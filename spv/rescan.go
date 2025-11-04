@@ -11,7 +11,7 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-// rescanCheckTransaction is a helper function to rescan both stake and regular
+// rescanCheckTransactions is a helper function to rescan both stake and regular
 // transactions in a block.  It appends transactions that match the filters to
 // *matches, while updating the filters to add outpoints for new UTXOs
 // controlled by this wallet.

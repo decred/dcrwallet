@@ -3964,7 +3964,7 @@ func (s *walletServer) LockWallet(ctx context.Context, req *pb.LockWalletRequest
 	return &pb.LockWalletResponse{}, nil
 }
 
-// getPeerInfo responds to the getpeerinfo request.
+// GetPeerInfo responds to the getpeerinfo request.
 // It gets the network backend and views the data on remote peers when in spv mode
 func (s *walletServer) GetPeerInfo(ctx context.Context, req *pb.GetPeerInfoRequest) (*pb.GetPeerInfoResponse, error) {
 	n, err := s.wallet.NetworkBackend()
