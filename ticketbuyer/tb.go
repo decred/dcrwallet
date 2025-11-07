@@ -203,7 +203,12 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			go func() {
 				err := tb.mixChange(ctx, &cfg)
 				if err != nil {
-					log.Error(err)
+					switch {
+					// Silence context canceled error.
+					case errors.Is(err, context.Canceled):
+					default:
+						log.Errorf("Account mixing failed: %v", err)
+					}
 				}
 			}()
 		}
