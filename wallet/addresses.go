@@ -270,6 +270,7 @@ type xpubAddress struct {
 	child       uint32
 }
 
+// Enforce xpubAddress satisfies the BIP0044Address and stakeAddress interfaces.
 var _ BIP0044Address = (*xpubAddress)(nil)
 var _ stakeAddress = (*xpubAddress)(nil)
 
@@ -740,6 +741,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	if err != nil {
 		return errors.E(op, err)
 	}
+	log.Debugf("Marked address %v used", addr)
 	return nil
 }
 
