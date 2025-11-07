@@ -1643,6 +1643,8 @@ func (m *Manager) UnlockAccount(dbtx walletdb.ReadTx, account uint32,
 	acctInfo.acctKeyPriv = acctKeyPriv
 	acctInfo.uniquePassHash = passHash
 
+	log.Infof("Account %d has been unlocked", account)
+
 	return nil
 }
 
@@ -1674,6 +1676,8 @@ func (m *Manager) LockAccount(dbtx walletdb.ReadTx, account uint32) error {
 	}
 	acctInfo.acctKeyPriv.Zero()
 	acctInfo.acctKeyPriv = nil
+
+	log.Infof("Account %d has been locked", account)
 
 	return nil
 }
