@@ -468,6 +468,11 @@ func (w *Wallet) MixAccount(ctx context.Context, changeAccount, mixAccount,
 	}
 	w.lockedOutpointMu.Unlock()
 
+	if len(credits) == 0 {
+		log.Debugf("Account %d has no outputs eligible for mixing", changeAccount)
+		return nil
+	}
+
 	var g errgroup.Group
 	var success atomic.Int32
 	for i := range credits {
