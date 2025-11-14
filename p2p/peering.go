@@ -233,10 +233,7 @@ func (lp *LocalPeer) newMsgVersion(pver uint32, c net.Conn) (*wire.MsgVersion, e
 	if err != nil {
 		return nil, err
 	}
-	nonce, err := wire.RandomUint64()
-	if err != nil {
-		return nil, err
-	}
+	nonce := rand.Uint64()
 	v := wire.NewMsgVersion(la, ra, nonce, 0)
 	v.AddUserAgent(uaName, uaVersion)
 	v.ProtocolVersion = int32(pver)
@@ -946,11 +943,7 @@ func (lp *LocalPeer) ReceiveHeadersAnnouncement(ctx context.Context) (*RemotePee
 }
 
 func (rp *RemotePeer) pingPong(ctx context.Context) {
-	nonce, err := wire.RandomUint64()
-	if err != nil {
-		log.Errorf("Failed to generate random ping nonce: %v", err)
-		return
-	}
+	nonce := rand.Uint64()
 	select {
 	case <-ctx.Done():
 		return
