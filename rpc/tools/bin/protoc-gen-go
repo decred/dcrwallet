@@ -1,0 +1,4 @@
+#!/bin/sh
+
+exec go tool protoc-gen-go
+

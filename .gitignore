@@ -8,7 +8,6 @@ vendor
 *~
 .vscode
 .idea
-rpc/tools/bin/
 *.sw*
 *.key
 rpc/grpc_example/grpc_example
