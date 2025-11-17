@@ -18,7 +18,7 @@
       devShells = forAllSystems ({ pkgs }: {
         default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            go_1_24
+            go_1_25
             protobuf
           ];
         };
