@@ -8,4 +8,8 @@ generate() {
     [ -n "$UID" ] && chown -R $UID . 2>/dev/null || return 0
 }
 
+# Add protoc-gen-go and protoc-gen-go-grpc bins to PATH before invoking protoc.
+# There is an open issue to integrate go tool into protoc; if it ever gets
+# implemented PATH will no longer need to manually modified here.
+# https://github.com/protocolbuffers/protobuf/issues/23509
 PATH=$PWD/tools/bin:$PATH generate
