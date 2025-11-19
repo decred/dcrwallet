@@ -103,7 +103,7 @@ func CFilterV2HeaderCommitment(net wire.CurrencyNet, header *wire.BlockHeader, f
 }
 
 // PreDCP0005CFilterHash returns nil if the hash for the given set of cf data
-// matches the exepected hash for the given network.
+// matches the expected hash for the given network.
 func PreDCP0005CFilterHash(net wire.CurrencyNet, cfsethash *chainhash.Hash) error {
 	var targetHash string
 

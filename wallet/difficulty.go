@@ -369,7 +369,7 @@ func (w *Wallet) checkDifficultyPositional(dbtx walletdb.ReadTx, header *wire.Bl
 	//
 	// Thus, with the exception of the special cases where it is possible to
 	// definitively determine the agenda is active, allow valid difficulty bits
-	// under both difficulty algorithms while rejecting blocks that satisify
+	// under both difficulty algorithms while rejecting blocks that satisfy
 	// neither here in the positional checks and allow the contextual checks
 	// that happen later to ensure the difficulty bits are valid specifically
 	// for the correct difficulty algorithm as determined by the state of the

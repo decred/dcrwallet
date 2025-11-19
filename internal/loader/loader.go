@@ -25,7 +25,7 @@ const (
 
 // Loader implements the creating of new and opening of existing wallets, while
 // providing a callback system for other subsystems to handle the loading of a
-// wallet.  This is primarely intended for use by the RPC servers, to enable
+// wallet.  This is primarily intended for use by the RPC servers, to enable
 // methods and services which require the wallet when the wallet is loaded by
 // another subsystem.
 //

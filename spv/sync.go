@@ -505,7 +505,7 @@ func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*addrmgr.NetAddress, erro
 	return nil, errors.New("no addresses")
 }
 
-var errBreaksMinVersionTarget = errors.New("peer uses too low version to satisify " +
+var errBreaksMinVersionTarget = errors.New("peer uses too low version to satisfy " +
 	"minimum target version count")
 
 // connectAndRunPeer connects to and runs the syncing process with the specified
