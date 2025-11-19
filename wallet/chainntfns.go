@@ -35,7 +35,7 @@ func (w *Wallet) extendMainChain(ctx context.Context, op errors.Op, dbtx walletd
 	height := int32(n.Header.Height)
 	ckpt := CheckpointHash(w.chainParams.Net, height)
 	if ckpt != nil && *blockHash != *ckpt {
-		err := errors.Errorf("block hash %v does not satisify "+
+		err := errors.Errorf("block hash %v does not satisfy "+
 			"checkpoint hash %v for height %v", blockHash,
 			ckpt, height)
 		return nil, errors.E(errors.Consensus, err)

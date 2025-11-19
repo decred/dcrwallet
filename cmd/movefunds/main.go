@@ -65,7 +65,7 @@ var errNoInputValue = errors.New("no input value")
 // makeInputSource creates an InputSource that creates inputs for every unspent
 // output with non-zero output values.  The target amount is ignored since every
 // output is consumed.  The InputSource does not return any previous output
-// scripts as they are not needed for creating the unsinged transaction and are
+// scripts as they are not needed for creating the unsigned transaction and are
 // looked up again by the wallet during the call to signrawtransaction.
 func makeInputSource(outputs []types.ListUnspentResult) (dcrutil.Amount, txauthor.InputSource) {
 	var (

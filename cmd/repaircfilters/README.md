@@ -7,7 +7,7 @@ filters by importing known-good cfilters into the wallet's database.
 In order to run it needs to be provided with a binary file filled with the
 pre-DCP0005 cfilter data in a specific format: for each block height before the
 activation height of DCP0005 in the given network the binary file must have a
-record with the lenght of the filter plus the filter itself.
+record with the length of the filter plus the filter itself.
 
 That is:
 
