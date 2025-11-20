@@ -14,7 +14,7 @@ const (
 
 func makeScriptSizes(count int, size int) *[]int {
 	scriptSizes := make([]int, count)
-	for idx := 0; idx < count; idx++ {
+	for idx := range count {
 		scriptSizes[idx] = size
 	}
 	return &scriptSizes

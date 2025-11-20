@@ -1010,7 +1010,7 @@ func (s *Server) getAddressesByAccount(ctx context.Context, icmd any) (any, erro
 	params := w.ChainParams()
 	addrs := make([]string, 0, endExt+endInt)
 	appendAddrs := func(branchKey *hdkeychain.ExtendedKey, n uint32) error {
-		for i := uint32(0); i < n; i++ {
+		for i := range n {
 			child, err := branchKey.Child(i)
 			if errors.Is(err, hdkeychain.ErrInvalidChild) {
 				continue

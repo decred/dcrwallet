@@ -55,7 +55,7 @@ func (w *Wallet) makeGen(ctx context.Context, account, branch uint32) mixclient.
 		gen := make(wire.MixVect, mcount)
 		updates := make(accountBranchChildUpdates, 0, mcount)
 
-		for i := uint32(0); i < mcount; i++ {
+		for i := range mcount {
 			const accountName = "" // not used, so can be faked.
 			mixAddr, err := w.nextAddress(ctx, op, &updates, nil,
 				accountName, account, branch, WithGapPolicyIgnore())
@@ -317,7 +317,7 @@ func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAcc
 	var feeRate = w.RelayFee()
 	var smallestMixChange = smallestMixChange(feeRate)
 SplitPoints:
-	for i = 0; i < len(splitPoints); i++ {
+	for i = range len(splitPoints) {
 		last := i == len(splitPoints)-1
 		mixValue = splitPoints[i]
 

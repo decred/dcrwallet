@@ -330,7 +330,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 		// sentinel value ^uint32(0) means that there has been no usage at all.
 		lastUsedExtIndex := ^uint32(0)
 		lastUsedIntIndex := ^uint32(0)
-		for child := uint32(0); child < hdkeychain.HardenedKeyStart; child++ {
+		for child := range uint32(hdkeychain.HardenedKeyStart) {
 			xpubChild, err := xpubExtBranch.Child(child)
 			if errors.Is(err, hdkeychain.ErrInvalidChild) {
 				continue
@@ -352,7 +352,7 @@ func lastUsedAddressIndexUpgrade(tx walletdb.ReadWriteTx, publicPassphrase []byt
 				lastUsedExtIndex = child
 			}
 		}
-		for child := uint32(0); child < hdkeychain.HardenedKeyStart; child++ {
+		for child := range uint32(hdkeychain.HardenedKeyStart) {
 			// Same as above but search the internal branch.
 			xpubChild, err := xpubIntBranch.Child(child)
 			if errors.Is(err, hdkeychain.ErrInvalidChild) {

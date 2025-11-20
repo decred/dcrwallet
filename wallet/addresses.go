@@ -1003,7 +1003,7 @@ func (src *p2PKHTreasuryChangeSource) ScriptSize() int {
 
 func deriveChildAddresses(key *hdkeychain.ExtendedKey, startIndex, count uint32, params *chaincfg.Params) ([]stdaddr.Address, error) {
 	addresses := make([]stdaddr.Address, 0, count)
-	for i := uint32(0); i < count; i++ {
+	for i := range count {
 		child, err := key.Child(startIndex + i)
 		if errors.Is(err, hdkeychain.ErrInvalidChild) {
 			continue

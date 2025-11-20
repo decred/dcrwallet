@@ -276,7 +276,7 @@ func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
 		seedStrSplit := walletseed.EncodeMnemonicSlice(seed)
 
 		fmt.Println("Your wallet generation seed is:")
-		for i := 0; i < hdkeychain.RecommendedSeedLen+1; i++ {
+		for i := range hdkeychain.RecommendedSeedLen + 1 {
 			fmt.Printf("%v ", seedStrSplit[i])
 
 			if (i+1)%6 == 0 {

@@ -471,7 +471,7 @@ func (s *Syncer) Run(ctx context.Context) (err error) {
 func (s *Syncer) peerCandidate(svcs wire.ServiceFlag) (*addrmgr.NetAddress, error) {
 	// Try to obtain peer candidates at random, decreasing the requirements
 	// as more tries are performed.
-	for tries := 0; tries < 100; tries++ {
+	for tries := range 100 {
 		kaddr := s.lp.AddrManager().GetAddress()
 		if kaddr == nil {
 			break
@@ -1318,7 +1318,7 @@ func (s *Syncer) scanChain(ctx context.Context, rp *p2p.RemotePeer, chain []*wal
 		wg.Done()
 	}
 	nworkers := 0
-	for i := 0; i < len(chain); i++ {
+	for i := range chain {
 		if fetched[i] != nil {
 			continue // Already have block
 		}
@@ -1363,7 +1363,7 @@ func (s *Syncer) scanChain(ctx context.Context, rp *p2p.RemotePeer, chain []*wal
 		return nil, err
 	}
 
-	for i := 0; i < len(chain); i++ {
+	for i := range chain {
 		b := fetched[i]
 		if b == nil {
 			continue

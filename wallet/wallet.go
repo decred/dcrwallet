@@ -2149,7 +2149,7 @@ func (w *Wallet) NextAccount(ctx context.Context, name string) (uint32, error) {
 			return err
 		}
 		canCreate := false
-		for i := uint32(0); i < maxEmptyAccounts; i++ {
+		for i := range maxEmptyAccounts {
 			a := lastAcct - i
 			if a == 0 && i < maxEmptyAccounts-1 {
 				// Less than 100 accounts total.

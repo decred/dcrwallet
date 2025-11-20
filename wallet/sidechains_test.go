@@ -22,7 +22,7 @@ func genTestBlockNodes(parent *BlockNode, nb int) []*BlockNode {
 		height = parent.Header.Height + 1
 		prevHash = *parent.Hash
 	}
-	for i := 0; i < nb; i++ {
+	for i := range nb {
 		n := &BlockNode{
 			Header: &wire.BlockHeader{
 				Height:    height,

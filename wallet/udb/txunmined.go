@@ -186,7 +186,7 @@ func (s *Store) RemoveUnconfirmed(ns walletdb.ReadWriteBucket, tx *wire.MsgTx, t
 	// be recursively removed as well.  Once the spenders are removed, the
 	// credit is deleted.
 	numOuts := uint32(len(tx.TxOut))
-	for i := uint32(0); i < numOuts; i++ {
+	for i := range numOuts {
 		k := canonicalOutPoint(txHash, i)
 		spenderHash := existsRawUnminedInput(ns, k)
 		if spenderHash != nil {

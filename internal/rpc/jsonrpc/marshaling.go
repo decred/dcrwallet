@@ -21,7 +21,7 @@ func addressArrayMarshaler(n int, s func(i int) string) json.Marshaler {
 		buf.Grow(2 + n*(3+35))
 
 		buf.WriteByte('[')
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if i != 0 {
 				buf.WriteByte(',')
 			}

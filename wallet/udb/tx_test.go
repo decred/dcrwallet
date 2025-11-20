@@ -373,7 +373,7 @@ func TestCoinbases(t *testing.T) {
 	headers := []*wire.BlockHeader{b1H}
 
 	// Generate enough blocks for tests.
-	for idx := 0; idx < 18; idx++ {
+	for range 18 {
 		bh := g.generate(dcrutil.BlockValid)
 		headers = append(headers, bh)
 	}

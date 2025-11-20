@@ -65,7 +65,7 @@ func StakePoolTicketFee(stakeDiff dcrutil.Amount, relayFee dcrutil.Amount,
 		ssv = blockchain.SSVDCP0010
 	}
 	subsidy := subsidyCache.CalcStakeVoteSubsidyV3(int64(height), ssv)
-	for i := 0; i < adjs; i++ {
+	for range adjs {
 		subsidy *= 100
 		subsidy /= 101
 	}

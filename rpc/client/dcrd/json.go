@@ -160,7 +160,7 @@ func (h *hashes) MarshalJSON() ([]byte, error) {
 			buf.WriteByte(',')
 		}
 		// Reverse hash into scratch space
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			scratch32[31-i] = h[i]
 		}
 		// Write hex encoding of reversed hash
@@ -212,7 +212,7 @@ func (h *hashesContiguous) MarshalJSON() ([]byte, error) {
 			buf.WriteByte(',')
 		}
 		// Reverse hash into scratch space
-		for i := 0; i < 32; i++ {
+		for i := range 32 {
 			scratch32[31-i] = h[i]
 		}
 		// Write hex encoding of reversed hash

@@ -559,7 +559,7 @@ func estimateSupply(params *chaincfg.Params, height int64) int64 {
 	supply := params.BlockOneSubsidy()
 	reductions := height / params.SubsidyReductionInterval
 	subsidy := params.BaseSubsidy
-	for i := int64(0); i < reductions; i++ {
+	for range reductions {
 		supply += params.SubsidyReductionInterval * subsidy
 
 		subsidy *= params.MulSubsidy

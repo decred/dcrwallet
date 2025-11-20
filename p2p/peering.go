@@ -398,7 +398,7 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 		dec := json.NewDecoder(io.LimitReader(resp.Body, 4096))
 		na = na[:0]
 		// Read at most 16 entries from each seeder, discard rest
-		for i := 0; i < 16; i++ {
+		for range 16 {
 			err := dec.Decode(&apiResponse)
 			if errors.Is(err, io.EOF) {
 				break
@@ -1464,7 +1464,7 @@ func (rp *RemotePeer) requestBlocks(reqs []*blockRequest) {
 	}
 
 	// Receive responses.
-	for i := 0; i < len(reqs); i++ {
+	for i := range reqs {
 		select {
 		case <-stalled.C:
 			err := errors.E(errors.IO, "peer appears stalled")
@@ -1594,7 +1594,7 @@ func (rp *RemotePeer) Transactions(ctx context.Context, hashes []*chainhash.Hash
 	txs := make([]*wire.MsgTx, len(hashes))
 	var notfound bool
 	stalled := time.NewTimer(stallTimeout)
-	for i := 0; i < len(hashes); i++ {
+	for i := range hashes {
 		select {
 		case <-ctx.Done():
 			go func() {
@@ -1664,7 +1664,7 @@ func (rp *RemotePeer) MixMessages(ctx context.Context, hashes []*chainhash.Hash)
 	msgs := make([]mixing.Message, len(hashes))
 	var notfound bool
 	stalled := time.NewTimer(stallTimeout)
-	for i := 0; i < len(hashes); i++ {
+	for i := range hashes {
 		select {
 		case <-ctx.Done():
 			go func() {

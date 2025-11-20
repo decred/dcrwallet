@@ -621,7 +621,7 @@ func (f *existsAddrIndexFinder) accountUsed(ctx context.Context, xpub *hd.Extend
 	}
 	go func() { merge(f.branchUsed(ctx, extKey)) }()
 	go func() { merge(f.branchUsed(ctx, intKey)) }()
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		r := <-results
 		if r.err != nil {
 			return false, r.err

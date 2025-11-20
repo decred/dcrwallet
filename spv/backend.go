@@ -494,7 +494,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 
 	cfilters := make([]*gcs.FilterV2, 0, len(blockHashes))
 	cfilterKeys := make([][gcs.KeySize]byte, 0, len(blockHashes))
-	for i := 0; i < len(blockHashes); i++ {
+	for i := range blockHashes {
 		k, f, err := s.wallet.CFilterV2(ctx, &blockHashes[i])
 		if err != nil {
 			return err
@@ -519,7 +519,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 	c := make(chan int, ncpu)
 	var wg sync.WaitGroup
 	wg.Add(ncpu)
-	for i := 0; i < ncpu; i++ {
+	for range ncpu {
 		go func() {
 			for i := range c {
 				blockHash := &blockHashes[i]
@@ -535,7 +535,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 			wg.Done()
 		}()
 	}
-	for i := 0; i < len(blockHashes); i++ {
+	for i := range blockHashes {
 		if blockMatches[i] != nil {
 			// Already fetched this block
 			continue
@@ -589,7 +589,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 		}
 	}
 
-	for i := 0; i < len(blockMatches); i++ {
+	for i := range blockMatches {
 		b := blockMatches[i]
 		if b == nil {
 			// No filter match, skip block

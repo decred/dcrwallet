@@ -141,7 +141,7 @@ func testKnownAddresses(ctx context.Context, tc *testContext, prefix string, unl
 		}
 	}
 
-	for i := 0; i < len(tests); i++ {
+	for i := range tests {
 		addr, err := newAddr(w, ctx, defaultAccount)
 		if err != nil {
 			tc.t.Fatalf("%s: failed to generate external address: %v",
@@ -267,7 +267,7 @@ type accountIndexes [2]struct {
 
 func nextAddresses(n int) func(ctx context.Context, t *testing.T, w *Wallet) {
 	return func(ctx context.Context, t *testing.T, w *Wallet) {
-		for i := 0; i < n; i++ {
+		for range n {
 			_, err := w.NewExternalAddress(ctx, 0)
 			if err != nil {
 				t.Fatal(err)
