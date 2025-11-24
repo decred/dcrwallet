@@ -1009,8 +1009,8 @@ func (w *Wallet) watchHDAddrs(ctx context.Context, firstWatch bool, n NetworkBac
 		errGroup.SetLimit(runtime.NumCPU())
 		const step = 256
 		for ; start <= end; start += step {
-			if ctx.Err() != nil {
-				return nil
+			if err := ctx.Err(); err != nil {
+				return err
 			}
 			addrs := make([]stdaddr.Address, 0, step)
 			groupStart := start

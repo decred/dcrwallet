@@ -2071,6 +2071,7 @@ func (s *walletServer) ValidateAddress(ctx context.Context, req *pb.ValidateAddr
 	result := &pb.ValidateAddressResponse{}
 	addr, err := decodeAddress(req.GetAddress(), s.wallet.ChainParams())
 	if err != nil {
+		// Use result zero value (IsValid=false).
 		return result, nil
 	}
 

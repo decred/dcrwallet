@@ -1046,7 +1046,7 @@ func (s *Syncer) GetInitState(ctx context.Context, rp *p2p.RemotePeer) error {
 		}
 	}
 	if err != nil {
-		return nil
+		return err
 	}
 
 	for _, v := range tspendTxs {

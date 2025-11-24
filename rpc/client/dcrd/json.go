@@ -133,7 +133,7 @@ func (h *hashes) UnmarshalJSON(j []byte) error {
 	var array []string
 	err := json.Unmarshal(j, &array)
 	if err != nil {
-		return nil
+		return err
 	}
 	h.Hashes = make([]*chainhash.Hash, len(array))
 	for i, s := range array {
@@ -185,7 +185,7 @@ func (h *hashesContiguous) UnmarshalJSON(j []byte) error {
 	var array []string
 	err := json.Unmarshal(j, &array)
 	if err != nil {
-		return nil
+		return err
 	}
 	h.Hashes = make([]chainhash.Hash, len(array))
 	for i, s := range array {
