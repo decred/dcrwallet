@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"testing"
 
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -64,33 +65,33 @@ func createEmptyDB(ctx context.Context) error {
 	return nil
 }
 
-// cloneDB makes a copy of an empty wallet db. It returns a wallet db, store,
-// and a teardown function.
-func cloneDB(ctx context.Context, cloneName string) (walletdb.DB, *Manager, *Store, func(), error) {
+// cloneDB makes a copy of an empty wallet db. It returns a wallet db, address
+// manager, and the tx store.
+func cloneDB(ctx context.Context, t *testing.T, cloneName string) (walletdb.DB, *Manager, *Store, error) {
 	file, err := os.ReadFile(emptyDbPath)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	err = os.WriteFile(cloneName, file, 0644)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	db, err := walletdb.Open("bdb", cloneName)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
 	mgr, txStore, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
 	}
 
-	teardown := func() {
+	t.Cleanup(func() {
 		os.Remove(cloneName)
 		db.Close()
-	}
+	})
 
-	return db, mgr, txStore, teardown, err
+	return db, mgr, txStore, err
 }

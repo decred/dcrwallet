@@ -41,8 +41,7 @@ func insertMainChainHeaders(s *Store, dbtx walletdb.ReadWriteTx,
 
 func TestStakeInvalidationOfTip(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, teardown, err := cloneDB(ctx, "stake_inv_of_tip.kv")
-	defer teardown()
+	db, _, s, err := cloneDB(ctx, t, "stake_inv_of_tip.kv")
 	if err != nil {
 		t.Fatal(err)
 	}

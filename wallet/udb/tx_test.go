@@ -19,8 +19,7 @@ import (
 
 func TestInsertsCreditsDebitsRollbacks(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, teardown, err := cloneDB(ctx, "inserts_credits_debits_rollbacks.kv")
-	defer teardown()
+	db, _, s, err := cloneDB(ctx, t, "inserts_credits_debits_rollbacks.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,8 +352,7 @@ func spendOutput(txHash *chainhash.Hash, index uint32, tree int8, outputValues .
 
 func TestCoinbases(t *testing.T) {
 	ctx := context.Background()
-	db, _, s, teardown, err := cloneDB(ctx, "coinbases.kv")
-	defer teardown()
+	db, _, s, err := cloneDB(ctx, t, "coinbases.kv")
 	if err != nil {
 		t.Fatal(err)
 	}

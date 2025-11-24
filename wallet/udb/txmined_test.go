@@ -31,8 +31,7 @@ func randomHash() chainhash.Hash {
 
 func TestSetBirthState(t *testing.T) {
 	ctx := context.Background()
-	db, _, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
-	defer teardown()
+	db, _, _, err := cloneDB(ctx, t, "mgr_watching_only.kv")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -120,8 +120,7 @@ var (
 type newAddressFunc func(*Wallet, context.Context, uint32, ...NextAddressCallOption) (stdaddr.Address, error)
 
 func testKnownAddresses(ctx context.Context, tc *testContext, prefix string, unlock bool, newAddr newAddressFunc, tests []expectedAddr) {
-	w, teardown := testWallet(ctx, tc.t, &basicWalletConfig, seed)
-	defer teardown()
+	w := testWallet(ctx, tc.t, &basicWalletConfig, seed)
 
 	if unlock {
 		err := w.Unlock(ctx, testPrivPass, nil)
@@ -221,8 +220,7 @@ func TestAccountIndexes(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(ctx, t, &cfg, nil)
-	defer teardown()
+	w := testWallet(ctx, t, &cfg, nil)
 
 	w.SetNetworkBackend(mockNetwork{})
 

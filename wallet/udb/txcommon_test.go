@@ -19,21 +19,21 @@ import (
 	"github.com/decred/dcrd/wire"
 )
 
-func tempDB(t *testing.T) (db walletdb.DB, teardown func()) {
+func tempDB(t *testing.T) walletdb.DB {
 	f, err := os.CreateTemp(t.TempDir(), "udb")
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.Close()
-	db, err = walletdb.Create("bdb", f.Name())
+	db, err := walletdb.Create("bdb", f.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
-	teardown = func() {
+	t.Cleanup(func() {
 		db.Close()
 		os.Remove(f.Name())
-	}
-	return
+	})
+	return db
 }
 
 type blockGenerator struct {

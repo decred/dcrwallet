@@ -25,7 +25,7 @@ var basicWalletConfig = Config{
 	MixingEnabled: true,
 }
 
-func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) (w *Wallet, teardown func()) {
+func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) *Wallet {
 	f, err := os.CreateTemp(t.TempDir(), "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)
@@ -45,13 +45,11 @@ func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) (w 
 		t.Fatal(err)
 	}
 	cfg.DB = opaqueDB{db}
-	w, err = Open(ctx, cfg)
+	w, err := Open(ctx, cfg)
 	if err != nil {
 		rm()
 		t.Fatal(err)
 	}
-	teardown = func() {
-		rm()
-	}
-	return
+	t.Cleanup(rm)
+	return w
 }

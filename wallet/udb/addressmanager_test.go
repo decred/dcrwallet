@@ -432,8 +432,7 @@ func testImportScript(tc *testContext, wb walletdb.ReadWriteBucket) {
 
 func TestManagerImports(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "imports.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "imports.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,8 +473,7 @@ func TestManagerImports(t *testing.T) {
 // with the manager locked.
 func TestImportVotingAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "import_voting_account.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "import_voting_account.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,8 +605,7 @@ func TestImportVotingAccount(t *testing.T) {
 // with the manager locked.
 func TestImportAccount(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "import_account.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "import_account.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1073,8 +1070,7 @@ func testEncryptDecrypt(ctx context.Context, tc *testContext) {
 func TestManagerEncryptDecrypt(t *testing.T) {
 	ctx := context.Background()
 
-	db, mgr, _, teardown, err := cloneDB(ctx, "encrypt_decrypt.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "encrypt_decrypt.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1095,8 +1091,7 @@ func TestManagerEncryptDecrypt(t *testing.T) {
 
 func TestChangePassphrase(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "change_passphrase.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "change_passphrase.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1150,8 +1145,7 @@ func testManagerAPI(ctx context.Context, tc *testContext) {
 // copy as well as when it is opened from an existing namespace.
 func TestManagerWatchingOnly(t *testing.T) {
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "mgr_watching_only.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1220,8 +1214,7 @@ func TestManager(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	db, mgr, _, teardown, err := cloneDB(ctx, "mgr_watching_only.kv")
-	defer teardown()
+	db, mgr, _, err := cloneDB(ctx, t, "mgr_watching_only.kv")
 	if err != nil {
 		t.Fatal(err)
 	}

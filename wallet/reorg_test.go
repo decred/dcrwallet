@@ -157,8 +157,7 @@ func TestReorg(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(ctx, t, &cfg, nil)
-	defer teardown()
+	w := testWallet(ctx, t, &cfg, nil)
 
 	tg := maketg(t, cfg.Params)
 	tw := &tw{t, w}

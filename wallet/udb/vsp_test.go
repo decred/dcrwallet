@@ -178,8 +178,7 @@ func TestSetGetDeleteVSPTicket(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, _, _, teardown, err := cloneDB(ctx, "vsp.kv")
-	defer teardown()
+	db, _, _, err := cloneDB(ctx, t, "vsp.kv")
 	if err != nil {
 		t.Fatal(err)
 	}

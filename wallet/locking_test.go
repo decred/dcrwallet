@@ -15,8 +15,7 @@ import (
 func TestLocking(t *testing.T) {
 	ctx := context.Background()
 
-	w, teardown := testWallet(ctx, t, &basicWalletConfig, nil)
-	defer teardown()
+	w := testWallet(ctx, t, &basicWalletConfig, nil)
 
 	var tests = []func(ctx context.Context, t *testing.T, w *Wallet){
 		testUnlock,

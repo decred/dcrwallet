@@ -149,8 +149,7 @@ func TestSetBirthStateAndScan(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := basicWalletConfig
-	w, teardown := testWallet(ctx, t, &cfg, nil)
-	defer teardown()
+	w := testWallet(ctx, t, &cfg, nil)
 
 	before := time.Now().Add(-time.Minute)
 

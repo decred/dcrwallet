@@ -60,8 +60,7 @@ func TestCoinTypeUpgrade(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	db, teardown := tempDB(t)
-	defer teardown()
+	db := tempDB(t)
 
 	params := chaincfg.TestNet3Params()
 
