@@ -6,11 +6,15 @@ package dcrd
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
+	"reflect"
 	"testing"
+	"time"
 
 	"decred.org/dcrwallet/v5/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
+	"github.com/decred/dcrd/wire"
 )
 
 func TestUnmarshalHashes(t *testing.T) {
@@ -172,5 +176,77 @@ func TestMarshalHashesContiguous(t *testing.T) {
 	if !bytes.Equal(output, []byte(expected)) {
 		t.Fatalf("Incorrect encoding, expected %q got %q",
 			expected, output)
+	}
+}
+
+func TestUnmarshalHeaders(t *testing.T) {
+	t.Parallel()
+	var h headers
+
+	// null should be decoded to empty set of headers without error.
+	input := `null`
+	err := h.UnmarshalJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(h.Headers) != 0 {
+		t.Fatalf("Got %d headers, expected %d", len(h.Headers), 0)
+	}
+
+	// Invalid json should return an error.
+	input = `["`
+	err = h.UnmarshalJSON([]byte(input))
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	// Invalid headers should return an encoding error.
+	input = `["Invalid Header 1","Invalid Header 2"]`
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Valid headers should decode without error.
+	header0 := &wire.BlockHeader{
+		Version:      6,
+		Timestamp:    time.Unix(1533513600, 0),
+		Bits:         1,
+		SBits:        20000000,
+		Nonce:        0x18aea41a,
+		StakeVersion: 6,
+	}
+	header0Bytes, _ := header0.Bytes()
+
+	header1 := &wire.BlockHeader{
+		Version:      1,
+		Timestamp:    time.Unix(1454954400, 0),
+		Bits:         0x1b01ffff,
+		SBits:        2 * 1e8,
+		Nonce:        0x00000000,
+		StakeVersion: 3,
+	}
+	header1Bytes, _ := header1.Bytes()
+
+	input = fmt.Sprintf(`["%s","%s"]`,
+		hex.EncodeToString(header0Bytes),
+		hex.EncodeToString(header1Bytes))
+
+	err = h.UnmarshalJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(h.Headers) != 2 {
+		t.Fatalf("Got %d headers, expected %d", len(h.Headers), 2)
+	}
+
+	if !reflect.DeepEqual(header0, h.Headers[0]) {
+		t.Fatalf("Header 0 decoded incorrectly, expected %+v, got %+v",
+			header0, h.Headers[0])
+	}
+
+	if !reflect.DeepEqual(header1, h.Headers[1]) {
+		t.Fatalf("Header 1 decoded incorrectly, expected %+v, got %+v",
+			header1, h.Headers[1])
 	}
 }
