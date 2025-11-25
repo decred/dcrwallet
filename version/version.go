@@ -19,7 +19,7 @@ const semverAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrst
 // Constants defining the application version number.
 const (
 	Major = 2
-	Minor = 1
+	Minor = 2
 	Patch = 0
 )
 
@@ -30,12 +30,12 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 // so it can be modified at link time (e.g.
 // `-ldflags "-X decred.org/dcrwallet/v5/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
-var PreRelease = ""
+var PreRelease = "pre"
 
 // BuildMetadata defines additional build metadata.  It is modified at link time
 // for official releases.  It must only contain characters from the semantic
 // version alphabet.
-var BuildMetadata = "release.local"
+var BuildMetadata = ""
 
 func init() {
 	if BuildMetadata == "" {
