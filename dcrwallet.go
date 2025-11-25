@@ -29,7 +29,7 @@ import (
 	"decred.org/dcrwallet/v5/ticketbuyer"
 	"decred.org/dcrwallet/v5/version"
 	"decred.org/dcrwallet/v5/wallet"
-	"github.com/decred/dcrd/addrmgr/v2"
+	"github.com/decred/dcrd/addrmgr/v3"
 	"github.com/decred/dcrd/wire"
 )
 
@@ -526,7 +526,7 @@ func startPromptPass(ctx context.Context, w *wallet.Wallet) []byte {
 func spvLoop(ctx context.Context, w *wallet.Wallet) {
 	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
 	amgrDir := filepath.Join(cfg.AppDataDir.Value, w.ChainParams().Name)
-	amgr := addrmgr.New(amgrDir, cfg.lookup)
+	amgr := addrmgr.New(amgrDir)
 	for {
 		lp := p2p.NewLocalPeer(w.ChainParams(), addr, amgr)
 		lp.SetDialFunc(cfg.dial)

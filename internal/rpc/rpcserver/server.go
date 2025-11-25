@@ -44,7 +44,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/txrules"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/walletseed"
-	"github.com/decred/dcrd/addrmgr/v2"
+	"github.com/decred/dcrd/addrmgr/v3"
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -3000,7 +3000,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		}
 	}
 	addr := &net.TCPAddr{IP: net.ParseIP("::1"), Port: 0}
-	amgr := addrmgr.New(s.loader.DbDirPath(), net.LookupIP) // TODO: be mindful of tor
+	amgr := addrmgr.New(s.loader.DbDirPath())
 	lp := p2p.NewLocalPeer(wallet.ChainParams(), addr, amgr)
 
 	ntfns := &spv.Notifications{

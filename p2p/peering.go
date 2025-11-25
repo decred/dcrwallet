@@ -20,7 +20,7 @@ import (
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/lru"
 	"decred.org/dcrwallet/v5/version"
-	"github.com/decred/dcrd/addrmgr/v2"
+	"github.com/decred/dcrd/addrmgr/v3"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/connmgr/v3"
@@ -266,7 +266,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	}
 
 	// Create a net address with assumed services.
-	na := addrmgr.NewNetAddressIPPort(tcpAddr.IP, uint16(tcpAddr.Port), wire.SFNodeNetwork)
+	na := addrmgr.NewNetAddressFromIPPort(tcpAddr.IP, uint16(tcpAddr.Port), wire.SFNodeNetwork)
 	na.Timestamp = time.Now()
 
 	rp, err := lp.connectOutbound(ctx, id, addr, na)
