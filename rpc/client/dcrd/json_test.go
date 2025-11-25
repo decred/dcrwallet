@@ -250,3 +250,80 @@ func TestUnmarshalHeaders(t *testing.T) {
 			header1, h.Headers[1])
 	}
 }
+
+func TestUnmarshalTransactions(t *testing.T) {
+	t.Parallel()
+	var h transactions
+
+	// null should be decoded to empty set of transactions without error.
+	input := `null`
+	err := h.UnmarshalJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(h.Transactions) != 0 {
+		t.Fatalf("Got %d transactions, expected %d", len(h.Transactions), 0)
+	}
+
+	// Invalid json should return an error.
+	input = `["`
+	err = h.UnmarshalJSON([]byte(input))
+	if err == nil {
+		t.Fatalf("Expected error but got none")
+	}
+
+	// Non-strings should return an encoding error.
+	input = `[1234]`
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Invalid transactions should return an encoding error.
+	input = `["Invalid Transaction 1","Invalid Transaction 2"]`
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Valid transactions should decode without error.
+	txn0 := &wire.MsgTx{
+		SerType:  wire.TxSerializeFull,
+		Version:  1,
+		TxIn:     []*wire.TxIn{},
+		TxOut:    []*wire.TxOut{},
+		LockTime: 0,
+	}
+	txn0Bytes, _ := txn0.Bytes()
+
+	txn1 := &wire.MsgTx{
+		SerType:  wire.TxSerializeFull,
+		Version:  123,
+		TxIn:     []*wire.TxIn{},
+		TxOut:    []*wire.TxOut{},
+		LockTime: 69420,
+	}
+	txn1Bytes, _ := txn1.Bytes()
+
+	input = fmt.Sprintf(`["%s","%s"]`,
+		hex.EncodeToString(txn0Bytes),
+		hex.EncodeToString(txn1Bytes))
+
+	err = h.UnmarshalJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(h.Transactions) != 2 {
+		t.Fatalf("Got %d transactions, expected %d", len(h.Transactions), 2)
+	}
+
+	if !reflect.DeepEqual(txn0, h.Transactions[0]) {
+		t.Fatalf("Transaction 0 decoded incorrectly, expected %+v, got %+v",
+			txn0, h.Transactions[0])
+	}
+
+	if !reflect.DeepEqual(txn1, h.Transactions[1]) {
+		t.Fatalf("Transaction 1 decoded incorrectly, expected %+v, got %+v",
+			txn1, h.Transactions[1])
+	}
+}
