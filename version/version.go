@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2025 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -30,12 +30,12 @@ const Integer = 1000000*Major + 10000*Minor + 100*Patch
 // so it can be modified at link time (e.g.
 // `-ldflags "-X decred.org/dcrwallet/v5/version.PreRelease=rc1"`).
 // It must only contain characters from the semantic version alphabet.
-var PreRelease = "pre"
+var PreRelease = ""
 
 // BuildMetadata defines additional build metadata.  It is modified at link time
 // for official releases.  It must only contain characters from the semantic
 // version alphabet.
-var BuildMetadata = ""
+var BuildMetadata = "release.local"
 
 func init() {
 	if BuildMetadata == "" {
