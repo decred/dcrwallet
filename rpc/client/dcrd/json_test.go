@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -326,4 +327,53 @@ func TestUnmarshalTransactions(t *testing.T) {
 		t.Fatalf("Transaction 1 decoded incorrectly, expected %+v, got %+v",
 			txn1, h.Transactions[1])
 	}
+}
+
+func TestUnmarshalHash(t *testing.T) {
+	t.Parallel()
+	var h hash
+
+	// Hash too short should return an encoding error.
+	const expectedLen = 64
+	hash := strings.Repeat("f", expectedLen-1)
+	input := fmt.Sprintf(`"%s"`, hash)
+	err := h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Hash too long should return an encoding error.
+	hash = strings.Repeat("f", expectedLen+1)
+	input = fmt.Sprintf(`"%s"`, hash)
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Non-strings should return an error.
+	input = fmt.Sprintf(`"%s`, hash) // missing end quote
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	input = fmt.Sprintf(`%s"`, hash) // missing start quote
+	err = h.UnmarshalJSON([]byte(input))
+	if !errors.Is(err, errors.Encoding) {
+		t.Fatalf("Expected errors.Encoding, got %v", err)
+	}
+
+	// Valid hash should decode without error.
+	hash = strings.Repeat("f", expectedLen)
+	input = fmt.Sprintf(`"%s"`, hash)
+	err = h.UnmarshalJSON([]byte(input))
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	expected := "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	if h.Hash.String() != expected {
+		t.Fatalf("Hash decoded incorrectly, got %q expected %q",
+			h.Hash.String(), expected)
+	}
+
 }
