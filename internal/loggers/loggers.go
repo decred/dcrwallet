@@ -55,6 +55,7 @@ var (
 	MixcLog    = backendLog.Logger("MIXC")
 	MixpLog    = backendLog.Logger("MIXP")
 	VspcLog    = backendLog.Logger("VSPC")
+	AmgrLog    = backendLog.Logger("AMGR")
 )
 
 // InitLogRotator initializes the logging rotater to write logs to logFile and

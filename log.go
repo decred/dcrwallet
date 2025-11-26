@@ -18,6 +18,7 @@ import (
 	"decred.org/dcrwallet/v5/ticketbuyer"
 	"decred.org/dcrwallet/v5/wallet"
 	"decred.org/dcrwallet/v5/wallet/udb"
+	"github.com/decred/dcrd/addrmgr/v3"
 	"github.com/decred/dcrd/connmgr/v3"
 	"github.com/decred/dcrd/mixing/mixpool"
 	"github.com/decred/slog"
@@ -36,6 +37,7 @@ func init() {
 	p2p.UseLogger(loggers.PeerLog)
 	rpcserver.UseLogger(loggers.GrpcLog)
 	jsonrpc.UseLogger(loggers.JsonrpcLog)
+	addrmgr.UseLogger(loggers.AmgrLog)
 	connmgr.UseLogger(loggers.CmgrLog)
 	// XXX mixclient.UseLogger(loggers.MixcLog)
 	mixpool.UseLogger(loggers.MixpLog)
@@ -51,6 +53,7 @@ var subsystemLoggers = map[string]slog.Logger{
 	"PEER": loggers.PeerLog,
 	"GRPC": loggers.GrpcLog,
 	"RPCS": loggers.JsonrpcLog,
+	"AMGR": loggers.AmgrLog,
 	"CMGR": loggers.CmgrLog,
 	"MIXC": loggers.MixcLog,
 	"MIXP": loggers.MixpLog,
