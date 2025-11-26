@@ -376,7 +376,7 @@ SplitPoints:
 			break SplitPoints
 		}
 	}
-	if i == len(splitPoints) {
+	if count == 0 {
 		err := errors.Errorf("output %v (%v): %w", output, amount, errNoSplitDenomination)
 		return errors.E(op, err)
 	}
