@@ -426,12 +426,8 @@ func (lp *LocalPeer) SeedPeers(ctx context.Context, services wire.ServiceFlag) {
 			}
 			log.Debugf("Discovered peer %v from seeder %v", apiResponse.Host,
 				seeder)
-			na = append(na, &addrmgr.NetAddress{
-				IP:        ip,
-				Port:      uint16(portNum),
-				Timestamp: time.Now(),
-				Services:  wire.ServiceFlag(apiResponse.Services),
-			})
+
+			na = append(na, addrmgr.NewNetAddressFromIPPort(ip, uint16(portNum), services))
 		}
 		resp.Body.Close()
 		if len(na) > 0 {
@@ -973,12 +969,9 @@ func (rp *RemotePeer) receivedPong(ctx context.Context, msg *wire.MsgPong) {
 func (rp *RemotePeer) receivedAddr(ctx context.Context, msg *wire.MsgAddr) {
 	addrs := make([]*addrmgr.NetAddress, len(msg.AddrList))
 	for i, a := range msg.AddrList {
-		addrs[i] = &addrmgr.NetAddress{
-			IP:        a.IP,
-			Port:      a.Port,
-			Services:  a.Services,
-			Timestamp: a.Timestamp,
-		}
+		na := addrmgr.NewNetAddressFromIPPort(a.IP, a.Port, a.Services)
+		na.Timestamp = a.Timestamp
+		addrs[i] = na
 	}
 	rp.lp.amgr.AddAddresses(addrs, rp.na)
 }
