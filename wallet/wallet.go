@@ -158,7 +158,7 @@ type Wallet struct {
 	mixingEnabled bool
 	mixpool       *mixpool.Pool
 	mixSems       mixSemaphores
-	mixClient     *mixclient.Client
+	mixClient     atomic.Pointer[mixclient.Client]
 
 	// Cached Blake3 anchor candidate
 	cachedBlake3WorkDiffCandidateAnchor   *wire.BlockHeader
@@ -5523,8 +5523,6 @@ func Open(ctx context.Context, cfg *Config) (*Wallet, error) {
 
 	if w.mixingEnabled {
 		w.mixpool = mixpool.NewPool((*mixpoolBlockchain)(w))
-		w.mixClient = mixclient.NewClient((*mixingWallet)(w))
-		w.mixClient.SetLogger(loggers.MixcLog)
 	}
 
 	return w, nil
@@ -5536,10 +5534,18 @@ func (w *Wallet) MixingEnabled() bool {
 	return w.mixingEnabled
 }
 
+func newMixClient(w *Wallet) *mixclient.Client {
+	c := mixclient.NewClient((*mixingWallet)(w))
+	c.SetLogger(loggers.MixcLog)
+	return c
+}
+
 // Run executes any necessary background goroutines for the wallet.
 func (w *Wallet) Run(ctx context.Context) error {
 	if w.mixingEnabled {
-		return w.mixClient.Run(ctx)
+		c := newMixClient(w)
+		w.mixClient.Store(c)
+		return c.Run(ctx)
 	}
 	return nil
 }

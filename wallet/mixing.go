@@ -424,7 +424,7 @@ SplitPoints:
 
 	log.Infof("Mixing output %v (%v)", output, amount)
 
-	err = w.mixClient.Dicemix(ctx, cj)
+	err = w.dicemix(ctx, cj)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -560,4 +560,20 @@ func (w *Wallet) AcceptMixMessage(msg mixing.Message) error {
 	}
 
 	return nil
+}
+
+func (w *Wallet) expireMixMessages(height uint32) {
+	mixc := w.mixClient.Load()
+	if mixc == nil {
+		return
+	}
+	mixc.ExpireMessages(height)
+}
+
+func (w *Wallet) dicemix(ctx context.Context, cj *mixclient.CoinJoin) error {
+	mixc := w.mixClient.Load()
+	if mixc == nil {
+		return errors.E(errors.Invalid, "mixing client is not running")
+	}
+	return mixc.Dicemix(ctx, cj)
 }

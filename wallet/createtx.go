@@ -1072,7 +1072,7 @@ func (w *Wallet) mixedSplit(ctx context.Context, req *PurchaseTicketsRequest, ne
 		}
 	}
 
-	err = w.mixClient.Dicemix(ctx, cj)
+	err = w.dicemix(ctx, cj)
 	if err != nil {
 		return
 	}
