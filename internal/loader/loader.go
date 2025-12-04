@@ -34,6 +34,7 @@ type Loader struct {
 	callbacks   []func(*wallet.Wallet)
 	chainParams *chaincfg.Params
 	dbDirPath   string
+	dbDriver    string
 	wallet      *wallet.Wallet
 	db          wallet.DB
 
@@ -49,20 +50,20 @@ type Loader struct {
 	vspMaxFee               dcrutil.Amount
 	mixSplitLimit           int
 	dialer                  wallet.DialFunc
-	driver                  string
 
 	mu sync.Mutex
 }
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, dbDriver string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, vspMaxFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc,
-	driver string) *Loader {
+	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int,
+	dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
 		dbDirPath:               dbDirPath,
+		dbDriver:                dbDriver,
 		votingEnabled:           votingEnabled,
 		gapLimit:                gapLimit,
 		watchLast:               watchLast,
@@ -75,7 +76,6 @@ func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled boo
 		vspMaxFee:               vspMaxFee,
 		mixSplitLimit:           mixSplitLimit,
 		dialer:                  dialer,
-		driver:                  driver,
 	}
 }
 
@@ -157,7 +157,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB(l.driver, dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -247,7 +247,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB(l.driver, dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -301,7 +301,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 	// Open the database using the boltdb backend.
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	l.mu.Unlock()
-	db, err := wallet.OpenDB(l.driver, dbPath)
+	db, err := wallet.OpenDB(l.dbDriver, dbPath)
 	l.mu.Lock()
 
 	if err != nil {
