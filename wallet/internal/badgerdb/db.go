@@ -420,10 +420,9 @@ func (b *bucket) ReadWriteCursor() walletdb.ReadWriteCursor {
 	opts.Prefix = b.prefix
 	iter := b.txn.NewIterator(opts)
 	c := &cursor{
-		reverse: false,
-		prefix:  b.prefix,
-		txn:     b.txn,
-		iter:    iter,
+		prefix: b.prefix,
+		txn:    b.txn,
+		iter:   iter,
 	}
 	return c
 }
@@ -438,10 +437,9 @@ func (b *bucket) ReverseReadWriteCursor() walletdb.ReadWriteCursor {
 	opts.Reverse = true
 	iter := b.txn.NewIterator(opts)
 	c := &cursor{
-		reverse: true,
-		prefix:  b.prefix,
-		txn:     b.txn,
-		iter:    iter,
+		prefix: b.prefix,
+		txn:    b.txn,
+		iter:   iter,
 	}
 	return c
 }
@@ -454,10 +452,9 @@ func (b *bucket) ReverseReadWriteCursor() walletdb.ReadWriteCursor {
 // the cursor. After invalidation, the cursor must be repositioned, or the keys
 // and values returned may be unpredictable.
 type cursor struct {
-	reverse bool
-	prefix  []byte
-	txn     *badger.Txn
-	iter    *badger.Iterator
+	prefix []byte
+	txn    *badger.Txn
+	iter   *badger.Iterator
 }
 
 // Delete removes the current key/value pair the cursor is at without
@@ -480,9 +477,6 @@ func (c *cursor) First() (key, value []byte) {
 	}
 	// Skip the metadata entry for the bucket prefix.
 	if item := c.iter.Item(); item.UserMeta() == metaBucket && len(item.Key()) == len(c.prefix) {
-		if c.reverse {
-			return nil, nil
-		}
 		c.iter.Next()
 	}
 	if !c.iter.ValidForPrefix(c.prefix) {
@@ -496,9 +490,6 @@ func (c *cursor) First() (key, value []byte) {
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) Next() (key, value []byte) {
-	if c.reverse {
-		return c.prev()
-	}
 	c.iter.Next()
 	if !c.iter.ValidForPrefix(c.prefix) {
 		return nil, nil
@@ -512,24 +503,6 @@ func (c *cursor) Next() (key, value []byte) {
 	}
 	item := c.iter.Item()
 	return itemKV(c.prefix, item)
-}
-
-// prev moves the cursor one key/value pair backward and returns the new pair.
-func (c *cursor) prev() (key, value []byte) {
-	if !c.reverse {
-		panic("prev called on forwards cursor")
-	}
-	c.iter.Next()
-	if !c.iter.ValidForPrefix(c.prefix) {
-		return nil, nil
-	}
-	item := c.iter.Item()
-	// Skip the metadata entry for the bucket prefix.
-	if item.UserMeta() == metaBucket && len(item.Key()) == len(c.prefix) {
-		return nil, nil
-	}
-	k, v := itemKV(c.prefix, item)
-	return k, v
 }
 
 // Seek positions the cursor at the passed seek key. If the key does not exist,
