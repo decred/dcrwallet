@@ -8,10 +8,14 @@ package udb
 import (
 	"context"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
+	_ "decred.org/dcrwallet/v5/wallet/internal/badgerdb"
+	_ "decred.org/dcrwallet/v5/wallet/internal/bdb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
@@ -25,12 +29,20 @@ var (
 		0xef, 0x8d, 0x64, 0x15, 0x67,
 	}
 
-	emptyDbPath = ""
+	// rewritten to absolute paths by TestMain
+	emptyDBDir  string
+	emptyDBPath string
+
+	dbName = "test.db"
 
 	pubPassphrase   = []byte("_DJr{fL4H0O}*-0\n:V1izc)(6BomK")
 	privPassphrase  = []byte("81lUHXnOMZ@?XXd7O9xyDIWIbXX-lj")
 	pubPassphrase2  = []byte("-0NV4P~VSJBWbunw}%<Z]fuGpbN[ZI")
 	privPassphrase2 = []byte("~{<]08%6!-?2s<$(8$8:f(5[4/!/{Y")
+)
+
+var (
+	dbDriver = flag.String("dbdriver", "bdb", "database driver (bdb or badgerdb)")
 )
 
 // hexToBytes is a wrapper around hex.DecodeString that panics if there is an
@@ -45,7 +57,7 @@ func hexToBytes(origHex string) []byte {
 
 // createEmptyDB is a helper function for creating an empty wallet db.
 func createEmptyDB(ctx context.Context) error {
-	db, err := walletdb.Create("bdb", emptyDbPath)
+	db, err := walletdb.Create(*dbDriver, emptyDBPath)
 	if err != nil {
 		return err
 	}
@@ -68,24 +80,21 @@ func createEmptyDB(ctx context.Context) error {
 // cloneDB makes a copy of an empty wallet db. It returns a wallet db, address
 // manager, and the tx store.
 func cloneDB(ctx context.Context, t *testing.T, cloneName string) (walletdb.DB, *Manager, *Store, error) {
-	file, err := os.ReadFile(emptyDbPath)
+	cloneDir := filepath.Join(filepath.Dir(emptyDBDir), cloneName)
+	err := os.CopyFS(cloneDir, os.DirFS(emptyDBDir))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		t.Logf("%v %v", cloneDir, emptyDBDir)
+		return nil, nil, nil, fmt.Errorf("CopyFS unexpected error: %v", err)
 	}
 
-	err = os.WriteFile(cloneName, file, 0644)
+	db, err := walletdb.Open(*dbDriver, filepath.Join(cloneDir, dbName))
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
-	}
-
-	db, err := walletdb.Open("bdb", cloneName)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("walletdb.Open unexpected error: %v", err)
 	}
 
 	mgr, txStore, err := Open(ctx, db, chaincfg.TestNet3Params(), pubPassphrase)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("unexpected error: %v", err)
+		return nil, nil, nil, fmt.Errorf("udb.Open unexpected error: %v", err)
 	}
 
 	t.Cleanup(func() {
@@ -94,4 +103,38 @@ func cloneDB(ctx context.Context, t *testing.T, cloneName string) (walletdb.DB, 
 	})
 
 	return db, mgr, txStore, err
+}
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+
+	testDir, err := os.MkdirTemp("", "udb-")
+	if err != nil {
+		fmt.Printf("Unable to create temp directory: %v", err)
+		os.Exit(1)
+	}
+
+	emptyDBDir = filepath.Join(testDir, "empty-db")
+	err = os.Mkdir(emptyDBDir, 0o777)
+	if err != nil {
+		fmt.Printf("Unable to create empty-db directory: %v", err)
+		os.Exit(1)
+	}
+
+	emptyDBPath = filepath.Join(emptyDBDir, dbName)
+	teardown := func() {
+		os.RemoveAll(testDir)
+	}
+
+	ctx := context.Background()
+	err = createEmptyDB(ctx)
+	if err != nil {
+		fmt.Printf("Unable to create empty test db: %v\n", err)
+		teardown()
+		os.Exit(1)
+	}
+
+	exitCode := m.Run()
+	teardown()
+	os.Exit(exitCode)
 }

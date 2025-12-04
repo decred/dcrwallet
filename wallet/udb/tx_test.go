@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -407,6 +406,7 @@ func TestCoinbases(t *testing.T) {
 		}
 
 		testMaturity := func(tests []coinbaseTest) error {
+			t.Helper()
 			for i, tst := range tests {
 				bal, err := s.AccountBalance(dbtx, 0, defaultAccount)
 				if err != nil {

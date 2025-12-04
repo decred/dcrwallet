@@ -358,13 +358,20 @@ func makeReadBlockIterator(ns walletdb.ReadBucket, height int32) blockIterator {
 	return blockIterator{c: readCursor{c}, seek: seek}
 }
 
-// Works just like makeBlockIterator but will initially position the cursor at
-// the last k/v pair.  Use this with blockIterator.prev.
-func makeReverseBlockIterator(ns walletdb.ReadWriteBucket) blockIterator {
+// Works just like makeReadBlockIterator but will initially position the
+// cursor at the last k/v pair, and next will iterate to previous elements.
+func makeReverseBlockIterator(ns walletdb.ReadWriteBucket, height uint32) blockIterator {
 	seek := make([]byte, 4)
-	byteOrder.PutUint32(seek, ^uint32(0))
-	c := ns.NestedReadWriteBucket(bucketBlocks).ReadWriteCursor()
+	byteOrder.PutUint32(seek, height)
+	c := ns.NestedReadWriteBucket(bucketBlocks).ReverseReadWriteCursor()
 	return blockIterator{c: c, seek: seek}
+}
+
+func makeReverseReadBlockIterator(ns walletdb.ReadBucket, height uint32) blockIterator {
+	seek := make([]byte, 4)
+	byteOrder.PutUint32(seek, height)
+	c := ns.NestedReadBucket(bucketBlocks).ReverseReadCursor()
+	return blockIterator{c: readCursor{c}, seek: seek}
 }
 
 func (it *blockIterator) next() bool {
@@ -376,44 +383,6 @@ func (it *blockIterator) next() bool {
 		it.ck, it.cv = it.c.Seek(it.seek)
 	} else {
 		it.ck, it.cv = it.c.Next()
-	}
-	if it.ck == nil {
-		it.c.Close()
-		it.c = nil
-		return false
-	}
-
-	err := readRawBlockRecord(it.ck, it.cv, &it.elem)
-	if err != nil {
-		it.c = nil
-		it.err = err
-		return false
-	}
-
-	return true
-}
-
-func (it *blockIterator) prev() bool {
-	if it.c == nil {
-		return false
-	}
-
-	if it.ck == nil {
-		it.ck, it.cv = it.c.Seek(it.seek)
-		// Seek positions the cursor at the next k/v pair if one with
-		// this prefix was not found.  If this happened (the prefixes
-		// won't match in this case) move the cursor backward.
-		//
-		// This technically does not correct for multiple keys with
-		// matching prefixes by moving the cursor to the last matching
-		// key, but this doesn't need to be considered when dealing with
-		// block records since the key (and seek prefix) is just the
-		// block height.
-		if !bytes.HasPrefix(it.ck, it.seek) {
-			it.ck, it.cv = it.c.Prev()
-		}
-	} else {
-		it.ck, it.cv = it.c.Prev()
 	}
 	if it.ck == nil {
 		it.c.Close()

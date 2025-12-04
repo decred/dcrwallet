@@ -1,0 +1,68 @@
+// Copyright (c) 2014 The btcsuite developers
+// Copyright (c) 2015-2025 The Decred developers
+// Use of this source code is governed by an ISC
+// license that can be found in the LICENSE file.
+
+package badgerdb
+
+import (
+	"fmt"
+
+	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v5/wallet/walletdb"
+)
+
+const (
+	dbType = "badgerdb"
+)
+
+// parseArgs parses the arguments from the walletdb Open/Create methods.
+func parseArgs(funcName string, args ...any) (string, error) {
+	if len(args) != 1 {
+		return "", errors.Errorf("invalid arguments to %s.%s -- "+
+			"expected database path", dbType, funcName)
+	}
+
+	dbPath, ok := args[0].(string)
+	if !ok {
+		return "", errors.Errorf("first argument to %s.%s is invalid -- "+
+			"expected database path string", dbType, funcName)
+	}
+
+	return dbPath, nil
+}
+
+// openDBDriver is the callback provided during driver registration that opens
+// an existing database for use.
+func openDBDriver(args ...any) (walletdb.DB, error) {
+	dbPath, err := parseArgs("Open", args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return openDB(dbPath, false)
+}
+
+// createDBDriver is the callback provided during driver registration that
+// creates, initializes, and opens a database for use.
+func createDBDriver(args ...any) (walletdb.DB, error) {
+	dbPath, err := parseArgs("Create", args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return openDB(dbPath, true)
+}
+
+func init() {
+	// Register the driver.
+	driver := walletdb.Driver{
+		DbType: dbType,
+		Create: createDBDriver,
+		Open:   openDBDriver,
+	}
+	if err := walletdb.RegisterDriver(driver); err != nil {
+		panic(fmt.Sprintf("Failed to register database driver '%s': %v",
+			dbType, err))
+	}
+}

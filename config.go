@@ -41,6 +41,7 @@ const (
 const (
 	defaultCAFilename              = "dcrd.cert"
 	defaultConfigFilename          = "dcrwallet.conf"
+	defaultDBDriver                = "bdb"
 	defaultLogLevel                = "info"
 	defaultLogDirname              = "logs"
 	defaultLogFilename             = "dcrwallet.log"
@@ -91,6 +92,7 @@ type config struct {
 	AppDataDir         *cfgutil.ExplicitString `short:"A" long:"appdata" description:"Application data directory for wallet config, databases and logs"`
 	TestNet            bool                    `long:"testnet" description:"Use the test network"`
 	SimNet             bool                    `long:"simnet" description:"Use the simulation test network"`
+	DBDriver           string                  `long:"dbdriver" description:"Name of the database driver for the wallet db"`
 	NoInitialLoad      bool                    `long:"noinitialload" description:"Defer wallet creation/opening on startup and enable loading wallets over RPC"`
 	DebugLevel         string                  `short:"d" long:"debuglevel" description:"Logging level {trace, debug, info, warn, error, critical}"`
 	LogDir             *cfgutil.ExplicitString `long:"logdir" description:"Directory to log output."`
@@ -346,6 +348,7 @@ func loadConfig(ctx context.Context) (*config, []string, error) {
 		DebugLevel:              defaultLogLevel,
 		ConfigFile:              cfgutil.NewExplicitString(defaultConfigFile),
 		AppDataDir:              cfgutil.NewExplicitString(defaultAppDataDir),
+		DBDriver:                defaultDBDriver,
 		LogDir:                  cfgutil.NewExplicitString(defaultLogDir),
 		LogSize:                 defaultLogSize,
 		WalletPass:              wallet.InsecurePubPassphrase,

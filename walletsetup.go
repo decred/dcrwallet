@@ -19,7 +19,6 @@ import (
 	"decred.org/dcrwallet/v5/internal/loader"
 	"decred.org/dcrwallet/v5/internal/prompt"
 	"decred.org/dcrwallet/v5/wallet"
-	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/walletseed"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -116,7 +115,7 @@ func createWallet(ctx context.Context, cfg *config) error {
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
 		cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled, cfg.ManualTickets,
-		cfg.MixSplitLimit, cfg.dial)
+		cfg.MixSplitLimit, cfg.dial, cfg.DBDriver)
 
 	var privPass, pubPass, seed []byte
 	var imported bool
@@ -295,7 +294,7 @@ func createSimulationWallet(ctx context.Context, cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(cfg.DBDriver, dbPath)
 	if err != nil {
 		return err
 	}
@@ -347,7 +346,7 @@ func createWatchingOnlyWallet(ctx context.Context, cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(cfg.DBDriver, dbPath)
 	if err != nil {
 		return err
 	}

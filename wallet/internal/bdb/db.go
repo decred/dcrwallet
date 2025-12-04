@@ -6,6 +6,7 @@
 package bdb
 
 import (
+	"bytes"
 	"io"
 	"os"
 
@@ -195,12 +196,25 @@ func (b *bucket) ReadCursor() walletdb.ReadCursor {
 	return b.ReadWriteCursor()
 }
 
+func (b *bucket) ReverseReadCursor() walletdb.ReadCursor {
+	return b.ReverseReadWriteCursor()
+}
+
 // ReadWriteCursor returns a new cursor, allowing for iteration over the bucket's
 // key/value pairs and nested buckets in forward or backward order.
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) ReadWriteCursor() walletdb.ReadWriteCursor {
-	return (*cursor)((*bolt.Bucket)(b).Cursor())
+	return &cursor{
+		cursor: (*bolt.Bucket)(b).Cursor(),
+	}
+}
+
+func (b *bucket) ReverseReadWriteCursor() walletdb.ReadWriteCursor {
+	return &cursor{
+		cursor:  (*bolt.Bucket)(b).Cursor(),
+		reverse: true,
+	}
 }
 
 // cursor represents a cursor over key/value pairs and nested buckets of a
@@ -210,42 +224,37 @@ func (b *bucket) ReadWriteCursor() walletdb.ReadWriteCursor {
 // modifications to the bucket, with the exception of cursor.Delete, invalidate
 // the cursor. After invalidation, the cursor must be repositioned, or the keys
 // and values returned may be unpredictable.
-type cursor bolt.Cursor
+type cursor struct {
+	cursor  *bolt.Cursor
+	reverse bool
+}
 
 // Delete removes the current key/value pair the cursor is at without
 // invalidating the cursor.
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) Delete() error {
-	return convertErr((*bolt.Cursor)(c).Delete())
+	return convertErr(c.cursor.Delete())
 }
 
 // First positions the cursor at the first key/value pair and returns the pair.
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) First() (key, value []byte) {
-	return (*bolt.Cursor)(c).First()
-}
-
-// Last positions the cursor at the last key/value pair and returns the pair.
-//
-// This function is part of the walletdb.Cursor interface implementation.
-func (c *cursor) Last() (key, value []byte) {
-	return (*bolt.Cursor)(c).Last()
+	if c.reverse {
+		return c.cursor.Last()
+	}
+	return c.cursor.First()
 }
 
 // Next moves the cursor one key/value pair forward and returns the new pair.
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) Next() (key, value []byte) {
-	return (*bolt.Cursor)(c).Next()
-}
-
-// Prev moves the cursor one key/value pair backward and returns the new pair.
-//
-// This function is part of the walletdb.Cursor interface implementation.
-func (c *cursor) Prev() (key, value []byte) {
-	return (*bolt.Cursor)(c).Prev()
+	if c.reverse {
+		return c.cursor.Prev()
+	}
+	return c.cursor.Next()
 }
 
 // Seek positions the cursor at the passed seek key. If the key does not exist,
@@ -253,7 +262,11 @@ func (c *cursor) Prev() (key, value []byte) {
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) Seek(seek []byte) (key, value []byte) {
-	return (*bolt.Cursor)(c).Seek(seek)
+	k, v := c.cursor.Seek(seek)
+	if c.reverse && !bytes.Equal(k, seek) {
+		k, v = c.cursor.Prev()
+	}
+	return k, v
 }
 
 // Closes the cursor

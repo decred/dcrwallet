@@ -410,10 +410,10 @@ func (s *Store) rangeBlockTransactions(ctx context.Context, ns walletdb.ReadBuck
 		}
 	} else {
 		// Iterate in backwards order, from begin -> end.
-		blockIter = makeReadBlockIterator(ns, begin)
+		blockIter = makeReverseReadBlockIterator(ns, uint32(begin))
 		defer blockIter.close()
 		advance = func(it *blockIterator) bool {
-			if !it.prev() {
+			if !it.next() {
 				return false
 			}
 			return end <= it.elem.Height
@@ -753,7 +753,7 @@ func (s *Store) RangeBlocks(ns walletdb.ReadBucket, begin, end int32,
 		blockIter = makeReadBlockIterator(ns, begin)
 		defer blockIter.close()
 		advance = func(it *blockIterator) bool {
-			if !it.prev() {
+			if !it.next() {
 				return false
 			}
 			return end <= it.elem.Height

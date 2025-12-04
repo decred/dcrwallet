@@ -9,8 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -1214,7 +1212,7 @@ func TestManager(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	db, mgr, _, err := cloneDB(ctx, t, "mgr_watching_only.kv")
+	db, mgr, _, err := cloneDB(ctx, t, "mgr.kv")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1246,29 +1244,4 @@ func TestManager(t *testing.T) {
 		watchingOnly: false,
 	}
 	testManagerAPI(ctx, tc)
-}
-
-func TestMain(m *testing.M) {
-	testDir, err := os.MkdirTemp("", "udb-")
-	if err != nil {
-		fmt.Printf("Unable to create temp directory: %v", err)
-		os.Exit(1)
-	}
-
-	emptyDbPath = filepath.Join(testDir, "empty.kv")
-	teardown := func() {
-		os.RemoveAll(testDir)
-	}
-
-	ctx := context.Background()
-	err = createEmptyDB(ctx)
-	if err != nil {
-		fmt.Printf("Unable to create empty test db: %v\n", err)
-		teardown()
-		os.Exit(1)
-	}
-
-	exitCode := m.Run()
-	teardown()
-	os.Exit(exitCode)
 }
