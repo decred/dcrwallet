@@ -10,7 +10,6 @@ package walletdb
 
 import (
 	"context"
-	"io"
 	"runtime/trace"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -190,10 +189,6 @@ type DB interface {
 
 	// BeginReadWriteTx opens a database read+write transaction.
 	BeginReadWriteTx() (ReadWriteTx, error)
-
-	// Copy writes a copy of the database to the provided writer.  This
-	// call will start a read-only transaction to perform all operations.
-	Copy(w io.Writer) error
 
 	// Close cleanly shuts down the database and syncs all data.
 	Close() error

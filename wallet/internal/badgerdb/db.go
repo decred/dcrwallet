@@ -8,7 +8,6 @@ package badgerdb
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -581,15 +580,6 @@ func (db *db) BeginReadTx() (walletdb.ReadTx, error) {
 
 func (db *db) BeginReadWriteTx() (walletdb.ReadWriteTx, error) {
 	return db.beginTx(true)
-}
-
-// Copy writes a copy of the database to the provided writer.  This call will
-// start a read-only transaction to perform all operations.
-//
-// This function is part of the walletdb.Db interface implementation.
-func (db *db) Copy(w io.Writer) error {
-	// Unused by udb.
-	panic("unimplemented") // XXX
 }
 
 // Close cleanly shuts down the database and syncs all data.
