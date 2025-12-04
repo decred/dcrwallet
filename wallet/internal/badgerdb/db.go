@@ -23,10 +23,12 @@ const (
 // unsafely return value of an item.  panics on value errors.
 func unsafeValue(item *badger.Item) []byte {
 	var v []byte
-	err := item.Value(func(value []byte) error {
-		v = value
-		return nil
-	})
+	// XXX: copy for testing
+	v, err := item.ValueCopy(nil)
+	// err := item.Value(func(value []byte) error {
+	// 	v = value
+	// 	return nil
+	// })
 	if err != nil {
 		panic(fmt.Sprintf("item.Value: %v", err)) // XXX
 	}
@@ -41,6 +43,8 @@ func itemKV(stripPrefix []byte, item *badger.Item) (k, v []byte) {
 		return nil, nil
 	}
 	k = k[len(stripPrefix):]
+	// XXX: copy for testing
+	k = append(make([]byte, 0, len(k)), k...)
 	return k, v
 }
 
@@ -55,9 +59,10 @@ func topLevelPrefix(key []byte) []byte {
 
 // append key to the bucket prefix, reusing the alloc when possible.
 func reusePrefixedKey(prefix *[]byte, key []byte) []byte {
-	appendedKey := append(*prefix, key...)
-	*prefix = appendedKey[:len(*prefix)]
-	return appendedKey
+	// appendedKey := append(*prefix, key...)
+	// *prefix = appendedKey[:len(*prefix)]
+	// return appendedKey
+	return allocPrefixedKey(*prefix, key)
 }
 
 // append key to the bucket prefix, always creating a new allocation to do so.
@@ -606,7 +611,7 @@ func openDB(dbPath string, create bool) (walletdb.DB, error) {
 	opts := badger.DefaultOptions(dbPath)
 	opts.ChecksumVerificationMode = options.OnTableAndBlockRead
 	opts.VerifyValueChecksum = true
-	opts.Logger = nil
+	opts.Logger = nil // XXX
 	badgerDB, err := badger.Open(opts)
 	if err != nil {
 		return nil, convertErr(err)
