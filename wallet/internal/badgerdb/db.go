@@ -474,15 +474,15 @@ func (c *cursor) Delete() error {
 //
 // This function is part of the walletdb.Cursor interface implementation.
 func (c *cursor) First() (key, value []byte) {
-	if c.reverse {
-		panic("First called on reverse cursor")
-	}
 	c.iter.Rewind()
 	if !c.iter.ValidForPrefix(c.prefix) {
 		return nil, nil
 	}
 	// Skip the metadata entry for the bucket prefix.
 	if item := c.iter.Item(); item.UserMeta() == metaBucket && len(item.Key()) == len(c.prefix) {
+		if c.reverse {
+			return nil, nil
+		}
 		c.iter.Next()
 	}
 	if !c.iter.ValidForPrefix(c.prefix) {
