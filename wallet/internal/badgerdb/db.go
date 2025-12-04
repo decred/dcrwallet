@@ -59,10 +59,9 @@ func topLevelPrefix(key []byte) []byte {
 
 // append key to the bucket prefix, reusing the alloc when possible.
 func reusePrefixedKey(prefix *[]byte, key []byte) []byte {
-	// appendedKey := append(*prefix, key...)
-	// *prefix = appendedKey[:len(*prefix)]
-	// return appendedKey
-	return allocPrefixedKey(*prefix, key)
+	appendedKey := append(*prefix, key...)
+	*prefix = appendedKey[:len(*prefix)]
+	return appendedKey
 }
 
 // append key to the bucket prefix, always creating a new allocation to do so.
