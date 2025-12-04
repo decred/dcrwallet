@@ -29,7 +29,7 @@ func unsafeValue(item *badger.Item) []byte {
 		return nil
 	})
 	if err != nil {
-		panic(fmt.Sprintf("item.Value: %v", err))
+		panic(fmt.Sprintf("item.Value: %v", err)) // XXX
 	}
 	return v
 }
@@ -81,7 +81,7 @@ func nestedBucketPrefix(parentPrefix, child []byte) []byte {
 // panics if the key does not begin with the prefix.
 func strippedKey(prefix, key []byte) []byte {
 	if !bytes.HasPrefix(key, prefix) {
-		panic(fmt.Sprintf("key %q does not have prefix %q", key, prefix))
+		panic(fmt.Sprintf("key %q does not have prefix %q", key, prefix)) // XXX
 	}
 	return key[len(prefix):]
 }
@@ -363,7 +363,7 @@ func (b *bucket) Get(key []byte) []byte {
 		if errors.Is(err, badger.ErrKeyNotFound) {
 			return nil
 		}
-		panic(fmt.Sprintf("badger.Txn.Get: %v", err))
+		panic(fmt.Sprintf("badger.Txn.Get: %v", err)) // XXX
 	}
 	return unsafeValue(item)
 }
@@ -589,7 +589,7 @@ func (db *db) BeginReadWriteTx() (walletdb.ReadWriteTx, error) {
 // This function is part of the walletdb.Db interface implementation.
 func (db *db) Copy(w io.Writer) error {
 	// Unused by udb.
-	panic("unimplemented")
+	panic("unimplemented") // XXX
 }
 
 // Close cleanly shuts down the database and syncs all data.
