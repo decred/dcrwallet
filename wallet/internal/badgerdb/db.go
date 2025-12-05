@@ -138,6 +138,7 @@ func (tx *transaction) CreateTopLevelBucket(key []byte) (walletdb.ReadWriteBucke
 }
 
 func (tx *transaction) DeleteTopLevelBucket(key []byte) error {
+	// XXX: this is not removing nested buckets.
 	prefix := topLevelPrefix(key)
 	opts := badger.DefaultIteratorOptions
 	opts.Prefix = prefix
@@ -282,6 +283,7 @@ func (b *bucket) CreateBucketIfNotExists(key []byte) (walletdb.ReadWriteBucket, 
 //
 // This function is part of the walletdb.Bucket interface implementation.
 func (b *bucket) DeleteNestedBucket(key []byte) error {
+	// XXX: this is not removing buckets nested within this nested bucket.
 	if len(key) == 0 {
 		return convertErr(badger.ErrEmptyKey)
 	}
