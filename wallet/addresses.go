@@ -741,7 +741,7 @@ func (w *Wallet) markUsedAddress(op errors.Op, dbtx walletdb.ReadWriteTx, addr u
 	if err != nil {
 		return errors.E(op, err)
 	}
-	log.Debugf("Marked address %v used", addr)
+	log.Debugf("Marked address %s used", addr.Address())
 	return nil
 }
 
