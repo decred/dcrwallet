@@ -196,7 +196,7 @@ type vspOptions struct {
 	MaxFee *cfgutil.AmountFlag `long:"maxfee" description:"Maximum VSP fee"`
 }
 
-// cleanAndExpandPath expands environement variables and leading ~ in the
+// cleanAndExpandPath expands environment variables and leading ~ in the
 // passed path, cleans the result, and returns it.
 func cleanAndExpandPath(path string) string {
 	// Do not try to clean the empty string
@@ -274,7 +274,7 @@ func supportedSubsystems() []string {
 // the levels accordingly.  An appropriate error is returned if anything is
 // invalid.
 func parseAndSetDebugLevels(debugLevel string) error {
-	// When the specified string doesn't have any delimters, treat it as
+	// When the specified string doesn't have any delimiters, treat it as
 	// the log level for all subsystems.
 	if !strings.Contains(debugLevel, ",") && !strings.Contains(debugLevel, "=") {
 		// Validate debug log level.

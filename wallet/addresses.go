@@ -515,7 +515,7 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 	// If no DB updates are being deferred until after the nextAddress
 	// call (i.e. it is the responsibility of nextAddress to open the DB
 	// transaction), open the transaction before acquiring the address
-	// bufferes mutex.  This is the correct locking order for the address
+	// buffers mutex.  This is the correct locking order for the address
 	// buffers mutex and any DB mutexes that are locked during a
 	// transaction.
 	if updates == nil && maybeDBTX == nil {

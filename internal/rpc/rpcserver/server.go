@@ -241,7 +241,7 @@ type decodeMessageServer struct {
 	pb.UnimplementedDecodeMessageServiceServer
 }
 
-// networkServer provices RPC clients with the ability to perform network
+// networkServer provides RPC clients with the ability to perform network
 // related calls that are not necessarily used or backed by the wallet itself.
 type networkServer struct {
 	// ready indicates this service has been provided with all of its
@@ -2965,7 +2965,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	}
 	syncer.SetCallbacks(cbs)
 
-	// Synchronize until error or RPC cancelation.
+	// Synchronize until error or RPC cancellation.
 	err := syncer.Run(svr.Context())
 	if err != nil {
 		if svr.Context().Err() != nil {

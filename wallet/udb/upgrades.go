@@ -183,8 +183,8 @@ const (
 	// transactions by transaction hash, rather than by pi key.
 	tspendHashPolicyVersion = 22
 
-	// vspHostVersion is the 23nd version of the database.  It adds a
-	// vsp host ane vsp pubkey buckets to the db.
+	// vspHostVersion is the 23rd version of the database.  It adds a
+	// vsp host and vsp pubkey buckets to the db.
 	vspHostVersion = 23
 
 	// vspTreasuryPoliciesVersion is the 24th version of the database.  It
