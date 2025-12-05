@@ -19,7 +19,6 @@ import (
 	"decred.org/dcrwallet/v5/internal/loader"
 	"decred.org/dcrwallet/v5/internal/prompt"
 	"decred.org/dcrwallet/v5/wallet"
-	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/walletseed"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -112,9 +111,9 @@ func displaySimnetMiningAddrs(seed []byte, imported bool) error {
 // to do the initial sync.
 func createWallet(ctx context.Context, cfg *config) error {
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
-	loader := loader.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
-		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
-		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
+	loader := loader.NewLoader(activeNet.Params, dbDir, cfg.DBDriver,
+		cfg.EnableVoting, cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees,
+		cfg.RelayFee.Amount, cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
 		cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled, cfg.ManualTickets,
 		cfg.MixSplitLimit, cfg.dial)
 
@@ -295,7 +294,7 @@ func createSimulationWallet(ctx context.Context, cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(cfg.DBDriver, dbPath)
 	if err != nil {
 		return err
 	}
@@ -347,7 +346,7 @@ func createWatchingOnlyWallet(ctx context.Context, cfg *config) error {
 	fmt.Println("Creating the wallet...")
 
 	// Create the wallet database backed by bolt db.
-	db, err := wallet.CreateDB("bdb", dbPath)
+	db, err := wallet.CreateDB(cfg.DBDriver, dbPath)
 	if err != nil {
 		return err
 	}

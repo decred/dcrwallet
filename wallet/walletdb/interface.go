@@ -10,7 +10,6 @@ package walletdb
 
 import (
 	"context"
-	"io"
 	"runtime/trace"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -84,6 +83,8 @@ type ReadBucket interface {
 	KeyN() int
 
 	ReadCursor() ReadCursor
+
+	ReverseReadCursor() ReadCursor
 }
 
 // ReadWriteBucket represents a bucket (a hierarchical structure within the
@@ -120,32 +121,33 @@ type ReadWriteBucket interface {
 	// attempted against a read-only transaction.
 	Delete(key []byte) error
 
-	// Cursor returns a new cursor, allowing for iteration over the bucket's
-	// key/value pairs and nested buckets in forward or backward order.
-	// Only one cursor can be opened at a time and should be closed before
-	// committing or rolling back the transaction.
+	// ReadWriteCursor returns a new cursor, allowing for iteration over
+	// the bucket's key/value pairs and nested buckets in forward or
+	// backward order.  Only one cursor can be opened at a time and should
+	// be closed before committing or rolling back the transaction.
 	ReadWriteCursor() ReadWriteCursor
+
+	// ReverseReadWriteCursor returns a ReadWriteCursor iterating in
+	// reverse order.
+	ReverseReadWriteCursor() ReadWriteCursor
 }
 
 // ReadCursor represents a bucket cursor that can be positioned at the start or
 // end of the bucket's key/value pairs and iterate over pairs in the bucket.
 // This type is only allowed to perform database read operations.
+//
+// If the cursor is reversed, all operations occur in the opposite order
+// (First returns the last element, Next moves the cursor to the previous, and
+// Seek may advance the cursor to the previous element if the seeked key does
+// not exist).
 type ReadCursor interface {
 	// First positions the cursor at the first key/value pair and returns
 	// the pair.
 	First() (key, value []byte)
 
-	// Last positions the cursor at the last key/value pair and returns the
-	// pair.
-	Last() (key, value []byte)
-
 	// Next moves the cursor one key/value pair forward and returns the new
 	// pair.
 	Next() (key, value []byte)
-
-	// Prev moves the cursor one key/value pair backward and returns the new
-	// pair.
-	Prev() (key, value []byte)
 
 	// Seek positions the cursor at the passed seek key.  If the key does
 	// not exist, the cursor is moved to the next key after seek.  Returns
@@ -187,10 +189,6 @@ type DB interface {
 
 	// BeginReadWriteTx opens a database read+write transaction.
 	BeginReadWriteTx() (ReadWriteTx, error)
-
-	// Copy writes a copy of the database to the provided writer.  This
-	// call will start a read-only transaction to perform all operations.
-	Copy(w io.Writer) error
 
 	// Close cleanly shuts down the database and syncs all data.
 	Close() error

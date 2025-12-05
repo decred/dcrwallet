@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"

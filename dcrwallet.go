@@ -165,7 +165,7 @@ func run(ctx context.Context) error {
 	// wallet.  Otherwise, loading is deferred so it can be performed over RPC.
 	dbDir := networkDir(cfg.AppDataDir.Value, activeNet.Params)
 
-	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.EnableVoting,
+	loader := ldr.NewLoader(activeNet.Params, dbDir, cfg.DBDriver, cfg.EnableVoting,
 		cfg.GapLimit, cfg.WatchLast, cfg.AllowHighFees, cfg.RelayFee.Amount,
 		cfg.VSPOpts.MaxFee.Amount, cfg.AccountGapLimit,
 		cfg.DisableCoinTypeUpgrades, cfg.MixingEnabled, cfg.ManualTickets,

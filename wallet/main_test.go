@@ -12,7 +12,10 @@ import (
 	"github.com/decred/slog"
 )
 
-var logFlag = flag.Bool("log", false, "enable package logger")
+var (
+	logFlag    = flag.Bool("log", false, "enable package logger")
+	driverFlag = flag.String("dbdriver", "bdb", "database driver (bdb or badgerdb)")
+)
 
 func TestMain(m *testing.M) {
 	flag.Parse()

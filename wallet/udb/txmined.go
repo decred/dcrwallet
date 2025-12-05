@@ -1900,9 +1900,9 @@ func (s *Store) Rollback(dbtx walletdb.ReadWriteTx, height int32) (map[chainhash
 	var heightsToRemove []int32
 	removedTxs := make(map[chainhash.Hash][]*wire.MsgTx)
 
-	it := makeReverseBlockIterator(ns)
+	it := makeReverseBlockIterator(ns, ^uint32(0))
 	defer it.close()
-	for it.prev() {
+	for it.next() {
 		b := &it.elem
 		if it.elem.Height < height {
 			break
@@ -2364,11 +2364,18 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	prevFirst := r[32]&1 == 1
 
 	c := ns.NestedReadBucket(bucketUnspent).ReadCursor()
-	k, v = c.Seek(randKey)
-	iter := c.Next
-	if prevFirst {
-		iter = c.Prev
-		k, v = iter()
+	rc := ns.NestedReadBucket(bucketUnspent).ReverseReadCursor()
+	defer c.Close()
+	defer rc.Close()
+	var iter func() (k, v []byte)
+	if !prevFirst {
+		// Forwards
+		k, v = c.Seek(randKey)
+		iter = c.Next
+	} else {
+		// Reverse
+		k, v = rc.Seek(randKey)
+		iter = rc.Next
 	}
 
 	var keys [][]byte
@@ -2383,19 +2390,21 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	}
 	// Pick random output when at least one random transaction was found.
 	if len(keys) > 0 {
+		// Seek key will match exactly, so does not matter which
+		// cursor is used.
 		k, v = c.Seek(keys[rand.IntN(len(keys))])
-		c.Close()
 		return k, v
 	}
 
 	// Search the opposite direction from the random seek key.
 	if prevFirst {
+		// Originally reverse, now forwards
 		k, v = c.Seek(randKey)
 		iter = c.Next
 	} else {
-		c.Seek(randKey)
-		iter = c.Prev
-		k, v = iter()
+		// Originally forwards, now reverse
+		k, v = rc.Seek(randKey)
+		iter = rc.Next
 	}
 	for ; k != nil; k, v = iter() {
 		if len(keys) > 0 && !bytes.Equal(keys[0][:32], k[:32]) {
@@ -2408,11 +2417,9 @@ func (s *Store) randomUTXO(dbtx walletdb.ReadTx, skip func(k, v []byte) bool) (k
 	}
 	if len(keys) > 0 {
 		k, v = c.Seek(keys[rand.IntN(len(keys))])
-		c.Close()
 		return k, v
 	}
 
-	c.Close()
 	return nil, nil
 }
 

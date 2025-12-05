@@ -7,8 +7,10 @@ package wallet
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
+	_ "decred.org/dcrwallet/v5/wallet/drivers/badgerdb"
 	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
@@ -26,30 +28,25 @@ var basicWalletConfig = Config{
 }
 
 func testWallet(ctx context.Context, t *testing.T, cfg *Config, seed []byte) *Wallet {
-	f, err := os.CreateTemp(t.TempDir(), "dcrwallet.testdb")
+	dbDir, err := os.MkdirTemp(t.TempDir(), "dcrwallet.testdb")
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	db, err := walletdb.Create("bdb", f.Name())
+	db, err := walletdb.Create(*driverFlag, filepath.Join(dbDir, "wallet.db"))
 	if err != nil {
 		t.Fatal(err)
-	}
-	rm := func() {
-		db.Close()
-		os.Remove(f.Name())
 	}
 	err = Create(ctx, opaqueDB{db}, []byte(InsecurePubPassphrase), testPrivPass, seed, cfg.Params)
 	if err != nil {
-		rm()
 		t.Fatal(err)
 	}
 	cfg.DB = opaqueDB{db}
 	w, err := Open(ctx, cfg)
 	if err != nil {
-		rm()
 		t.Fatal(err)
 	}
-	t.Cleanup(rm)
+	t.Cleanup(func() {
+		db.Close()
+	})
 	return w
 }

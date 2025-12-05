@@ -13,14 +13,14 @@ import (
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet"
-	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb" // driver loaded during init
+	_ "decred.org/dcrwallet/v5/wallet/drivers/badgerdb" // driver loaded during init
+	_ "decred.org/dcrwallet/v5/wallet/drivers/bdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 
 const (
 	walletDbName = "wallet.db"
-	driver       = "bdb"
 )
 
 // Loader implements the creating of new and opening of existing wallets, while
@@ -34,6 +34,7 @@ type Loader struct {
 	callbacks   []func(*wallet.Wallet)
 	chainParams *chaincfg.Params
 	dbDirPath   string
+	dbDriver    string
 	wallet      *wallet.Wallet
 	db          wallet.DB
 
@@ -54,13 +55,15 @@ type Loader struct {
 }
 
 // NewLoader constructs a Loader.
-func NewLoader(chainParams *chaincfg.Params, dbDirPath string, votingEnabled bool, gapLimit uint32,
+func NewLoader(chainParams *chaincfg.Params, dbDirPath string, dbDriver string, votingEnabled bool, gapLimit uint32,
 	watchLast uint32, allowHighFees bool, relayFee dcrutil.Amount, vspMaxFee dcrutil.Amount, accountGapLimit int,
-	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int, dialer wallet.DialFunc) *Loader {
+	disableCoinTypeUpgrades bool, mixingEnabled bool, manualTickets bool, mixSplitLimit int,
+	dialer wallet.DialFunc) *Loader {
 
 	return &Loader{
 		chainParams:             chainParams,
 		dbDirPath:               dbDirPath,
+		dbDriver:                dbDriver,
 		votingEnabled:           votingEnabled,
 		gapLimit:                gapLimit,
 		watchLast:               watchLast,
@@ -154,7 +157,7 @@ func (l *Loader) CreateWatchingOnlyWallet(ctx context.Context, extendedPubKey st
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB(driver, dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -244,7 +247,7 @@ func (l *Loader) CreateNewWallet(ctx context.Context, pubPassphrase, privPassphr
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-	db, err := wallet.CreateDB(driver, dbPath)
+	db, err := wallet.CreateDB(l.dbDriver, dbPath)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
@@ -298,7 +301,7 @@ func (l *Loader) OpenExistingWallet(ctx context.Context, pubPassphrase []byte) (
 	// Open the database using the boltdb backend.
 	dbPath := filepath.Join(l.dbDirPath, walletDbName)
 	l.mu.Unlock()
-	db, err := wallet.OpenDB(driver, dbPath)
+	db, err := wallet.OpenDB(l.dbDriver, dbPath)
 	l.mu.Lock()
 
 	if err != nil {
