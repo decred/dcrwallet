@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -4664,13 +4665,31 @@ func (s sigDataSource) GetScript(a stdaddr.Address) ([]byte, error) { return s.s
 func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrutil.Amount,
 	feeAddr stdaddr.Address, feeAcct uint32, changeAcct uint32) error {
 
+	feeRate := w.RelayFee()
+
 	// Reserve new outputs to pay the fee if outputs have not already been
 	// reserved.  This will be the case for fee payments that were begun on
 	// already purchased tickets, where the caller did not ensure that fee
 	// outputs would already be reserved.
 	if len(tx.TxIn) == 0 {
 		const minconf = 1
-		inputs, err := w.ReserveOutputsForAmount(ctx, feeAcct, fee, minconf)
+
+		minMixableChange := smallestMixChange(feeRate)
+
+		// Estimate tx fee for a typical VSP payment (1 input, 2 outputs)
+		// to ensure enough is reserved for mixable change after all fees.
+		estScriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
+		estOutputs := []*wire.TxOut{
+			{PkScript: make([]byte, txsizes.P2PKHPkScriptSize)}, // fee output
+			{PkScript: make([]byte, txsizes.P2PKHPkScriptSize)}, // change output
+		}
+		estSize := txsizes.EstimateSerializeSize(estScriptSizes, estOutputs, 0)
+		estTxFee := txrules.FeeForSerializeSize(feeRate, estSize)
+
+		// Request inputs totaling at least (fee + minMixableChange + estTxFee)
+		// so change after paying VSP fee and tx fee will be mixable.
+		minChange := minMixableChange + dcrutil.Amount(estTxFee)
+		inputs, err := w.reserveOutputsForAmount(ctx, feeAcct, fee, minconf, minChange)
 		if err != nil {
 			return fmt.Errorf("unable to reserve outputs: %w", err)
 		}
@@ -4717,11 +4736,7 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 		Version:  vers,
 		PkScript: feeScript,
 	})
-	feeRate := w.RelayFee()
-	scriptSizes := make([]int, len(tx.TxIn))
-	for i := range scriptSizes {
-		scriptSizes[i] = txsizes.RedeemP2PKHSigScriptSize
-	}
+	scriptSizes := slices.Repeat([]int{txsizes.RedeemP2PKHSigScriptSize}, len(tx.TxIn))
 	est := txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, txsizes.P2PKHPkScriptSize)
 	change := input
 	change -= tx.TxOut[0].Value
