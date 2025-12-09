@@ -161,7 +161,7 @@ type dbImportedAddressRow struct {
 	encryptedPrivKey []byte
 }
 
-// dbImportedAddressRow houses additional information stored about a script
+// dbScriptAddressRow houses additional information stored about a script
 // address in the database.
 type dbScriptAddressRow struct {
 	dbAddressRow
