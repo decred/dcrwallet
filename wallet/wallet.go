@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -2597,10 +2598,9 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 		return nil, errors.E(op, err)
 	}
 
-	// reverse the list so that it is sorted from old to new.
-	for i, j := 0, len(txList)-1; i < j; i, j = i+1, j-1 {
-		txList[i], txList[j] = txList[j], txList[i]
-	}
+	// Reverse the list so that it is sorted from old to new.
+	slices.Reverse(txList)
+
 	return txList, nil
 }
 
@@ -2684,10 +2684,9 @@ func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransacti
 		return nil, errors.E(op, err)
 	}
 
-	// reverse the list so that it is sorted from old to new.
-	for i, j := 0, len(txList)-1; i < j; i, j = i+1, j-1 {
-		txList[i], txList[j] = txList[j], txList[i]
-	}
+	// Reverse the list so that it is sorted from old to new.
+	slices.Reverse(txList)
+
 	return txList, nil
 }
 
