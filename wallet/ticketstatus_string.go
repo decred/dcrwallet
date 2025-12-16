@@ -24,8 +24,9 @@ const _TicketStatus_name = "unknownunminedimmaturelivevotedmissedexpiredunspentr
 var _TicketStatus_index = [...]uint8{0, 7, 14, 22, 26, 31, 37, 44, 51, 58}
 
 func (i TicketStatus) String() string {
-	if i >= TicketStatus(len(_TicketStatus_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_TicketStatus_index)-1 {
 		return "TicketStatus(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _TicketStatus_name[_TicketStatus_index[i]:_TicketStatus_index[i+1]]
+	return _TicketStatus_name[_TicketStatus_index[idx]:_TicketStatus_index[idx+1]]
 }

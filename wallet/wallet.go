@@ -2845,7 +2845,7 @@ type TicketSummary struct {
 // TicketStatus describes the current status a ticket can be observed to be.
 type TicketStatus uint
 
-//go:generate stringer -type=TicketStatus -linecomment
+//go:generate go tool stringer -type=TicketStatus -linecomment
 
 const (
 	// TicketStatusUnknown any ticket that its status was unable to be determined.
