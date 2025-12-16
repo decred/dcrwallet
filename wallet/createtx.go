@@ -1657,9 +1657,11 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	return purchaseTicketsResponse, err
 }
 
-// ReserveOutputsForAmount returns locked spendable outpoints from the given
+// reserveOutputsForAmount returns locked spendable outpoints from the given
 // account.  It is the responsibility of the caller to unlock the outpoints.
-func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, amount dcrutil.Amount, minconf int32) ([]Input, error) {
+// This unexported func supports specifying a minimum non-zero change amount,
+// so that the selected outputs will total at least "amount + minChange".
+func (w *Wallet) reserveOutputsForAmount(ctx context.Context, account uint32, amount dcrutil.Amount, minconf int32, minChange dcrutil.Amount) ([]Input, error) {
 	defer w.lockedOutpointMu.Unlock()
 	w.lockedOutpointMu.Lock()
 
@@ -1668,10 +1670,15 @@ func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, am
 		// Get current block's height
 		_, tipHeight := w.txStore.MainChainTip(dbtx)
 
+		targetAmount := amount
+		if minChange > 0 {
+			targetAmount = amount + minChange
+		}
+
 		var err error
 		const minAmount = 0
 		const maxResults = 0
-		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, amount, tipHeight,
+		outputs, err = w.findEligibleOutputsAmount(dbtx, account, minconf, targetAmount, tipHeight,
 			minAmount, maxResults)
 		if err != nil {
 			return err
@@ -1688,6 +1695,12 @@ func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, am
 	}
 
 	return outputs, nil
+}
+
+// ReserveOutputsForAmount returns locked spendable outpoints from the given
+// account. It is the responsibility of the caller to unlock the outpoints.
+func (w *Wallet) ReserveOutputsForAmount(ctx context.Context, account uint32, amount dcrutil.Amount, minconf int32) ([]Input, error) {
+	return w.reserveOutputsForAmount(ctx, account, amount, minconf, 0)
 }
 
 func (w *Wallet) reserveOutputs(ctx context.Context, account uint32, minconf int32) ([]Input, error) {
