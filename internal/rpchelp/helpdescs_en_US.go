@@ -709,7 +709,7 @@ var helpDescsEnUS = map[string]string{
 	"redeemmultisigoutresult-hex":      "Resulting hash.",
 
 	// RedeemMultiSigouts help.
-	"redeemmultisigouts--synopsis":      "Takes a hash, looks up all unspent outpoints and generates list artially signed transactions spending to either an address specified or internal addresses",
+	"redeemmultisigouts--synopsis":      "Takes a hash, looks up all unspent outpoints and generates list of partially signed transactions spending to either an address specified or internal addresses"
 	"redeemmultisigouts-number":         "Number of outpoints found.",
 	"redeemmultisigouts-toaddress":      "Address to look for (if not internal addresses).",
 	"redeemmultisigouts-fromscraddress": "Input script hash address.",
