@@ -21,7 +21,7 @@ require (
 	github.com/decred/dcrd/dcrutil/v4 v4.0.3
 	github.com/decred/dcrd/gcs/v4 v4.1.1
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.3
-	github.com/decred/dcrd/mixing v0.6.0
+	github.com/decred/dcrd/mixing v0.6.1
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.4.0
 	github.com/decred/dcrd/rpcclient/v8 v8.1.0
 	github.com/decred/dcrd/txscript/v4 v4.1.2
