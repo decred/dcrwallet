@@ -562,7 +562,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err = w.Write(resp)
 		if err != nil {
-			log.Warnf("Cannot write invalid request request to "+
+			log.Warnf("Cannot write invalid request response to "+
 				"client %s: %v", r.RemoteAddr, err)
 		}
 		return
