@@ -538,10 +538,16 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	body := http.MaxBytesReader(w, r.Body, maxRequestSize)
 	rpcRequest, err := io.ReadAll(body)
 	if err != nil {
-		// TODO: what if the underlying reader errored?
-		log.Warnf("Request from client %v exceeds maximum size", r.RemoteAddr)
-		http.Error(w, "413 Request Too Large",
-			http.StatusRequestEntityTooLarge)
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
+			log.Warnf("Request from client %s exceeds maximum size", r.RemoteAddr)
+			http.Error(w, "413 Request Too Large",
+				http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		log.Warnf("Failed to read request from client %s", r.RemoteAddr)
+		http.Error(w, "Request read failed", http.StatusInternalServerError)
 		return
 	}
 
