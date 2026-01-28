@@ -301,7 +301,7 @@ func run(ctx context.Context) error {
 				purchaseAccount    uint32 // enableticketbuyer
 				votingAccount      uint32 // enableticketbuyer
 				mixedAccount       uint32 // (enableticketbuyer && mixing) || mixchange
-				changeAccount      uint32 // (enableticketbuyer && mixing) || mixchange
+				changeAccount      uint32 // enableticketbuyer || mixchange
 				ticketSplitAccount uint32 // enableticketbuyer && mixing
 			)
 			if cfg.EnableTicketBuyer {
@@ -316,6 +316,11 @@ func run(ctx context.Context) error {
 					votingAccount = lookup("ticketbuyer.votingaccount", cfg.TBOpts.VotingAccount)
 				} else {
 					votingAccount = purchaseAccount
+				}
+				if cfg.ChangeAccount != "" {
+					changeAccount = lookup("changeaccount", cfg.ChangeAccount)
+				} else {
+					changeAccount = purchaseAccount
 				}
 			}
 			if (cfg.EnableTicketBuyer && cfg.MixingEnabled) || cfg.MixChange {
