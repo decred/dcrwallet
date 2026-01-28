@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2015 The btcsuite developers
-// Copyright (c) 2017-2024 The Decred developers
+// Copyright (c) 2017-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -86,7 +86,7 @@ type handler struct {
 // jsonAuthFail sends a message back to the client if the http auth is rejected.
 func jsonAuthFail(w http.ResponseWriter) {
 	w.Header().Add("WWW-Authenticate", `Basic realm="dcrwallet RPC"`)
-	http.Error(w, "401 Unauthorized.", http.StatusUnauthorized)
+	http.Error(w, "401 Unauthorized", http.StatusUnauthorized)
 }
 
 // NewServer creates a new server for serving JSON-RPC client connections,
@@ -540,7 +540,7 @@ func (s *Server) postClientRPC(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// TODO: what if the underlying reader errored?
 		log.Warnf("Request from client %v exceeds maximum size", r.RemoteAddr)
-		http.Error(w, "413 Request Too Large.",
+		http.Error(w, "413 Request Too Large",
 			http.StatusRequestEntityTooLarge)
 		return
 	}
