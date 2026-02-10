@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2025 The Decred developers
+// Copyright (c) 2017-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -948,6 +948,7 @@ type p2PKHChangeSource struct {
 	wallet    *Wallet
 	ctx       context.Context
 	gapPolicy gapPolicy
+	minChange dcrutil.Amount
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
@@ -963,6 +964,10 @@ func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
 
 func (src *p2PKHChangeSource) ScriptSize() int {
 	return txsizes.P2PKHPkScriptSize
+}
+
+func (src *p2PKHChangeSource) MinimumChange() dcrutil.Amount {
+	return src.minChange
 }
 
 // p2PKHTreasuryChangeSource is the change source that shall be used when there

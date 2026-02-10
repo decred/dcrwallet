@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016 The Decred developers
+// Copyright (c) 2016-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -235,5 +235,88 @@ func TestNewUnsignedTransaction(t *testing.T) {
 			t.Errorf("Test %d: Used %d outputs from input source, Expected %d",
 				i, len(tx.Tx.TxIn), test.InputCount)
 		}
+	}
+}
+
+type testMinimumChangeSource struct {
+	AuthorTestChangeSource
+	minChange dcrutil.Amount
+}
+
+func (src testMinimumChangeSource) MinimumChange() dcrutil.Amount {
+	return src.minChange
+}
+
+func TestNewUnsignedTransactionMinimumChange(t *testing.T) {
+	const relayFee dcrutil.Amount = 1e3
+	const minChange dcrutil.Amount = 1e6
+
+	changeSource := testMinimumChangeSource{minChange: minChange}
+
+	// Compute fee for a 1-in/1-out transaction with change output.
+	feeWithChange := txrules.FeeForSerializeSize(relayFee,
+		txsizes.EstimateSerializeSize(
+			[]int{txsizes.RedeemP2PKHSigScriptSize},
+			p2pkhOutputs(0),
+			txsizes.P2PKHPkScriptSize))
+
+	// Compute fee for a 1-in/1-out transaction without change output.
+	feeWithoutChange := txrules.FeeForSerializeSize(relayFee,
+		txsizes.EstimateSerializeSize(
+			[]int{txsizes.RedeemP2PKHSigScriptSize},
+			p2pkhOutputs(0),
+			0))
+
+	tests := []struct {
+		name           string
+		unspentOutputs []*wire.TxOut
+		outputs        []*wire.TxOut
+		changeAmount   dcrutil.Amount
+	}{
+		{
+			name:           "change above minimum is included",
+			unspentOutputs: p2pkhOutputs(2e6 + feeWithChange),
+			outputs:        p2pkhOutputs(1e6),
+			changeAmount:   1e6,
+		},
+		{
+			name:           "change below minimum is dropped (despite not being dust)",
+			unspentOutputs: p2pkhOutputs(1e6 + minChange/2 + feeWithoutChange),
+			outputs:        p2pkhOutputs(1e6),
+			changeAmount:   0,
+		},
+		{
+			name:           "change exactly at minimum is included",
+			unspentOutputs: p2pkhOutputs(1e6 + minChange + feeWithChange),
+			outputs:        p2pkhOutputs(1e6),
+			changeAmount:   minChange,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			inputSource := makeInputSource(test.unspentOutputs)
+			tx, err := txauthor.NewUnsignedTransaction(test.outputs, relayFee,
+				inputSource, changeSource, chaincfg.MainNetParams().MaxTxSize)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if test.changeAmount == 0 {
+				if tx.ChangeIndex >= 0 {
+					t.Errorf("expected no change output, got change %v",
+						dcrutil.Amount(tx.Tx.TxOut[tx.ChangeIndex].Value))
+				}
+			} else {
+				if tx.ChangeIndex < 0 {
+					t.Fatalf("expected change output with amount %v, got none",
+						test.changeAmount)
+				}
+				got := dcrutil.Amount(tx.Tx.TxOut[tx.ChangeIndex].Value)
+				if got != test.changeAmount {
+					t.Errorf("got change amount %v, expected %v", got, test.changeAmount)
+				}
+			}
+		})
 	}
 }
