@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016-2024 The Decred developers
+// Copyright (c) 2016-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -62,6 +62,14 @@ type ChangeSource interface {
 	ScriptSize() int
 }
 
+// MinimumChangeSource is an optional extension of ChangeSource that specifies
+// a minimum change amount.  When the change would be less than this minimum,
+// it is dropped (added to the fee) instead of creating a change output.
+type MinimumChangeSource interface {
+	ChangeSource
+	MinimumChange() dcrutil.Amount
+}
+
 func sumOutputValues(outputs []*wire.TxOut) (totalOutput dcrutil.Amount) {
 	for _, txOut := range outputs {
 		totalOutput += dcrutil.Amount(txOut.Value)
@@ -99,6 +107,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		return nil, errors.E(op, err)
 	}
 	changeScriptSize := fetchChange.ScriptSize()
+	var minChange dcrutil.Amount
+	if mcs, ok := fetchChange.(MinimumChangeSource); ok {
+		minChange = mcs.MinimumChange()
+	}
 	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
 	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
 
@@ -137,8 +149,8 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		}
 		changeIndex := -1
 		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
-		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
-			changeScriptSize, relayFeePerKb) {
+		if changeAmount != 0 && changeAmount >= minChange &&
+			!txrules.IsDustAmount(changeAmount, changeScriptSize, relayFeePerKb) {
 			if len(changeScript) > txscript.MaxScriptElementSize {
 				return nil, errors.E(errors.Invalid, "script size exceed maximum bytes "+
 					"pushable to the stack")

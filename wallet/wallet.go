@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2025 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -4663,23 +4663,67 @@ func (s sigDataSource) GetScript(a stdaddr.Address) ([]byte, error) { return s.s
 func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrutil.Amount,
 	feeAddr stdaddr.Address, feeAcct uint32, changeAcct uint32) error {
 
+	feeRate := w.RelayFee()
+	minMixableChange := smallestMixChange(feeRate)
+	estimatedTxFee := txrules.FeeForSerializeSize(feeRate,
+		txsizes.EstimateSerializeSizeFromScriptSizes(
+			[]int{txsizes.RedeemP2PKHSigScriptSize},
+			[]int{txsizes.P2PKHPkScriptSize},
+			txsizes.P2PKHPkScriptSize))
+
 	// Reserve new outputs to pay the fee if outputs have not already been
 	// reserved.  This will be the case for fee payments that were begun on
 	// already purchased tickets, where the caller did not ensure that fee
 	// outputs would already be reserved.
 	if len(tx.TxIn) == 0 {
 		const minconf = 1
-		inputs, err := w.ReserveOutputsForAmount(ctx, feeAcct, fee, minconf)
-		if err != nil {
-			return fmt.Errorf("unable to reserve outputs: %w", err)
+		var allInputs []Input
+
+		// Reserve enough for the fee, minimum mixable change, and an
+		// initial transaction fee estimate (based on 1 input).  If the
+		// actual input count makes the real fee higher, iterate to
+		// reserve additional outputs.
+		target := fee + minMixableChange + estimatedTxFee
+		for {
+			inputs, err := w.ReserveOutputsForAmount(ctx, feeAcct, target, minconf)
+			if err != nil {
+				if len(allInputs) > 0 {
+					break // Can't reserve more; proceed with what we have.
+				}
+				return fmt.Errorf("unable to reserve outputs: %w", err)
+			}
+			allInputs = append(allInputs, inputs...)
+			for _, in := range inputs {
+				tx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
+			}
+
+			// Recalculate the transaction fee with the actual input count.
+			scriptSizes := slices.Repeat([]int{txsizes.RedeemP2PKHSigScriptSize}, len(tx.TxIn))
+			actualTxFee := txrules.FeeForSerializeSize(feeRate,
+				txsizes.EstimateSerializeSizeFromScriptSizes(
+					scriptSizes,
+					[]int{txsizes.P2PKHPkScriptSize},
+					txsizes.P2PKHPkScriptSize))
+
+			var totalInput dcrutil.Amount
+			for _, in := range tx.TxIn {
+				totalInput += dcrutil.Amount(in.ValueIn)
+			}
+
+			change := totalInput - fee - actualTxFee
+			if change >= minMixableChange {
+				break
+			}
+
+			// Reserve additional outputs for the shortfall, plus a buffer
+			// for the fee increase from the new inputs.
+			target = minMixableChange - change + estimatedTxFee
 		}
-		for _, in := range inputs {
-			tx.AddTxIn(wire.NewTxIn(&in.OutPoint, in.PrevOut.Value, nil))
-		}
+
 		// The transaction will be added to the wallet in an unpublished
 		// state, so there is no need to leave the outputs locked.
 		defer func() {
-			for _, in := range inputs {
+			for _, in := range allInputs {
 				w.UnlockOutpoint(&in.OutPoint.Hash, in.OutPoint.Index)
 			}
 		}()
@@ -4716,16 +4760,13 @@ func (w *Wallet) CreateVspPayment(ctx context.Context, tx *wire.MsgTx, fee dcrut
 		Version:  vers,
 		PkScript: feeScript,
 	})
-	feeRate := w.RelayFee()
-	scriptSizes := make([]int, len(tx.TxIn))
-	for i := range scriptSizes {
-		scriptSizes[i] = txsizes.RedeemP2PKHSigScriptSize
-	}
+	scriptSizes := slices.Repeat([]int{txsizes.RedeemP2PKHSigScriptSize}, len(tx.TxIn))
 	est := txsizes.EstimateSerializeSize(scriptSizes, tx.TxOut, txsizes.P2PKHPkScriptSize)
 	change := input
 	change -= tx.TxOut[0].Value
 	change -= int64(txrules.FeeForSerializeSize(feeRate, est))
-	if !txrules.IsDustAmount(dcrutil.Amount(change), txsizes.P2PKHPkScriptSize, feeRate) {
+	if dcrutil.Amount(change) >= minMixableChange &&
+		!txrules.IsDustAmount(dcrutil.Amount(change), txsizes.P2PKHPkScriptSize, feeRate) {
 		changeOut.Value = change
 		tx.TxOut = append(tx.TxOut, changeOut)
 		txauthor.RandomizeOutputPosition(tx.TxOut, len(tx.TxOut)-1)
