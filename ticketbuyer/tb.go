@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2025 The Decred developers
+// Copyright (c) 2018-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -254,35 +254,42 @@ func (tb *TB) buy(ctx context.Context, passphrase []byte, sdiff dcrutil.Amount, 
 		minconf = 2
 	}
 
-	// Determine how many tickets to buy.
-	var buy int
-	if maintain != 0 {
-		bal, err := w.AccountBalance(ctx, account, minconf)
-		if err != nil {
-			return err
+	// Use config to determine the maximum number of ticket purchases this buyer
+	// can submit per block.
+	limit = func() int {
+		// Don't exceed the amount of ticket purchases which can be mined into a
+		// single block.
+		maxLimit := int(w.ChainParams().MaxFreshStakePerBlock)
+
+		// The default value of zero needs to be replaced with a real value. To
+		// enhance user privacy the default when mixing is one ticket per block,
+		// otherwise the default is max.
+		if limit == 0 {
+			if mixing {
+				return 1
+			} else {
+				return maxLimit
+			}
 		}
-		spendable := bal.Spendable
-		if spendable < maintain {
-			log.Debugf("Skipping purchase: low available balance")
-			return nil
-		}
-		spendable -= maintain
-		buy = int(spendable / sdiff)
-		if buy == 0 {
-			log.Debugf("Skipping purchase: low available balance")
-			return nil
-		}
-		max := int(w.ChainParams().MaxFreshStakePerBlock)
-		if buy > max {
-			buy = max
-		}
-	} else {
-		buy = int(w.ChainParams().MaxFreshStakePerBlock)
+
+		return min(limit, maxLimit)
+	}()
+
+	bal, err := w.AccountBalance(ctx, account, minconf)
+	if err != nil {
+		return err
 	}
-	if limit == 0 && mixing {
-		buy = 1
-	} else if limit > 0 && buy > limit {
-		buy = limit
+
+	// Determine how many tickets can be bought with the currently available
+	// balance, remembering to subtract balance to maintain.
+	buy := int((bal.Spendable - maintain) / sdiff)
+
+	// Don't buy more than the max configured limit.
+	buy = min(buy, limit)
+
+	if buy <= 0 {
+		log.Debugf("Skipping purchase: low available balance")
+		return nil
 	}
 
 	purchaseTicketReq := &wallet.PurchaseTicketsRequest{
