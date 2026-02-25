@@ -564,6 +564,7 @@ func readRawTxRecord(txHash *chainhash.Hash, v []byte, rec *TxRecord) error {
 	}
 	rec.Hash = *txHash
 	rec.Received = time.Unix(int64(byteOrder.Uint64(v)), 0)
+	rec.MsgTx = wire.MsgTx{}
 	err := rec.MsgTx.Deserialize(bytes.NewReader(v[8:]))
 	if err != nil {
 		return errors.E(errors.IO, err)

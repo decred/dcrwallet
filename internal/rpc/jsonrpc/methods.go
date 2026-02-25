@@ -4344,7 +4344,6 @@ func (s *Server) ticketInfo(ctx context.Context, icmd any) (any, error) {
 
 	start := wallet.NewBlockIdentifierFromHeight(*cmd.StartHeight)
 	end := wallet.NewBlockIdentifierFromHeight(-1)
-	tmptx := new(wire.MsgTx)
 	err := w.GetTickets(ctx, func(ts []*wallet.TicketSummary, h *wire.BlockHeader) (bool, error) {
 		for _, t := range ts {
 			status := t.Status
@@ -4354,11 +4353,12 @@ func (s *Server) ticketInfo(ctx context.Context, icmd any) (any, error) {
 				// and the lack of a block hash.
 				status = wallet.TicketStatusImmature
 			}
-			err := tmptx.Deserialize(bytes.NewReader(t.Ticket.Transaction))
+			var tx wire.MsgTx
+			err := tx.Deserialize(bytes.NewReader(t.Ticket.Transaction))
 			if err != nil {
 				return false, err
 			}
-			out := tmptx.TxOut[0]
+			out := tx.TxOut[0]
 			info := types.TicketInfoResult{
 				Hash:        t.Ticket.Hash.String(),
 				Cost:        dcrutil.Amount(out.Value).ToCoin(),
