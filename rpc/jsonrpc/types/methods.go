@@ -1099,6 +1099,26 @@ func NewWalletPassphraseChangeCmd(oldPassphrase, newPassphrase string) *WalletPa
 	}
 }
 
+// RunAccountMixerCmd defines the runaccountmixer JSON-RPC command.
+type RunAccountMixerCmd struct {
+	Passphrase         string
+	MixedAccount       uint32
+	MixedAccountBranch uint32
+	ChangeAccount      uint32
+}
+
+// NewRunAccountMixerCmd returns a new instance which can be used to issue a
+// runaccountmixer JSON-RPC command.
+func NewRunAccountMixerCmd(passphrase string, mixedAccount uint32,
+	mixedAccountBranch uint32, changeAccount uint32) *RunAccountMixerCmd {
+	return &RunAccountMixerCmd{
+		Passphrase:         passphrase,
+		MixedAccount:       mixedAccount,
+		MixedAccountBranch: mixedAccountBranch,
+		ChangeAccount:      changeAccount,
+	}
+}
+
 // MixAccountCmd defines the mixaccount JSON-RPC command.
 type MixAccountCmd struct{}
 
@@ -1243,6 +1263,7 @@ func init() {
 		{"redeemmultisigouts", (*RedeemMultiSigOutsCmd)(nil)},
 		{"renameaccount", (*RenameAccountCmd)(nil)},
 		{"rescanwallet", (*RescanWalletCmd)(nil)},
+		{"runaccountmixer", (*RunAccountMixerCmd)(nil)},
 		{"sendfrom", (*SendFromCmd)(nil)},
 		{"sendfromtreasury", (*SendFromTreasuryCmd)(nil)},
 		{"sendmany", (*SendManyCmd)(nil)},
