@@ -313,11 +313,11 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 		}
 
 		clientCAsExist = clientCAsExist || cfg.IssueClientCert
-		if !clientCAsExist && len(cfg.GRPCListeners) != 0 {
+		if !clientCAsExist && len(cfg.GRPCListeners) != 0 && cfg.JSONRPCAuthType == "clientcert" {
 			log.Warnf("gRPC server is configured with listeners, but no "+
 				"trusted client certificates exist (looked in %v)",
 				cfg.ClientCAFile)
-		} else if clientCAsExist && len(cfg.GRPCListeners) != 0 {
+		} else if clientCAsExist && len(cfg.GRPCListeners) != 0 && cfg.JSONRPCAuthType == "clientcert" {
 			tlsConfig := tlsConfig.Clone()
 			tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 			listeners := makeListeners(cfg.GRPCListeners, net.Listen)
