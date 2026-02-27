@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2024 The Decred developers
+// Copyright (c) 2020-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -127,29 +127,24 @@ func TestUntrustedClientCert(t *testing.T) {
 
 	ca1, err := generateAuthority(pub1, priv1)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	ca2, err := generateAuthority(pub2, priv2)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 	keyBlock2, err := marshalPrivateKey(ca2.PrivateKey)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 	certBlock2, err := createSignedClientCert(pub2, ca2.PrivateKey, ca2.Cert)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 	keypair2, err := tls.X509KeyPair(certBlock2, keyBlock2)
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	s := httptest.NewUnstartedServer(http.HandlerFunc(echo))
@@ -170,29 +165,29 @@ func TestUntrustedClientCert(t *testing.T) {
 	tr := client.Transport.(*http.Transport)
 	tr.TLSClientConfig.Certificates = []tls.Certificate{keypair2}
 
+	// In slower environments (e.g. CI) the mock TLS HTTP server can take some
+	// time to start listening. Accomodate this by retrying for up to 5 seconds.
 	ctx := context.Background()
-	errChan := make(chan error, 2)
 	timeout := time.After(time.Second * 5)
 	for {
-		go func() {
-			req, err := http.NewRequestWithContext(ctx, http.MethodPut, s.URL, strings.NewReader("test"))
-			if err != nil {
-				errChan <- err
-				return
-			}
-			_, err = s.Client().Do(req)
-			errChan <- err
-		}()
-
 		select {
-		case err := <-errChan:
+		case <-timeout:
+			t.Fatal("did not receive response before timeout")
+		default:
+			req, err := http.NewRequestWithContext(ctx, http.MethodPut, s.URL, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = s.Client().Do(req)
+
 			if err == nil {
 				t.Fatalf("request with bad client cert did not error")
 			}
 			if strings.HasSuffix(err.Error(), "reset by peer") ||
 				strings.Contains(err.Error(), "connection was forcibly closed") {
 
-				// Retry.
+				// Retry (server isn't ready yet).
 				continue
 			}
 			if !(strings.HasSuffix(err.Error(), "tls: bad certificate") ||
@@ -203,9 +198,7 @@ func TestUntrustedClientCert(t *testing.T) {
 
 			// Success.
 			return
-
-		case <-timeout:
-			t.Fatal("Did not receive response before timeout")
 		}
+
 	}
 }
