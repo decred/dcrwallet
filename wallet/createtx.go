@@ -807,9 +807,8 @@ func (w *Wallet) compressWalletInternal(ctx context.Context, op errors.Op, dbtx 
 
 	// Check if output address is default, and generate a new address if needed
 	if changeAddr == nil {
-		const accountName = "" // not used, so can be faked.
 		changeAddr, err = w.newChangeAddress(ctx, op, nil, dbtx,
-			accountName, account, gapPolicyIgnore)
+			account, gapPolicyIgnore)
 		if err != nil {
 			return nil, errors.E(op, err)
 		}
@@ -1175,8 +1174,7 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 	}
 
 	stakeAddrFunc := func(op errors.Op, account, branch uint32) (stdaddr.StakeAddress, uint32, error) {
-		const accountName = "" // not used, so can be faked.
-		a, err := w.nextAddress(ctx, op, nil, nil, accountName,
+		a, err := w.nextAddress(ctx, op, nil, nil,
 			account, branch, WithGapPolicyIgnore())
 		if err != nil {
 			return nil, 0, err
