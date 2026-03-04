@@ -15,7 +15,7 @@ import (
 
 // HardcodedDeployment specifies hardcoded block heights that a deployment
 // activates at. If the value is negative, the deployment is either inactive or
-// cannot be determined due to the uniqueness properties of the network.
+// can't be determined due to the uniqueness properties of the network.
 //
 // Since these are hardcoded deployments, and cannot support every possible
 // network, conditional logic should only be applied when a deployment is
