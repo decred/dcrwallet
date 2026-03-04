@@ -20,13 +20,13 @@ import (
 	"strings"
 )
 
-// Separator is inserted between nested errors when formatting as strings.  The
-// default separator produces easily readable multiline errors.  Separator may
+// Separator is inserted between nested errors when formatting as strings. The
+// default separator produces easily readable multiline errors. Separator may
 // be modified at init time to create error strings appropriate for logging
 // errors on a single line.
 var Separator = ":\n\t"
 
-// Error describes an error condition raised within the wallet process.  Errors
+// Error describes an error condition raised within the wallet process. Errors
 // may optionally provide details regarding the operation and class of error for
 // assistance in debugging and runtime matching of errors.
 type Error struct {
@@ -148,7 +148,7 @@ func (k Kind) As(target any) bool {
 	return false
 }
 
-// New creates a simple error from a string.  New is identical to "errors".New
+// New creates a simple error from a string. New is identical to "errors".New
 // from the standard library.
 func New(text string) error {
 	return errors.New(text)
@@ -162,8 +162,8 @@ func Errorf(format string, args ...any) error {
 
 // E creates an *Error from one or more arguments.
 //
-// Each argument type is inspected when constructing the error.  If multiple
-// args of similar type are passed, the final arg is recorded.  The following
+// Each argument type is inspected when constructing the error. If multiple
+// args of similar type are passed, the final arg is recorded. The following
 // types are recognized:
 //
 //	errors.Op
@@ -171,11 +171,11 @@ func Errorf(format string, args ...any) error {
 //	errors.Kind
 //	    The class of error.
 //	string
-//	    Description of the error condition.  String types populate the
+//	    Description of the error condition. String types populate the
 //	    Err field and overwrite, and are overwritten by, other arguments
 //	    which implement the error interface.
 //	error
-//	    The underlying error.  If the error is an *Error, the Op and Kind
+//	    The underlying error. If the error is an *Error, the Op and Kind
 //	    will be promoted to the newly created error if not set to another
 //	    value in the args.
 //
@@ -211,7 +211,7 @@ func E(args ...any) error {
 	}
 
 	// Promote the Op and Kind of the nested Error to the newly created error,
-	// if these fields were not part of the args.  This improves matching
+	// if these fields were not part of the args. This improves matching
 	// capabilities as well as improving the order of these fields in the
 	// formatted error.
 	if e.Err == prev && prev != nil {
@@ -237,7 +237,7 @@ func E(args ...any) error {
 
 // WithStack is identical to E but includes a stacktrace with the error. Stack
 // traces do not appear in formatted error strings and are not compared when
-// matching errors.  Stack traces are extracted from errors using Stacks.
+// matching errors. Stack traces are extracted from errors using Stacks.
 func WithStack(args ...any) error {
 	err := E(args...).(*Error)
 	err.stack = debug.Stack()
@@ -343,7 +343,7 @@ func Is(err, target error) bool {
 }
 
 // As attempts to assign the error pointed to by target with the first error in
-// err's error chain with a compatible type.  Returns true if target is
+// err's error chain with a compatible type. Returns true if target is
 // assigned.
 func As(err error, target any) bool {
 	return errors.As(err, target)

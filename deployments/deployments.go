@@ -14,7 +14,7 @@ import (
 )
 
 // HardcodedDeployment specifies hardcoded block heights that a deployment
-// activates at.  If the value is negative, the deployment is either inactive or
+// activates at. If the value is negative, the deployment is either inactive or
 // can't be determined due to the uniqueness properties of the network.
 //
 // Since these are hardcoded deployments, and cannot support every possible
@@ -55,7 +55,7 @@ var DCP0003 = HardcodedDeployment{
 }
 
 // Active returns whether the hardcoded deployment is active at height on the
-// network specified by params.  Active always returns false for unrecognized
+// network specified by params. Active always returns false for unrecognized
 // networks.
 func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 	var activationHeight int32 = -1
@@ -124,7 +124,7 @@ func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
 
 // DCP0012Active returns whether the consensus rules for the next block with the
 // current chain tip height requires the version 2 subsidy split as specified in
-// DCP0012.  DCP0012 requires the RPC syncer to detect activation on mainnet,
+// DCP0012. DCP0012 requires the RPC syncer to detect activation on mainnet,
 // testnet3 and simnet.
 func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
 	querier Querier) (bool, error) {
