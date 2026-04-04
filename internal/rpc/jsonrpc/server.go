@@ -24,7 +24,6 @@ import (
 	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrjson/v4"
-	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/gorilla/websocket"
 )
 
@@ -319,13 +318,13 @@ func idPointer(id any) (p *any) {
 func (s *Server) invalidAuth(req *dcrjson.Request) bool {
 	cmd, err := dcrjson.ParseParams(types.Method(req.Method), req.Params)
 	if err != nil {
-		return false
+		return true
 	}
-	authCmd, ok := cmd.(*dcrdtypes.AuthenticateCmd)
+	authCmd, ok := cmd.(*types.AuthenticateCmd)
 	if !ok {
-		return false
+		return true
 	}
-	// Authenticate commands are invalid when no basic auth is used
+	// Authenticate commands are invalid when no basic auth is used.
 	if s.authsha == nil {
 		return true
 	}
