@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2025 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -247,6 +247,8 @@ func (w *Wallet) VotingEnabled() bool {
 
 // IsTSpendCached returns whether the given hash is already cached.
 func (w *Wallet) IsTSpendCached(hash *chainhash.Hash) bool {
+	w.stakeSettingsLock.Lock()
+	defer w.stakeSettingsLock.Unlock()
 	if _, ok := w.tspends[*hash]; ok {
 		return true
 	}
