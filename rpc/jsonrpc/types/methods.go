@@ -1,5 +1,5 @@
 // Copyright (c) 2014 The btcsuite developers
-// Copyright (c) 2015-2025 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -145,19 +145,6 @@ func NewCreateNewAccountCmd(account string) *CreateNewAccountCmd {
 	return &CreateNewAccountCmd{
 		Account: account,
 	}
-}
-
-// CreateVotingAccountCmd is a type for handling custom marshaling and
-// unmarshalling of createvotingaccount JSON-RPC command.
-type CreateVotingAccountCmd struct {
-	Name       string
-	PubKey     string
-	ChildIndex *uint32 `jsonrpcdefault:"0"`
-}
-
-// NewCreateVotingAccountCmd creates a new CreateVotingAccountCmd.
-func NewCreateVotingAccountCmd(name, pubKey string, childIndex *uint32) *CreateVotingAccountCmd {
-	return &CreateVotingAccountCmd{name, pubKey, childIndex}
 }
 
 // DumpPrivKeyCmd defines the dumpprivkey JSON-RPC command.
@@ -1211,7 +1198,6 @@ func init() {
 		{"createmultisig", (*CreateMultisigCmd)(nil)},
 		{"createnewaccount", (*CreateNewAccountCmd)(nil)},
 		{"createsignature", (*CreateSignatureCmd)(nil)},
-		{"createvotingaccount", (*CreateVotingAccountCmd)(nil)},
 		{"disapprovepercent", (*DisapprovePercentCmd)(nil)},
 		{"discoverusage", (*DiscoverUsageCmd)(nil)},
 		{"dumpprivkey", (*DumpPrivKeyCmd)(nil)},
