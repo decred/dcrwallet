@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2025 The Decred developers
+// Copyright (c) 2018-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1237,7 +1237,6 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 	}
 
 	if len(requestUnknownPRs) > 0 {
-		requestUnknownPRs := make(map[chainhash.Hash]struct{})
 		unknownPRs := make([]*chainhash.Hash, 0, len(requestUnknownPRs))
 		for hash := range requestUnknownPRs {
 			unknownPRs = append(unknownPRs, &hash)
