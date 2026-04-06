@@ -144,7 +144,6 @@ type RemotePeer struct {
 // messages with remote peers on the network.
 type LocalPeer struct {
 	mask          atomic.Uint64
-	peerIDCounter atomic.Uint64
 	requireHeight atomic.Int32
 
 	dial DialFunc
@@ -160,8 +159,9 @@ type LocalPeer struct {
 	chainParams    *chaincfg.Params
 	disableRelayTx bool
 
-	rpByID map[uint64]*RemotePeer
-	rpMu   sync.Mutex
+	rpByID      map[uint64]*RemotePeer
+	rpIDCounter uint64
+	rpMu        sync.Mutex
 }
 
 // NewLocalPeer creates a LocalPeer that is externally reachable to remote peers
@@ -257,9 +257,6 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 
 	log.Debugf("Attempting connection to peer %v", addr)
 
-	// Generate a unique ID for this peer and add the initial connection state.
-	id := lp.peerIDCounter.Add(1)
-
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -269,7 +266,7 @@ func (lp *LocalPeer) ConnectOutbound(ctx context.Context, addr string, reqSvcs w
 	na := addrmgr.NewNetAddressFromIPPort(tcpAddr.IP, uint16(tcpAddr.Port), wire.SFNodeNetwork)
 	na.Timestamp = time.Now()
 
-	rp, err := lp.connectOutbound(ctx, id, addr, na)
+	rp, err := lp.connectOutbound(ctx, addr, na)
 	if err != nil {
 		op := errors.Opf(opf, addr)
 		return nil, errors.E(op, err)
@@ -544,11 +541,11 @@ func (rp *RemotePeer) sendWaitingInventory(ctx context.Context) error {
 	return nil
 }
 
-func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAddress, c net.Conn) (*RemotePeer, error) {
+func handshake(ctx context.Context, lp *LocalPeer, na *addrmgr.NetAddress, c net.Conn) (*RemotePeer, error) {
 	const op errors.Op = "p2p.handshake"
 
 	rp := &RemotePeer{
-		id:               id,
+		id:               0, // Set after handshake completes
 		lp:               lp,
 		ua:               "",
 		services:         0,
@@ -618,9 +615,7 @@ func handshake(ctx context.Context, lp *LocalPeer, id uint64, na *addrmgr.NetAdd
 	return rp, nil
 }
 
-func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string,
-	na *addrmgr.NetAddress) (*RemotePeer, error) {
-
+func (lp *LocalPeer) connectOutbound(ctx context.Context, addr string, na *addrmgr.NetAddress) (*RemotePeer, error) {
 	// Mark the connection attempt.
 	lp.amgr.Attempt(na)
 
@@ -636,7 +631,7 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 
 	// Handshake with a timeout of 5s.
 	handshakeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	rp, err := handshake(handshakeCtx, lp, id, na, c)
+	rp, err := handshake(handshakeCtx, lp, na, c)
 	cancel()
 	if err != nil {
 		return nil, err
@@ -644,7 +639,16 @@ func (lp *LocalPeer) connectOutbound(ctx context.Context, id uint64, addr string
 
 	// Associate connected rp with local peer.
 	lp.rpMu.Lock()
-	lp.rpByID[rp.id] = rp
+	for {
+		// Generate a unique ID for this peer and add the initial connection state.
+		lp.rpIDCounter++
+		id := lp.rpIDCounter
+		if _, ok := lp.rpByID[id]; !ok && id != 0 {
+			rp.id = id
+			lp.rpByID[id] = rp
+			break
+		}
+	}
 	lp.rpMu.Unlock()
 
 	// The real services of the net address are now known.
