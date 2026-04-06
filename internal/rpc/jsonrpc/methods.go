@@ -4599,7 +4599,7 @@ func (s *Server) sendRawTransaction(ctx context.Context, icmd any) (any, error) 
 		return nil, err
 	}
 
-	msgtx := wire.NewMsgTx()
+	msgtx := new(wire.MsgTx)
 	err = msgtx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.HexTx)))
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
@@ -4812,7 +4812,7 @@ func (s *Server) signRawTransaction(ctx context.Context, icmd any) (any, error) 
 		return nil, errUnloadedWallet
 	}
 
-	tx := wire.NewMsgTx()
+	tx := new(wire.MsgTx)
 	err := tx.Deserialize(hex.NewDecoder(strings.NewReader(cmd.RawTx)))
 	if err != nil {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
@@ -5062,7 +5062,7 @@ func (s *Server) signRawTransactions(ctx context.Context, icmd any) (any, error)
 		for i, result := range results {
 			if result.Complete {
 				// Slow/mem hungry because of the deserializing.
-				msgTx := wire.NewMsgTx()
+				msgTx := new(wire.MsgTx)
 				err := msgTx.Deserialize(hex.NewDecoder(strings.NewReader(result.Hex)))
 				if err != nil {
 					return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
