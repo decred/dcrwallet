@@ -16,16 +16,16 @@ require (
 	github.com/decred/dcrd/crypto/rand v1.0.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
 	github.com/decred/dcrd/dcrec v1.0.1
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/decred/dcrd/dcrjson/v4 v4.2.0
 	github.com/decred/dcrd/dcrutil/v4 v4.0.3
 	github.com/decred/dcrd/gcs/v4 v4.1.1
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.3
-	github.com/decred/dcrd/mixing v0.6.1
+	github.com/decred/dcrd/mixing v0.7.0
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.4.0
 	github.com/decred/dcrd/rpcclient/v8 v8.1.0
 	github.com/decred/dcrd/txscript/v4 v4.1.2
-	github.com/decred/dcrd/wire v1.7.4
+	github.com/decred/dcrd/wire v1.7.5
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.2.0
 	github.com/decred/vspd/client/v4 v4.0.2

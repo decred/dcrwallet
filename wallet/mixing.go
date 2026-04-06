@@ -103,7 +103,7 @@ func (w *mixingWallet) SubmitMixMessage(ctx context.Context, msg mixing.Message)
 		}
 	}()
 
-	_, err = w.mixpool.AcceptMessage(msg)
+	_, err = w.mixpool.AcceptMessage(msg, mixpool.ZeroSource)
 	if err != nil {
 		return err
 	}
@@ -554,7 +554,7 @@ func PossibleCoinJoin(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint
 // AcceptMixMessage adds a mixing message received from the network backend to
 // the wallet's mixpool.
 func (w *Wallet) AcceptMixMessage(msg mixing.Message) error {
-	_, err := w.mixpool.AcceptMessage(msg)
+	_, err := w.mixpool.AcceptMessage(msg, mixpool.ZeroSource)
 	if err != nil {
 		return err
 	}
