@@ -553,8 +553,21 @@ func PossibleCoinJoin(tx *wire.MsgTx) (isMix bool, mixDenom int64, mixCount uint
 
 // AcceptMixMessage adds a mixing message received from the network backend to
 // the wallet's mixpool.
+//
+// Deprecated: Use [AcceptMixMessageBySource].
 func (w *Wallet) AcceptMixMessage(msg mixing.Message) error {
 	_, err := w.mixpool.AcceptMessage(msg, mixpool.ZeroSource)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AcceptMixMessageBySource adds a mixing message received from the network
+// backend to the wallet's mixpool.
+func (w *Wallet) AcceptMixMessageBySource(msg mixing.Message, source mixpool.Source) error {
+	_, err := w.mixpool.AcceptMessage(msg, source)
 	if err != nil {
 		return err
 	}

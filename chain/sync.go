@@ -944,7 +944,7 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 	msg.WriteHash(s.blake256Hasher)
 	s.blake256HasherMu.Unlock()
 
-	err = s.wallet.AcceptMixMessage(msg)
+	err = s.wallet.AcceptMixMessageBySource(msg, mixpool.ZeroSource)
 	var e *mixpool.MissingOwnPRError
 	if errors.As(err, &e) {
 		ke, ok := msg.(*wire.MsgMixKeyExchange)
@@ -957,7 +957,7 @@ func (s *Syncer) mixMessage(ctx context.Context, params json.RawMessage) error {
 			pr.WriteHash(s.blake256Hasher)
 			s.blake256HasherMu.Unlock()
 
-			err = s.wallet.AcceptMixMessage(pr)
+			err = s.wallet.AcceptMixMessageBySource(pr, mixpool.ZeroSource)
 		}
 		return err
 	}
