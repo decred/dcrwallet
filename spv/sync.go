@@ -1223,7 +1223,7 @@ func (s *Syncer) handleMixInvs(ctx context.Context, rp *p2p.RemotePeer, hashes [
 			}
 		}
 
-		err := s.wallet.AcceptMixMessage(msg)
+		err := s.wallet.AcceptMixMessageBySource(msg, rp)
 		var missingPRErr *mixpool.MissingOwnPRError
 		if errors.As(err, &missingPRErr) {
 			ke := msg.(*wire.MsgMixKeyExchange)
