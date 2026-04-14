@@ -2569,7 +2569,7 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 			// This does nothing for unmined transactions, which are
 			// unsorted, but it will process mined transactions in the
 			// reverse order they were marked mined.
-			for i := len(details) - 1; i >= 0; i-- {
+			for _, v := range slices.Backward(details) {
 				if n >= count {
 					return true, nil
 				}
@@ -2579,7 +2579,7 @@ func (w *Wallet) ListTransactions(ctx context.Context, from, count int) ([]types
 					continue
 				}
 
-				sends, receives := listTransactions(dbtx, &details[i],
+				sends, receives := listTransactions(dbtx, &v,
 					w.manager, tipHeight, w.chainParams)
 				txList = append(txList, sends...)
 				txList = append(txList, receives...)
@@ -2669,8 +2669,8 @@ func (w *Wallet) ListAllTransactions(ctx context.Context) ([]types.ListTransacti
 			// which are unsorted, but it will process mined
 			// transactions in the reverse order they were marked
 			// mined.
-			for i := len(details) - 1; i >= 0; i-- {
-				sends, receives := listTransactions(dbtx, &details[i],
+			for _, v := range slices.Backward(details) {
+				sends, receives := listTransactions(dbtx, &v,
 					w.manager, tipHeight, w.chainParams)
 				txList = append(txList, sends...)
 				txList = append(txList, receives...)
