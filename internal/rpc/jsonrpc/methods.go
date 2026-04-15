@@ -3343,16 +3343,28 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	var mixedAccount uint32
 	var mixedAccountBranch uint32
 	var mixedSplitAccount uint32
-	// Use purchasing account as change account by default (overridden below if
-	// mixing is enabled).
+	// Use purchasing account as voting and change account by default
+	// (overridden below if mixing is enabled, or voting account is set).
 	var changeAccount = account
+	var votingAccount = account
 
 	if s.cfg.MixingEnabled {
+		// Mixed ticketbuying must use the mixed account as the voting
+		// account.  Do not permit configurations which specify a
+		// different voting account.
+		if s.cfg.VotingAccount != "" && s.cfg.VotingAccount != s.cfg.MixAccount {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Mixing enabled, but configured voting account %q does "+
+					"not match mixed account %q", s.cfg.VotingAccount,
+				s.cfg.MixAccount)
+		}
+
 		mixedAccount, err = w.AccountNumber(ctx, s.cfg.MixAccount)
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"Mixing enabled, but error on mixed account: %v", err)
 		}
+		votingAccount = mixedAccount
 		mixedAccountBranch = s.cfg.MixBranch
 		if mixedAccountBranch != 0 && mixedAccountBranch != 1 {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
@@ -3367,6 +3379,12 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		if err != nil {
 			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
 				"Mixing enabled, but error on changeAccount: %v", err)
+		}
+	} else if s.cfg.VotingAccount != "" {
+		votingAccount, err = w.AccountNumber(ctx, s.cfg.VotingAccount)
+		if err != nil {
+			return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+				"Voting account %q: %v", s.cfg.VotingAccount, err)
 		}
 	}
 
@@ -3391,6 +3409,7 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 	request := &wallet.PurchaseTicketsRequest{
 		Count:         numTickets,
 		SourceAccount: account,
+		VotingAccount: votingAccount,
 		MinConf:       minConf,
 		Expiry:        expiry,
 		DontSignTx:    dontSignTx,
@@ -3403,13 +3422,6 @@ func (s *Server) purchaseTicket(ctx context.Context, icmd any) (any, error) {
 		ChangeAccount:      changeAccount,
 
 		VSPClient: vspClient,
-	}
-	// Use the mixed account as voting account if mixing is enabled,
-	// otherwise use the source account.
-	if s.cfg.MixingEnabled {
-		request.VotingAccount = mixedAccount
-	} else {
-		request.VotingAccount = account
 	}
 
 	ticketsResponse, err := w.PurchaseTickets(ctx, n, request)
