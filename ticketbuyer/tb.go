@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2025 The Decred developers
+// Copyright (c) 2018-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -164,6 +164,17 @@ func (tb *TB) Run(ctx context.Context, passphrase []byte) error {
 			cfg := tb.cfg
 			tb.mu.Unlock()
 
+			// If mixing is enabled and limit is greater than 1, buyTickets is
+			// called multiple times instead of once.
+			//
+			// i.e. buyTickets(1)*N instead of buyTickets(N).
+			//
+			// This enhances user privacy by preventing multiple tickets from
+			// sharing a common split tx and a common change output. The privacy
+			// improvement comes at the cost of potentially slowing the
+			// purchasing rate, e.g. breaking down a large single output to fund
+			// multiple tickets will take multiple blocks. This tradeoff is
+			// acceptable in the context of a long-running ticketbuyer.
 			multiple := 1
 			if cfg.Mixing {
 				multiple = cfg.Limit
