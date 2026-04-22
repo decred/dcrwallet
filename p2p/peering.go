@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2025 The Decred developers
+// Copyright (c) 2018-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -1300,12 +1300,24 @@ func (rp *RemotePeer) receivedMixMsg(ctx context.Context, msg mixing.Message) {
 }
 
 func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData) {
-	if rp.banScore.Increase(0, uint32(len(msg.InvList))*banThreshold/wire.MaxInvPerMsg) > banThreshold {
+	// A decaying ban score increase is applied to prevent exhausting resources
+	// with unusually large inventory queries.
+	//
+	// Requesting more than the maximum inventory vector length within a short
+	// period of time yields a score above the default ban threshold.  Sustained
+	// bursts of small requests are not penalized as that would potentially ban
+	// peers performing the inintial chain sync.
+	//
+	// This incremental score decays each minute to half of its value.
+	delta := uint32(len(msg.InvList) * banThreshold / wire.MaxInvPerMsg)
+	newBanScore := rp.banScore.Increase(0, delta)
+	if newBanScore > banThreshold {
 		log.Warnf("%v: ban score reached threshold", rp.RemoteAddr())
 		rp.Disconnect(errors.E(errors.Protocol, "ban score reached"))
 		return
 	}
 
+	// Ignore if the user is not interested in getdata messages.
 	if rp.lp.messageIsMasked(MaskGetData) {
 		rp.lp.receivedGetData <- newInMsg(rp, msg)
 	}
@@ -2142,8 +2154,8 @@ func (rp *RemotePeer) sendMessageAck(ctx context.Context, msg wire.Message) erro
 func (rp *RemotePeer) ReceivedOrphanHeader() error {
 	// Allow up to 10 orphan header chain announcements.
 	delta := uint32(banThreshold / 10)
-	bs := rp.banScore.Increase(0, delta)
-	if bs > banThreshold {
+	newBanScore := rp.banScore.Increase(0, delta)
+	if newBanScore > banThreshold {
 		return errors.E(errors.Protocol, "ban score reached due to orphan header")
 	}
 	return nil
@@ -2223,7 +2235,7 @@ func (rp *RemotePeer) receivedInv(ctx context.Context, inv *wire.MsgInv) {
 		return
 	}
 
-	// Ignore if the user is not interested in invs.
+	// Ignore if the user is not interested in inv messages.
 	if !rp.lp.messageIsMasked(MaskInv) {
 		return
 	}
