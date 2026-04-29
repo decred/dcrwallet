@@ -1,5 +1,5 @@
 // Copyright (c) 2015-2016 The btcsuite developers
-// Copyright (c) 2016-2025 The Decred developers
+// Copyright (c) 2016-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -2832,13 +2832,17 @@ func isLoopback(addr string) bool {
 func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderService_RpcSyncServer) error {
 	defer zero(req.Password)
 
-	// Error if the wallet is already syncing with the network.
 	wallet, walletLoaded := s.loader.LoadedWallet()
-	if walletLoaded {
-		_, err := wallet.NetworkBackend()
-		if err == nil {
-			return status.Errorf(codes.FailedPrecondition, "wallet is loaded and already synchronizing")
-		}
+
+	// Wallet must be loaded before sync can start.
+	if !walletLoaded {
+		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	// Error if the wallet is already syncing with the network.
+	_, err := wallet.NetworkBackend()
+	if err == nil {
+		return status.Errorf(codes.FailedPrecondition, "wallet is loaded and already synchronizing")
 	}
 
 	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
@@ -2966,7 +2970,7 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 	syncer.SetCallbacks(cbs)
 
 	// Synchronize until error or RPC cancellation.
-	err := syncer.Run(svr.Context())
+	err = syncer.Run(svr.Context())
 	if err != nil {
 		if svr.Context().Err() != nil {
 			return status.Errorf(codes.Canceled, "Wallet synchronization canceled: %v", err)
@@ -2978,9 +2982,17 @@ func (s *loaderServer) RpcSync(req *pb.RpcSyncRequest, svr pb.WalletLoaderServic
 }
 
 func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderService_SpvSyncServer) error {
-	wallet, ok := s.loader.LoadedWallet()
-	if !ok {
+	wallet, walletLoaded := s.loader.LoadedWallet()
+
+	// Wallet must be loaded before sync can start.
+	if !walletLoaded {
 		return status.Errorf(codes.FailedPrecondition, "Wallet has not been loaded")
+	}
+
+	// Error if the wallet is already syncing with the network.
+	_, err := wallet.NetworkBackend()
+	if err == nil {
+		return status.Errorf(codes.FailedPrecondition, "wallet is loaded and already synchronizing")
 	}
 
 	if req.DiscoverAccounts && len(req.PrivatePassphrase) == 0 {
@@ -3133,7 +3145,7 @@ func (s *loaderServer) SpvSync(req *pb.SpvSyncRequest, svr pb.WalletLoaderServic
 		syncer.SetPersistentPeers(spvConnects)
 	}
 
-	err := syncer.Run(svr.Context())
+	err = syncer.Run(svr.Context())
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return status.Errorf(codes.Canceled, "SPV synchronization canceled: %v", err)
