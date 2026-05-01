@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"slices"
 	"sync"
 
 	"decred.org/dcrwallet/v5/errors"
@@ -671,7 +672,7 @@ Bsearch:
 		if err != nil {
 			return 0, err
 		}
-		for i := len(addrs) - 1; i >= 0; i-- {
+		for i, v := range slices.Backward(addrs) {
 			if existsBits.Get(i) {
 				lastUsed = mid*scanLen + uint32(i)
 				lo = mid + 1
