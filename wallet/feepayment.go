@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 The Decred developers
+// Copyright (c) 2023-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -529,6 +529,8 @@ func (fp *vspFeePayment) submitPayment() (err error) {
 
 	_, err = fp.client.PayFee(ctx, req, fp.ticket.CommitmentAddr())
 	if err != nil {
+		fp.client.log.Errorf("VSP fee payment for ticket %s failed: %v",
+			fp.ticket, err)
 		var apiErr types.ErrorResponse
 		if errors.As(err, &apiErr) && apiErr.Code == types.ErrFeeExpired {
 			// Fee has been expired, so abandon current feetx, set fp.feeTx
