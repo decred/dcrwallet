@@ -292,6 +292,11 @@ func (w *Wallet) MixOutput(ctx context.Context, output *wire.OutPoint, changeAcc
 		if err != nil {
 			return err
 		}
+		if output.Index >= uint32(len(txDetails.MsgTx.TxOut)) {
+			err := errors.Errorf("index out of range: index:%d txouts:%d",
+				output.Index, len(txDetails.MsgTx.TxOut))
+			return errors.E(op, errors.Invalid, err)
+		}
 		out := txDetails.MsgTx.TxOut[output.Index]
 		prevScript = out.PkScript
 		prevScriptVersion = out.Version
