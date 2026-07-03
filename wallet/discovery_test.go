@@ -8,7 +8,7 @@ import (
 	"context"
 	"testing"
 
-	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"decred.org/dcrwallet/v6/wallet/walletdb"
 )
 
 // TestDiscoveryCursorPos tests that the account cursor index is not reset

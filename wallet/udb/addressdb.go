@@ -10,9 +10,9 @@ import (
 	"encoding/binary"
 	"time"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/kdf"
-	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/kdf"
+	"decred.org/dcrwallet/v6/wallet/walletdb"
 )
 
 var (

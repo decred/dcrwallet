@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"os"
 
-	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
-	"decred.org/dcrwallet/v5/wallet/txauthor"
+	"decred.org/dcrwallet/v6/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v6/wallet/txauthor"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrutil/v4"

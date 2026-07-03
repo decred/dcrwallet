@@ -13,8 +13,8 @@ import (
 	"net/url"
 	"sync"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/wallet/udb"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/wallet/udb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"

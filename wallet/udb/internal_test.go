@@ -13,8 +13,8 @@ interface. The functions are only exported while the tests are being run.
 package udb
 
 import (
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/wallet/internal/snacl"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/wallet/internal/snacl"
 )
 
 // TstLatestMgrVersion makes the unexported latestMgrVersion variable available

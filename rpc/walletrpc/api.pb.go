@@ -14116,7 +14116,7 @@ const file_api_proto_rawDesc = "" +
 	"\x0eNetworkService\x12L\n" +
 	"\vGetRawBlock\x12\x1d.walletrpc.GetRawBlockRequest\x1a\x1e.walletrpc.GetRawBlockResponse2\x7f\n" +
 	"\x14DecodeMessageService\x12g\n" +
-	"\x14DecodeRawTransaction\x12&.walletrpc.DecodeRawTransactionRequest\x1a'.walletrpc.DecodeRawTransactionResponseB'Z%decred.org/dcrwallet/v5/rpc/walletrpcb\x06proto3"
+	"\x14DecodeRawTransaction\x12&.walletrpc.DecodeRawTransactionRequest\x1a'.walletrpc.DecodeRawTransactionResponseB'Z%decred.org/dcrwallet/v6/rpc/walletrpcb\x06proto3"
 
 var (
 	file_api_proto_rawDescOnce sync.Once

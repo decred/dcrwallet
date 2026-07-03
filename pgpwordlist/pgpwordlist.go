@@ -19,7 +19,7 @@ package pgpwordlist
 import (
 	"strings"
 
-	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v6/errors"
 )
 
 // ByteToMnemonic returns the PGP word list encoding of b when found at index.

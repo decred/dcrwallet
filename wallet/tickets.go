@@ -7,8 +7,8 @@ package wallet
 import (
 	"context"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/jrick/bitset"
 )

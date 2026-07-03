@@ -6,7 +6,7 @@
 package cfgutil
 
 import (
-	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v6/errors"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
 )
 
