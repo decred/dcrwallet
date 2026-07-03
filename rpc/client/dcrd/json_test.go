@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v6/errors"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/wire"
 )

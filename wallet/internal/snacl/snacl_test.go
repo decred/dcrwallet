@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"testing"
 
-	"decred.org/dcrwallet/v5/errors"
+	"decred.org/dcrwallet/v6/errors"
 )
 
 var (

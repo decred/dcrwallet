@@ -8,11 +8,11 @@ import (
 	"context"
 	"time"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/internal/compat"
-	"decred.org/dcrwallet/v5/wallet/txauthor"
-	"decred.org/dcrwallet/v5/wallet/udb"
-	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/internal/compat"
+	"decred.org/dcrwallet/v6/wallet/txauthor"
+	"decred.org/dcrwallet/v6/wallet/udb"
+	"decred.org/dcrwallet/v6/wallet/walletdb"
 	"github.com/decred/dcrd/dcrutil/v4"
 	"github.com/decred/dcrd/wire"
 )

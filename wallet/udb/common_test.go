@@ -12,7 +12,7 @@ import (
 	"os"
 	"testing"
 
-	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"decred.org/dcrwallet/v6/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/v3"
 )
 

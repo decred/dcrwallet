@@ -19,9 +19,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/internal/loader"
-	"decred.org/dcrwallet/v5/rpc/jsonrpc/types"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/internal/loader"
+	"decred.org/dcrwallet/v6/rpc/jsonrpc/types"
 	"github.com/decred/dcrd/chaincfg/v3"
 	"github.com/decred/dcrd/dcrjson/v4"
 	"github.com/gorilla/websocket"

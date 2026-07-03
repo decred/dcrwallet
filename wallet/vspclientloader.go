@@ -3,8 +3,8 @@ package wallet
 import (
 	"maps"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/internal/loggers"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/internal/loggers"
 )
 
 // VSP loads or creates a package-global instance of the VSP client for a host.

@@ -9,8 +9,8 @@ import (
 	"runtime/trace"
 	"sync"
 
-	"decred.org/dcrwallet/v5/errors"
-	"decred.org/dcrwallet/v5/wallet"
+	"decred.org/dcrwallet/v6/errors"
+	"decred.org/dcrwallet/v6/wallet"
 	"github.com/decred/dcrd/dcrutil/v4"
 )
 

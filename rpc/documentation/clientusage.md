@@ -56,7 +56,7 @@ import (
 	"os"
 	"path/filepath"
 
-	pb "decred.org/dcrwallet/v5/rpc/walletrpc"
+	pb "decred.org/dcrwallet/v6/rpc/walletrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
