@@ -5536,7 +5536,8 @@ func (w *Wallet) MixingEnabled() bool {
 }
 
 func newMixClient(w *Wallet) *mixclient.Client {
-	c := mixclient.NewClient((*mixingWallet)(w))
+	msgJitter := 300 * time.Millisecond
+	c := mixclient.NewClient((*mixingWallet)(w), msgJitter)
 	c.SetLogger(loggers.MixcLog)
 	return c
 }

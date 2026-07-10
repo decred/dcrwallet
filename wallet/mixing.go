@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2025 The Decred developers
+// Copyright (c) 2019-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package wallet
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/txrules"
@@ -15,6 +16,7 @@ import (
 	"decred.org/dcrwallet/v5/wallet/walletdb"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/chaincfg/v3"
+	"github.com/decred/dcrd/crypto/rand"
 	"github.com/decred/dcrd/dcrec"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/decred/dcrd/dcrutil/v4"
@@ -588,5 +590,11 @@ func (w *Wallet) dicemix(ctx context.Context, cj *mixclient.CoinJoin) error {
 	if mixc == nil {
 		return errors.E(errors.Invalid, "mixing client is not running")
 	}
-	return mixc.Dicemix(ctx, cj)
+
+	timeoutDuration := 30 * time.Second
+	maxJitter := timeoutDuration / 10
+	msgJitter := 300 * time.Millisecond
+	peerJitter := rand.Duration(maxJitter - msgJitter)
+
+	return mixc.Dicemix(ctx, cj, peerJitter)
 }

@@ -43,6 +43,8 @@ require (
 	google.golang.org/protobuf v1.36.10
 )
 
+replace github.com/decred/dcrd/mixing => ../dcrd/mixing
+
 require (
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/companyzero/sntrup4591761 v0.0.0-20220309191932-9e0f3af2f07a // indirect
