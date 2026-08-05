@@ -1157,7 +1157,15 @@ func (s *Syncer) handleTxInvs(ctx context.Context, rp *p2p.RemotePeer, hashes []
 		err := s.wallet.AddTransaction(ctx, tx, nil)
 		if err != nil {
 			op := errors.Opf(opf, rp.RemoteAddr())
-			log.Warn(errors.E(op, err))
+			err := errors.E(op, err)
+			log.Warn(err)
+
+			// Relaying transactions which fail script validation is misbehavior
+			// so drop the peer instead of allowing it to keep announcing them.
+			if errors.Is(err, errors.ScriptFailure) {
+				rp.Disconnect(err)
+				return
+			}
 		}
 	}
 	s.mempoolTxs(relevant)
