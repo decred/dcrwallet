@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Decred developers
+// Copyright (c) 2018-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -22,7 +22,6 @@ import (
 // active, not when it is inactive.
 type HardcodedDeployment struct {
 	MainNetActivationHeight  int32
-	TestNet2ActivationHeight int32
 	TestNet3ActivationHeight int32
 	SimNetActivationHeight   int32
 }
@@ -31,7 +30,6 @@ type HardcodedDeployment struct {
 // defined by https://github.com/decred/dcps/blob/master/dcp-0001/dcp-0001.mediawiki.
 var DCP0001 = HardcodedDeployment{
 	MainNetActivationHeight:  149248,
-	TestNet2ActivationHeight: 46128,
 	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   0,
 }
@@ -40,7 +38,6 @@ var DCP0001 = HardcodedDeployment{
 // https://github.com/decred/dcps/blob/master/dcp-0002/dcp-0002.mediawiki.
 var DCP0002 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
-	TestNet2ActivationHeight: 151968,
 	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   0,
 }
@@ -49,7 +46,6 @@ var DCP0002 = HardcodedDeployment{
 // https://github.com/decred/dcps/blob/master/dcp-0003/dcp-0003.mediawiki.
 var DCP0003 = HardcodedDeployment{
 	MainNetActivationHeight:  189568,
-	TestNet2ActivationHeight: 151968,
 	TestNet3ActivationHeight: 0,
 	SimNetActivationHeight:   0,
 }
@@ -62,8 +58,6 @@ func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 	switch net {
 	case wire.MainNet:
 		activationHeight = d.MainNetActivationHeight
-	case 0x48e7a065: // testnet2
-		activationHeight = d.TestNet2ActivationHeight
 	case wire.TestNet3:
 		activationHeight = d.TestNet3ActivationHeight
 	case wire.SimNet:
