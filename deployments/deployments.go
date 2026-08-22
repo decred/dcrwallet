@@ -50,6 +50,14 @@ var DCP0003 = HardcodedDeployment{
 	SimNetActivationHeight:   0,
 }
 
+// DCP0005 specifies the activation of a block header commitments soft fork as
+// defined by https://github.com/decred/dcps/blob/master/dcp-0005/dcp-0005.mediawiki.
+var DCP0005 = HardcodedDeployment{
+	MainNetActivationHeight:  431488,
+	TestNet3ActivationHeight: 0,
+	SimNetActivationHeight:   0,
+}
+
 // Active returns whether the hardcoded deployment is active at height on the
 // network specified by params.  Active always returns false for unrecognized
 // networks.
