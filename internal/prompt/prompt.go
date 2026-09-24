@@ -257,7 +257,7 @@ func PublicPass(reader *bufio.Reader, privPass []byte,
 // Seed prompts the user whether they want to use an existing wallet generation
 // seed.  When the user answers no, a seed will be generated and displayed to
 // the user along with prompting them for confirmation.  When the user answers
-// yes, a the user is prompted for it.  All prompts are repeated until the user
+// yes, the user is prompted for it.  All prompts are repeated until the user
 // enters a valid response. The bool returned indicates if the wallet was
 // restored from a given seed or not.
 func Seed(reader *bufio.Reader) (seed []byte, imported bool, err error) {
