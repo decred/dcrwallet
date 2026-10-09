@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2014 The btcsuite developers
-// Copyright (c) 2015-2020 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -12,6 +12,7 @@ import (
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/udb"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
+	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/ripemd160"
 	"github.com/decred/dcrd/txscript/v4/stdaddr"
@@ -189,6 +190,16 @@ func (w *Wallet) saveRescanned(ctx context.Context, dbtx walletdb.ReadWriteTx,
 	}
 
 	for _, tx := range txs {
+		// In manual ticket mode, tickets are only ever added to the
+		// wallet using AddTransaction.  Skip over any relevant tickets
+		// seen in this block unless they already exist in the wallet.
+		if w.manualTickets && stake.IsSStx(tx) {
+			txHash := tx.TxHash()
+			if !w.txStore.ExistsTx(txmgrNs, &txHash) {
+				continue
+			}
+		}
+
 		if logTxs {
 			w.logRescannedTx(txmgrNs, blockMeta.Height, tx)
 		}
