@@ -1069,7 +1069,7 @@ func (s *Syncer) handleBlockInvs(ctx context.Context, rp *p2p.RemotePeer, hashes
 		return nil
 	}
 
-	blocks, err := blocksFromPeer(ctx, rp, hashes)
+	blocks, err := blocksFromPeer(ctx, rp, hashes, s.wallet.ChainParams().Net)
 	if err != nil {
 		op := errors.Opf(opf, rp)
 		return errors.E(op, err)
@@ -1349,7 +1349,7 @@ func (s *Syncer) scanChain(ctx context.Context, rp *p2p.RemotePeer, chain []*wal
 	wg.Wait()
 
 	if len(fmatches) != 0 {
-		blocks, err := blocksFromPeer(ctx, rp, fmatches)
+		blocks, err := blocksFromPeer(ctx, rp, fmatches, s.wallet.ChainParams().Net)
 		if err != nil {
 			return nil, err
 		}

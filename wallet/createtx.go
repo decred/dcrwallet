@@ -585,8 +585,6 @@ func (w *Wallet) txToMultisigInternal(ctx context.Context, op errors.Op, dbtx wa
 	switch w.chainParams.Net {
 	case wire.MainNet:
 		feeEstForTx = 5e7
-	case 0x48e7a065: // testnet2
-		feeEstForTx = 5e7
 	case wire.TestNet3:
 		feeEstForTx = 5e7
 	default:
