@@ -1662,6 +1662,11 @@ func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 		return res
 	}
 
+	birthday, err := s.wallet.BirthState(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Stage 1: fetch headers.
 	headersChan := make(chan *headersBatch)
 	g.Go(func() error {
@@ -1737,9 +1742,11 @@ func (s *Syncer) initialSyncHeaders(ctx context.Context) error {
 			s.sidechainMu.Lock()
 			var missingCfilter []*wallet.BlockNode
 			for i := range batch.bestChain {
-				if batch.bestChain[i].FilterV2 == nil {
-					missingCfilter = batch.bestChain[i:]
-					break
+				if birthday == nil || birthday.AfterBirthday(batch.bestChain[i].Header) {
+					if batch.bestChain[i].FilterV2 == nil {
+						missingCfilter = batch.bestChain[i:]
+						break
+					}
 				}
 			}
 			s.sidechainMu.Unlock()

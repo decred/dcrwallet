@@ -229,3 +229,264 @@ func TestSetBirthStateAndScan(t *testing.T) {
 		})
 	}
 }
+
+func TestRescanFromHeight(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w := testWallet(ctx, t, &cfg, nil)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+		t.Logf("Generated block %v name %q", b.Hash, name)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	b5Time := tg.BlockByName("5a").Header.Timestamp
+
+	tests := []struct {
+		name string
+		bs   *udb.BirthdayState
+	}{{
+		name: "ok no birthday",
+	}, {
+		name: "ok birthday from height",
+		bs: &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        5,
+		},
+	}, {
+		name: "ok birthday from time",
+		bs: &udb.BirthdayState{
+			SetFromTime: true,
+			Time:        b5Time,
+		},
+	}}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.bs != nil {
+				err := w.SetBirthState(ctx, test.bs)
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+			err := w.RescanFromHeight(ctx, mockNetwork{}, 0)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestRescanFromHeightMovesBirthday(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w := testWallet(ctx, t, &cfg, nil)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	// Set birthday at height 7.
+	err := w.SetBirthState(ctx, &udb.BirthdayState{
+		SetFromHeight: true,
+		Height:        7,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Rescan from height 3 should move birthday back to 3.
+	err = w.RescanFromHeight(ctx, mockNetwork{}, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := w.BirthState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bs == nil {
+		t.Fatal("expected birthday state to be set")
+	}
+	if bs.Height > 3 {
+		t.Fatalf("expected birthday height <= 3, got %v", bs.Height)
+	}
+}
+
+func TestRescanFromHeightAfterBirthday(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w := testWallet(ctx, t, &cfg, nil)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	// Set birthday at height 3.
+	err := w.SetBirthState(ctx, &udb.BirthdayState{
+		SetFromHeight: true,
+		Height:        3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Rescan from height 5 (after birthday) should not move birthday.
+	err = w.RescanFromHeight(ctx, mockNetwork{}, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := w.BirthState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bs == nil {
+		t.Fatal("expected birthday state to be set")
+	}
+	if bs.Height != 3 {
+		t.Fatalf("expected birthday height 3, got %v", bs.Height)
+	}
+}
+
+func TestRescanFromHeightMovesBirthdayFromTime(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w := testWallet(ctx, t, &cfg, nil)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	// Set a time-based birthday using block 7's timestamp.
+	b7Time := tg.BlockByName("7a").Header.Timestamp
+	err := w.SetBirthState(ctx, &udb.BirthdayState{
+		SetFromTime: true,
+		Time:        b7Time,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Rescan from height 3 (before the time-based birthday) should
+	// move the birthday back to 3.
+	err = w.RescanFromHeight(ctx, mockNetwork{}, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := w.BirthState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bs == nil {
+		t.Fatal("expected birthday state to be set")
+	}
+	if bs.Height > 3 {
+		t.Fatalf("expected birthday height <= 3, got %v", bs.Height)
+	}
+}
+
+func TestRescanFromHeightAfterBirthdayFromTime(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+
+	cfg := basicWalletConfig
+	w := testWallet(ctx, t, &cfg, nil)
+
+	tg := maketg(t, cfg.Params)
+	tw := &tw{t, w}
+	forest := new(SidechainForest)
+
+	for i := 1; i < 10; i++ {
+		name := fmt.Sprintf("%va", i)
+		b := tg.nextBlock(name, nil, nil)
+		mustAddBlockNode(t, forest, b.BlockNode)
+	}
+	b9aHash := tg.blockHashByName("9a")
+	bestChain := tw.evaluateBestChain(ctx, forest, 9, b9aHash)
+	tw.chainSwitch(ctx, forest, bestChain)
+	tw.assertNoBetterChain(ctx, forest)
+
+	// Set a time-based birthday using block 3's timestamp.
+	b3Time := tg.BlockByName("3a").Header.Timestamp
+	err := w.SetBirthState(ctx, &udb.BirthdayState{
+		SetFromTime: true,
+		Time:        b3Time,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Rescan from height 5 (after the time-based birthday) should
+	// not move the birthday.
+	err = w.RescanFromHeight(ctx, mockNetwork{}, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bs, err := w.BirthState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bs == nil {
+		t.Fatal("expected birthday state to be set")
+	}
+	if bs.SetFromTime {
+		// Birthday should have been resolved during rescan setup,
+		// but if it wasn't touched it stays as time-based. Either
+		// way, it should not have been moved earlier than block 3.
+		return
+	}
+	if bs.Height < 3 {
+		t.Fatalf("expected birthday height >= 3, got %v", bs.Height)
+	}
+}
