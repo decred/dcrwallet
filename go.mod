@@ -1,17 +1,17 @@
 module decred.org/dcrwallet/v5
 
-go 1.24.0
+go 1.26.0
 
 require (
 	decred.org/cspp/v2 v2.4.0
 	github.com/decred/dcrd/addrmgr/v3 v3.0.0
-	github.com/decred/dcrd/blockchain/stake/v5 v5.0.2
-	github.com/decred/dcrd/blockchain/standalone/v2 v2.2.2
-	github.com/decred/dcrd/blockchain/v5 v5.1.0
+	github.com/decred/dcrd/blockchain/stake/v5 v5.0.3
+	github.com/decred/dcrd/blockchain/standalone/v2 v2.3.0
+	github.com/decred/dcrd/blockchain/v5 v5.1.1
 	github.com/decred/dcrd/certgen v1.2.0
 	github.com/decred/dcrd/chaincfg/chainhash v1.0.5
 	github.com/decred/dcrd/chaincfg/v3 v3.3.0
-	github.com/decred/dcrd/connmgr/v3 v3.1.3
+	github.com/decred/dcrd/connmgr/v3 v3.1.4
 	github.com/decred/dcrd/crypto/blake256 v1.1.0
 	github.com/decred/dcrd/crypto/rand v1.0.1
 	github.com/decred/dcrd/crypto/ripemd160 v1.0.2
@@ -21,11 +21,11 @@ require (
 	github.com/decred/dcrd/dcrutil/v4 v4.0.3
 	github.com/decred/dcrd/gcs/v4 v4.1.1
 	github.com/decred/dcrd/hdkeychain/v3 v3.1.3
-	github.com/decred/dcrd/mixing v0.7.4
+	github.com/decred/dcrd/mixing v0.7.5
 	github.com/decred/dcrd/rpc/jsonrpc/types/v4 v4.4.0
 	github.com/decred/dcrd/rpcclient/v8 v8.1.0
 	github.com/decred/dcrd/txscript/v4 v4.1.2
-	github.com/decred/dcrd/wire v1.7.5
+	github.com/decred/dcrd/wire v1.8.0
 	github.com/decred/go-socks v1.1.0
 	github.com/decred/slog v1.2.0
 	github.com/decred/vspd/client/v4 v4.0.2
@@ -36,11 +36,11 @@ require (
 	github.com/jrick/logrotate v1.0.0
 	github.com/jrick/wsrpc/v2 v2.3.8
 	go.etcd.io/bbolt v1.3.12
-	golang.org/x/crypto v0.45.0
-	golang.org/x/sync v0.18.0
-	golang.org/x/term v0.37.0
-	google.golang.org/grpc v1.76.0
-	google.golang.org/protobuf v1.36.10
+	golang.org/x/crypto v0.57.0
+	golang.org/x/sync v0.23.0
+	golang.org/x/term v0.46.0
+	google.golang.org/grpc v1.83.2
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -52,12 +52,12 @@ require (
 	github.com/decred/dcrd/database/v3 v3.0.3 // indirect
 	github.com/decred/dcrd/dcrec/edwards/v2 v2.0.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
-	golang.org/x/mod v0.29.0 // indirect
-	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.49.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.5.1 // indirect
 	lukechampine.com/blake3 v1.3.0 // indirect
 )
