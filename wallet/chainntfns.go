@@ -405,14 +405,6 @@ func (w *Wallet) AddTransaction(ctx context.Context, tx *wire.MsgTx, blockHash *
 						"input %d spends %v from the wrong transaction tree", i, prevOut))
 				}
 
-				// ValueIn is not committed to by the signature hash, so script
-				// execution below does not cover it.
-				if in.ValueIn != int64(credit.Amount) {
-					return errors.E(op, errors.ScriptFailure, errors.Errorf(
-						"input %d claims value %v for %v which is worth %v", i,
-						dcrutil.Amount(in.ValueIn), prevOut, credit.Amount))
-				}
-
 				// Validate the signature.
 				err = validateTxInput(op, tx, i, credit.PkScript)
 				if err != nil {
