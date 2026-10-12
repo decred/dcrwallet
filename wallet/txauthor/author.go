@@ -1,5 +1,5 @@
 // Copyright (c) 2016 The btcsuite developers
-// Copyright (c) 2016-2024 The Decred developers
+// Copyright (c) 2016-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -94,10 +94,6 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 
 	targetAmount := sumOutputValues(outputs)
 	scriptSizes := []int{txsizes.RedeemP2PKHSigScriptSize}
-	changeScript, changeScriptVersion, err := fetchChange.Script()
-	if err != nil {
-		return nil, errors.E(op, err)
-	}
 	changeScriptSize := fetchChange.ScriptSize()
 	maxSignedSize := txsizes.EstimateSerializeSize(scriptSizes, outputs, changeScriptSize)
 	targetFee := txrules.FeeForSerializeSize(relayFeePerKb, maxSignedSize)
@@ -139,6 +135,10 @@ func NewUnsignedTransaction(outputs []*wire.TxOut, relayFeePerKb dcrutil.Amount,
 		changeAmount := inputDetail.Amount - targetAmount - maxRequiredFee
 		if changeAmount != 0 && !txrules.IsDustAmount(changeAmount,
 			changeScriptSize, relayFeePerKb) {
+			changeScript, changeScriptVersion, err := fetchChange.Script()
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
 			if len(changeScript) > txscript.MaxScriptElementSize {
 				return nil, errors.E(errors.Invalid, "script size exceed maximum bytes "+
 					"pushable to the stack")
