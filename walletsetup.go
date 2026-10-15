@@ -1,5 +1,5 @@
 // Copyright (c) 2014-2015 The btcsuite developers
-// Copyright (c) 2015-2024 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -35,8 +35,6 @@ func networkDir(dataDir string, chainParams *chaincfg.Params) string {
 	netname := chainParams.Name
 	// Be cautious of v2+ testnets being named only "testnet".
 	switch chainParams.Net {
-	case 0x48e7a065: // testnet2
-		netname = "testnet2"
 	case wire.TestNet3:
 		netname = "testnet3"
 	}

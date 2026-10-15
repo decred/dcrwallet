@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"decred.org/dcrwallet/v5/deployments"
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/p2p"
 	"decred.org/dcrwallet/v5/validate"
@@ -64,7 +65,8 @@ func pickForGetCfilters(lastHeaderHeight int32) func(rp *p2p.RemotePeer) bool {
 // the block match what is promised by the merkle commitment in the block
 // header.  The remote peer is disconnected if it returns a block that fails
 // this verification.
-func blocksFromPeer(ctx context.Context, rp *p2p.RemotePeer, blockHashes []*chainhash.Hash) ([]*wire.MsgBlock, error) {
+func blocksFromPeer(ctx context.Context, rp *p2p.RemotePeer,
+	blockHashes []*chainhash.Hash, net wire.CurrencyNet) ([]*wire.MsgBlock, error) {
 	blocks, err := rp.Blocks(ctx, blockHashes)
 	if err != nil {
 		return nil, err
@@ -79,9 +81,11 @@ func blocksFromPeer(ctx context.Context, rp *p2p.RemotePeer, blockHashes []*chai
 		// request. Every block obtained from a remote peer must therefore have
 		// its transaction trees checked against the merkle root commitments of
 		// the header before the transactions are used for anything.
-		err := validate.MerkleRoots(b)
-		if err != nil {
+		var err error
+		if deployments.DCP0005.Active(int32(b.Header.Height), net) {
 			err = validate.DCP0005MerkleRoot(b)
+		} else {
+			err = validate.MerkleRoots(b)
 		}
 		if err != nil {
 			rp.Disconnect(err)
@@ -101,7 +105,7 @@ func (s *Syncer) Blocks(ctx context.Context, blockHashes []*chainhash.Hash) ([]*
 		if err != nil {
 			return nil, err
 		}
-		blocks, err := blocksFromPeer(ctx, rp, blockHashes)
+		blocks, err := blocksFromPeer(ctx, rp, blockHashes, s.wallet.ChainParams().Net)
 		if err != nil {
 			log.Debugf("Unable to fetch blocks from %v: %v", rp, err)
 			continue
@@ -587,7 +591,7 @@ func (s *Syncer) Rescan(ctx context.Context, blockHashes []chainhash.Hash, save 
 				return err
 			}
 
-			blocks, err := blocksFromPeer(ctx, rp, fmatches)
+			blocks, err := blocksFromPeer(ctx, rp, fmatches, s.wallet.ChainParams().Net)
 			if err != nil {
 				continue PickPeer
 			}
