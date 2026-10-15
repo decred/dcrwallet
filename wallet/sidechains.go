@@ -5,9 +5,10 @@
 package wallet
 
 import (
+	"cmp"
 	"context"
 	"math/big"
-	"sort"
+	"slices"
 
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/wallet/walletdb"
@@ -289,8 +290,8 @@ func (f *SidechainForest) AddBlockNode(n *BlockNode) bool {
 		for _, node := range orphanTree.children {
 			nodes = append(nodes, node)
 		}
-		sort.Slice(nodes, func(i, j int) bool {
-			return nodes[i].Header.Height < nodes[j].Header.Height
+		slices.SortFunc(nodes, func(a, b *BlockNode) int {
+			return cmp.Compare(a.Header.Height, b.Header.Height)
 		})
 		for _, n := range nodes {
 			if nodeTree.duplicateNode(n) || !nodeTree.maybeAttachNode(n) {
