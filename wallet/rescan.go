@@ -386,8 +386,71 @@ func (w *Wallet) Rescan(ctx context.Context, n NetworkBackend, startHash *chainh
 func (w *Wallet) RescanFromHeight(ctx context.Context, n NetworkBackend, startHeight int32) error {
 	const op errors.Op = "wallet.RescanFromHeight"
 
+	bs, err := w.BirthState(ctx)
+	if err != nil {
+		return errors.E(op, err)
+	}
+	// Determine if the rescan start height is before the birthday.
+	// For time-based birthdays that have not been resolved to a
+	// height, look up the block header and compare timestamps.
+	beforeBirthday := false
+	if bs != nil {
+		if bs.SetFromTime {
+			var header *wire.BlockHeader
+			err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+				ns := tx.ReadBucket(wtxmgrNamespaceKey)
+				hash, err := w.txStore.GetMainChainBlockHashForHeight(ns, startHeight)
+				if err != nil {
+					return err
+				}
+				header, err = w.txStore.GetBlockHeader(tx, &hash)
+				return err
+			})
+			if err != nil {
+				return errors.E(op, err)
+			}
+			beforeBirthday = !bs.AfterBirthday(header)
+		} else {
+			beforeBirthday = int32(bs.Height) > startHeight
+		}
+	}
+	if beforeBirthday {
+		// If our birthday is after the rescan height, we may
+		// not have the cfilters needed. Set birthday to the rescan
+		// height and download the filters. This may take some time
+		// depending on network conditions and amount of filters missing.
+		newBS := &udb.BirthdayState{
+			SetFromHeight: true,
+			Height:        uint32(startHeight),
+		}
+		if err := w.SetBirthStateAndScan(ctx, newBS); err != nil {
+			return errors.E(op, err)
+		}
+		fetchMissing := true
+		if err := walletdb.Update(ctx, w.db, func(dbtx walletdb.ReadWriteTx) error {
+			if _, err := udb.MissingCFiltersHeight(dbtx, startHeight); err != nil {
+				// errors.NotExist is returned if no missing filters
+				// exist from start height. If we have them there is
+				// no need to fetch them again.
+				if errors.Is(err, errors.NotExist) {
+					fetchMissing = false
+					return nil
+				}
+				return err
+			}
+			return w.txStore.SetHaveMainChainCFilters(dbtx, false)
+		}); err != nil {
+			return errors.E(op, err)
+		}
+		if fetchMissing {
+			if err := w.FetchMissingCFilters(ctx, n); err != nil {
+				return errors.E(op, err)
+			}
+		}
+	}
+
 	var startHash chainhash.Hash
-	err := walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
+	err = walletdb.View(ctx, w.db, func(tx walletdb.ReadTx) error {
 		txmgrNs := tx.ReadBucket(wtxmgrNamespaceKey)
 		var err error
 		startHash, err = w.txStore.GetMainChainBlockHashForHeight(
