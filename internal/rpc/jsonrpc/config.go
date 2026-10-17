@@ -22,6 +22,7 @@ type Options struct {
 	MixBranch          uint32
 	MixChangeAccount   string
 	TicketSplitAccount string
+	VotingAccount      string
 
 	VSPHost   string
 	VSPPubKey string
