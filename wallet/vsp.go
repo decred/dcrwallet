@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2025 The Decred developers
+// Copyright (c) 2023-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -335,7 +335,7 @@ func (c *VSPClient) SetVoteChoice(ctx context.Context, ticket *VSPTicket,
 
 	// Check treasury policies.
 	for newKey, newChoice := range treasuryPolicy {
-		vspChoice, ok := status.TSpendPolicy[newKey]
+		vspChoice, ok := status.TreasuryPolicy[newKey]
 		if !ok {
 			update = true
 			break
