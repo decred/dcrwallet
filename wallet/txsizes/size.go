@@ -117,6 +117,39 @@ const (
 	TSPENDInputSize = 1 + 73 + 1 + 33 + 1
 )
 
+// RedeemP2SHMultiSigSigScriptSize returns the worst case (largest) serialize
+// size of a transaction input script that redeems an m-of-n P2SH
+// multisignature output.  numSigs is the number of required signatures (m) and
+// redeemScript is the multisignature redeem script being satisfied.  Unlike
+// RedeemP2SHSigScriptSize, which only accounts for a single signature and a
+// compressed pubkey, this includes every required signature and the pushed
+// redeem script (which carries the n pubkeys).  It is calculated as:
+//
+//   - 1 byte OP_0 (required due to the off-by-one OP_CHECKMULTISIG consensus
+//     behaviour)
+//   - numSigs times:
+//     - 1 byte OP_DATA_73
+//     - 73 bytes of a worst case DER signature plus sighash flag
+//   - the length-prefixed canonical data push of the redeem script
+func RedeemP2SHMultiSigSigScriptSize(numSigs int, redeemScript []byte) int {
+	return 1 + numSigs*(1+73) + canonicalDataPushSize(len(redeemScript))
+}
+
+// canonicalDataPushSize returns the serialize size, including the opcode or
+// length prefix, of a canonical data push of dataLen bytes.
+func canonicalDataPushSize(dataLen int) int {
+	switch {
+	case dataLen < 76: // < OP_PUSHDATA1
+		return 1 + dataLen
+	case dataLen <= 0xff: // OP_PUSHDATA1
+		return 2 + dataLen
+	case dataLen <= 0xffff: // OP_PUSHDATA2
+		return 3 + dataLen
+	default: // OP_PUSHDATA4
+		return 5 + dataLen
+	}
+}
+
 func sumOutputSerializeSizes(outputs []*wire.TxOut) (serializeSize int) {
 	for _, txOut := range outputs {
 		serializeSize += txOut.SerializeSize()
