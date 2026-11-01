@@ -7,8 +7,6 @@ package deployments
 import (
 	"context"
 
-	"decred.org/dcrwallet/v5/errors"
-	"github.com/decred/dcrd/chaincfg/v3"
 	dcrdtypes "github.com/decred/dcrd/rpc/jsonrpc/types/v4"
 	"github.com/decred/dcrd/wire"
 )
@@ -58,6 +56,24 @@ var DCP0005 = HardcodedDeployment{
 	SimNetActivationHeight:   0,
 }
 
+// DCP0010 specifies the activation of a subsidy split change (10% PoW, 80% PoS,
+// and 10% Treasury) soft fork as defined by
+// https://github.com/decred/dcps/blob/master/dcp-0010/dcp-0010.mediawiki.
+var DCP0010 = HardcodedDeployment{
+	MainNetActivationHeight:  657280,
+	TestNet3ActivationHeight: 877728,
+	SimNetActivationHeight:   0,
+}
+
+// DCP0012 specifies the activation of a subsidy split change (1% PoW, 89% PoS,
+// and 10% Treasury) soft fork as defined by
+// https://github.com/decred/dcps/blob/master/dcp-0012/dcp-0012.mediawiki.
+var DCP0012 = HardcodedDeployment{
+	MainNetActivationHeight:  794368,
+	TestNet3ActivationHeight: 1170048,
+	SimNetActivationHeight:   0,
+}
+
 // Active returns whether the hardcoded deployment is active at height on the
 // network specified by params.  Active always returns false for unrecognized
 // networks.
@@ -74,86 +90,10 @@ func (d *HardcodedDeployment) Active(height int32, net wire.CurrencyNet) bool {
 	return activationHeight >= 0 && height >= activationHeight
 }
 
-const (
-	lockedinStatus = dcrdtypes.AgendaInfoStatusLockedIn
-	activeStatus   = dcrdtypes.AgendaInfoStatusActive
-)
-
 // Querier defines the interface for a chain backend that can (trustfully)
 // query for agenda deployment information.
 type Querier interface {
 	// Deployments should return information about existing agendas,
 	// including their deployment status.
 	Deployments(context.Context) (map[string]dcrdtypes.AgendaInfo, error)
-}
-
-// DCP0010Active returns whether the consensus rules for the next block with the
-// current chain tip height requires the subsidy split as specified in DCP0010.
-// DCP0010 is always active on simnet, and requires the RPC syncer to detect
-// activation on mainnet and testnet3.
-func DCP0010Active(ctx context.Context, height int32, params *chaincfg.Params,
-	querier Querier) (bool, error) {
-
-	net := params.Net
-	rcai := int32(params.RuleChangeActivationInterval)
-
-	if net == wire.SimNet {
-		return true, nil
-	}
-	if net != wire.MainNet && net != wire.TestNet3 {
-		return false, nil
-	}
-	if querier == nil {
-		return false, errors.E(errors.Bug, "DCP0010 activation check requires RPC syncer")
-	}
-	deployments, err := querier.Deployments(ctx)
-	if err != nil {
-		return false, err
-	}
-	d, ok := deployments[chaincfg.VoteIDChangeSubsidySplit]
-	if !ok {
-		return false, nil
-	}
-	switch {
-	case d.Status == lockedinStatus && height == int32(d.Since)+rcai-1:
-		return true, nil
-	case d.Status == activeStatus:
-		return true, nil
-	default:
-		return false, nil
-	}
-}
-
-// DCP0012Active returns whether the consensus rules for the next block with the
-// current chain tip height requires the version 2 subsidy split as specified in
-// DCP0012.  DCP0012 requires the RPC syncer to detect activation on mainnet,
-// testnet3 and simnet.
-func DCP0012Active(ctx context.Context, height int32, params *chaincfg.Params,
-	querier Querier) (bool, error) {
-
-	net := params.Net
-	rcai := int32(params.RuleChangeActivationInterval)
-
-	if net != wire.MainNet && net != wire.TestNet3 && net != wire.SimNet {
-		return false, nil
-	}
-	if querier == nil {
-		return false, errors.E(errors.Bug, "DCP0012 activation check requires RPC syncer")
-	}
-	deployments, err := querier.Deployments(ctx)
-	if err != nil {
-		return false, err
-	}
-	d, ok := deployments[chaincfg.VoteIDChangeSubsidySplitR2]
-	if !ok {
-		return false, nil
-	}
-	switch {
-	case d.Status == lockedinStatus && height == int32(d.Since)+rcai-1:
-		return true, nil
-	case d.Status == activeStatus:
-		return true, nil
-	default:
-		return false, nil
-	}
 }

@@ -1274,24 +1274,10 @@ func (w *Wallet) purchaseTickets(ctx context.Context, op errors.Op,
 		if err != nil {
 			return nil, err
 		}
-		// In SPV mode, DCP0010 and DCP0012 are assumed to have activated.  This
-		// results in a larger fee calculation for the purposes of UTXO
-		// selection.  In RPC mode the actual activation can be determined.
-		dcp0010Active := true
-		dcp0012Active := true
-		switch n := n.(type) {
-		case deployments.Querier:
-			dcp0010Active, err = deployments.DCP0010Active(ctx,
-				tipHeight, w.chainParams, n)
-			if err != nil {
-				return nil, err
-			}
-			dcp0012Active, err = deployments.DCP0012Active(ctx,
-				tipHeight, w.chainParams, n)
-			if err != nil {
-				return nil, err
-			}
-		}
+
+		dcp0010Active := deployments.DCP0010.Active(tipHeight, w.chainParams.Net)
+		dcp0012Active := deployments.DCP0012.Active(tipHeight, w.chainParams.Net)
+
 		fee := txrules.StakePoolTicketFee(ticketPrice, ticketFee,
 			tipHeight, feePrice, w.chainParams,
 			dcp0010Active, dcp0012Active)

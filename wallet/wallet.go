@@ -1626,23 +1626,10 @@ func (w *Wallet) PurchaseTickets(ctx context.Context, n NetworkBackend,
 		return nil, err
 	}
 	_, height := w.MainChainTip(ctx)
-	// In SPV mode, DCP0010 and DCP0012 are assumed to have activated.  In RPC
-	// mode the actual activation can be determined.
-	dcp0010Active := true
-	dcp0012Active := true
-	switch n := n.(type) {
-	case deployments.Querier:
-		dcp0010Active, err = deployments.DCP0010Active(ctx,
-			height, w.chainParams, n)
-		if err != nil {
-			return nil, err
-		}
-		dcp0012Active, err = deployments.DCP0012Active(ctx,
-			height, w.chainParams, n)
-		if err != nil {
-			return nil, err
-		}
-	}
+
+	dcp0010Active := deployments.DCP0010.Active(height, w.chainParams.Net)
+	dcp0012Active := deployments.DCP0012.Active(height, w.chainParams.Net)
+
 	relayFee := w.RelayFee()
 	vspFee := txrules.StakePoolTicketFee(sdiff, relayFee, height,
 		feePercent, w.chainParams, dcp0010Active, dcp0012Active)
