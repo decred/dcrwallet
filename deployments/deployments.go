@@ -65,6 +65,15 @@ var DCP0010 = HardcodedDeployment{
 	SimNetActivationHeight:   0,
 }
 
+// DCP0011 specifies the activation of a PoW change to BLAKE3 soft fork as
+// defined by
+// https://github.com/decred/dcps/blob/master/dcp-0011/dcp-0011.mediawiki.
+var DCP0011 = HardcodedDeployment{
+	MainNetActivationHeight:  794368,
+	TestNet3ActivationHeight: 1170048,
+	SimNetActivationHeight:   0,
+}
+
 // DCP0012 specifies the activation of a subsidy split change (1% PoW, 89% PoS,
 // and 10% Treasury) soft fork as defined by
 // https://github.com/decred/dcps/blob/master/dcp-0012/dcp-0012.mediawiki.
