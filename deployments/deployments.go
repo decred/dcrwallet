@@ -52,7 +52,7 @@ var DCP0003 = HardcodedDeployment{
 // defined by https://github.com/decred/dcps/blob/master/dcp-0005/dcp-0005.mediawiki.
 var DCP0005 = HardcodedDeployment{
 	MainNetActivationHeight:  431488,
-	TestNet3ActivationHeight: 0,
+	TestNet3ActivationHeight: 323328,
 	SimNetActivationHeight:   0,
 }
 
