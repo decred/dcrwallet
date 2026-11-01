@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"decred.org/dcrwallet/v5/chain"
+	"decred.org/dcrwallet/v5/deployments"
 	"decred.org/dcrwallet/v5/errors"
 	"decred.org/dcrwallet/v5/p2p"
 	"decred.org/dcrwallet/v5/rpc/client/dcrd"
@@ -1293,13 +1294,11 @@ func (s *Server) getBlockHeader(ctx context.Context, icmd any) (any, error) {
 	slices.Sort(timestamps)
 	medianTime := timestamps[len(timestamps)/2]
 
-	// Determine the PoW hash.  When the v1 PoW hash differs from the
-	// block hash, this is assumed to be v2 (DCP0011).  More advanced
-	// selection logic will be necessary if the PoW hash changes again in
-	// the future.
-	powHash := blockHeader.PowHashV1()
-	if powHash != *blockHash {
+	var powHash chainhash.Hash
+	if deployments.DCP0011.Active(int32(blockHeader.Height), s.activeNet.Net) {
 		powHash = blockHeader.PowHashV2()
+	} else {
+		powHash = blockHeader.PowHashV1()
 	}
 
 	return &dcrdtypes.GetBlockHeaderVerboseResult{
@@ -1417,13 +1416,11 @@ func (s *Server) getBlock(ctx context.Context, icmd any) (any, error) {
 	slices.Sort(timestamps)
 	medianTime := timestamps[len(timestamps)/2]
 
-	// Determine the PoW hash.  When the v1 PoW hash differs from the
-	// block hash, this is assumed to be v2 (DCP0011).  More advanced
-	// selection logic will be necessary if the PoW hash changes again in
-	// the future.
-	powHash := blockHeader.PowHashV1()
-	if powHash != *blockHash {
+	var powHash chainhash.Hash
+	if deployments.DCP0011.Active(int32(blockHeader.Height), s.activeNet.Net) {
 		powHash = blockHeader.PowHashV2()
+	} else {
+		powHash = blockHeader.PowHashV1()
 	}
 
 	sbitsFloat := float64(blockHeader.SBits) / dcrutil.AtomsPerCoin

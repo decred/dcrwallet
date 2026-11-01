@@ -706,20 +706,9 @@ func (w *Wallet) VoteOnOwnedTickets(ctx context.Context, winningTicketHashes []*
 	if err != nil {
 		return errors.E(op, err)
 	}
-	dq, ok := n.(deployments.Querier)
-	if !ok {
-		return errors.E(op, "network backend does not provide deployment information")
-	}
-	dcp0010Active, err := deployments.DCP0010Active(ctx, blockHeight,
-		w.chainParams, dq)
-	if err != nil {
-		return errors.E(op, err)
-	}
-	dcp0012Active, err := deployments.DCP0012Active(ctx, blockHeight,
-		w.chainParams, dq)
-	if err != nil {
-		return errors.E(op, err)
-	}
+
+	dcp0010Active := deployments.DCP0010.Active(blockHeight, w.chainParams.Net)
+	dcp0012Active := deployments.DCP0012.Active(blockHeight, w.chainParams.Net)
 
 	// TODO The behavior of this is not quite right if tons of blocks
 	// are coming in quickly, because the transaction store will end up

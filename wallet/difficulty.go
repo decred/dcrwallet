@@ -1,5 +1,5 @@
 // Copyright (c) 2013-2016 The btcsuite developers
-// Copyright (c) 2015-2023 The Decred developers
+// Copyright (c) 2015-2026 The Decred developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -857,7 +857,6 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 	for ; idx < len(chain); idx++ {
 		n := chain[idx]
 		h := n.Header
-		hash := n.Hash
 		if parent == nil && h.Height != 0 {
 			if idx == 0 {
 				var err error
@@ -875,14 +874,15 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		if err != nil {
 			return chain[idx:], errors.E(op, err)
 		}
-		// Check V1 Proof of Work
-		err = blockchain.CheckProofOfWork(hash, h.Bits, w.chainParams.PowLimit)
-		if err != nil {
-			// Check V2 Proof of Work
-			blake3PowHash := n.Header.PowHashV2()
-			err = blockchain.CheckProofOfWork(&blake3PowHash, h.Bits,
-				w.chainParams.PowLimit)
+
+		var hash chainhash.Hash
+		if deployments.DCP0011.Active(int32(h.Height), w.chainParams.Net) {
+			hash = h.PowHashV2()
+		} else {
+			hash = h.PowHashV1()
 		}
+
+		err = blockchain.CheckProofOfWork(&hash, h.Bits, w.chainParams.PowLimit)
 		if err != nil {
 			return chain[idx:], errors.E(op, errors.Consensus, err)
 		}
