@@ -858,7 +858,7 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 		n := chain[idx]
 		h := n.Header
 		hash := n.Hash
-		if parent == nil && h.Height != 0 {
+		if parent == nil {
 			if idx == 0 {
 				var err error
 				parent, err = w.txStore.GetBlockHeader(dbtx, &h.PrevBlock)
@@ -868,6 +868,11 @@ func (w *Wallet) validateHeaderChainDifficulties(dbtx walletdb.ReadTx, chain []*
 			} else {
 				parent = chain[idx-1].Header
 			}
+		}
+		if h.Height != parent.Height+1 {
+			err := errors.Errorf("block %v height %d does not follow "+
+				"parent height %d", hash, h.Height, parent.Height)
+			return chain[idx:], errors.E(op, errors.Consensus, err)
 		}
 
 		// Validate advertised and performed work
