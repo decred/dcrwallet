@@ -762,6 +762,11 @@ func (s *Server) createSignature(ctx context.Context, icmd any) (any, error) {
 		return nil, rpcError(dcrjson.ErrRPCDeserialization, err)
 	}
 
+	if cmd.InputIndex < 0 {
+		return nil, rpcErrorf(dcrjson.ErrRPCInvalidParameter,
+			"transaction input index cannot be negative")
+	}
+
 	if cmd.InputIndex >= len(tx.TxIn) {
 		return nil, rpcErrorf(dcrjson.ErrRPCMisc,
 			"transaction input %d does not exist", cmd.InputIndex)
