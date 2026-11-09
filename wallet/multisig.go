@@ -79,9 +79,15 @@ func (w *Wallet) PrepareRedeemMultiSigOutTxOutput(msgTx *wire.MsgTx, p2shOutput 
 	const op errors.Op = "wallet.PrepareRedeemMultiSigOutTxOutput"
 
 	scriptSizes := make([]int, 0, len(msgTx.TxIn))
-	// generate the script sizes for the inputs
+	// Generate the signature script sizes for the inputs.  Each input
+	// redeems the m-of-n P2SH multisignature output, so the estimate must
+	// account for all m required signatures and the pushed redeem script
+	// (including the n pubkeys); a single-signature P2SH estimate undercounts
+	// the size and would assign a fee below the minimum required by the
+	// network (see issue #2273).
 	for range msgTx.TxIn {
-		scriptSizes = append(scriptSizes, txsizes.RedeemP2SHSigScriptSize)
+		scriptSizes = append(scriptSizes,
+			txsizes.RedeemP2SHMultiSigSigScriptSize(int(p2shOutput.M), p2shOutput.RedeemScript))
 	}
 
 	// estimate the output fee
