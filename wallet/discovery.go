@@ -523,8 +523,17 @@ func (w *Wallet) findLastUsedAccount(ctx context.Context, n NetworkBackend, bloc
 		if err != nil {
 			return 0, err
 		}
-		if last > lastUsed {
-			lastUsed = last
+		// lastUsedInRange returns 0 when no account in the range is used.
+		// Since the binary search begins at the third segment, begin is always
+		// non-zero, so any used account in this segment is >= begin.
+		if last >= begin {
+			if last > lastUsed {
+				lastUsed = last
+			}
+			// Account usage was found in this segment so continue searching
+			// higher segments.
+			lo = mid + 1
+			continue
 		}
 		if mid == 0 {
 			break
