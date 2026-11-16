@@ -51,6 +51,19 @@ const Pver = wire.BatchedCFiltersV2Version
 // that is known to exist at the RemotePeer times out with no matching reply.
 const stallTimeout = 30 * time.Second
 
+const (
+	// writeStallTimeout is the base amount of time a single message write is
+	// allowed to take before the peer is considered stalled and disconnected.
+	// A size-proportional allowance (see writeStallBytesPerSec) is added to it
+	// so that larger messages are afforded proportionally more time.
+	writeStallTimeout = 20 * time.Second
+
+	// writeStallBytesPerSec is the number of message bytes afforded one
+	// additional second on top of writeStallTimeout.  In other words, one
+	// second is added to the deadline for every 256 KiB of the message.
+	writeStallBytesPerSec = 256 * 1024 // 256 KiB
+)
+
 // minInvTrickleSize and maxInvTrickleSize define the lower and upper
 // limits, respectively, of random delay waited while batching
 // inventory before it is trickled to a peer.
@@ -463,7 +476,18 @@ func (rp *RemotePeer) writeMessages(ctx context.Context) error {
 				}
 			}
 			log.Debugf("%v -> %v", m.msg.Command(), rp.raddr)
-			err := wire.WriteMessage(c, m.msg, pver, cnet)
+
+			// Limit how long the write is allowed to block.  A base timeout
+			// plus an allowance proportional to the message size affords larger
+			// messages proportionally more time. A peer which does not read its
+			// socket will hit the deadline, causing the peer to be
+			// disconnected.
+			size := wire.MessageHeaderSize + m.msg.SerializeSize()
+			allowance := time.Duration(size/writeStallBytesPerSec) * time.Second
+			err := c.SetWriteDeadline(time.Now().Add(writeStallTimeout + allowance))
+			if err == nil {
+				err = wire.WriteMessage(c, m.msg, pver, cnet)
+			}
 			if m.ack != nil {
 				m.ack <- struct{}{}
 			}
