@@ -869,7 +869,7 @@ func pong(ctx context.Context, ping *wire.MsgPing, rp *RemotePeer) {
 // LocalPeer.
 type MessageMask uint64
 
-// Message mask constants
+// Message mask constants.
 const (
 	MaskGetData MessageMask = 1 << iota
 	MaskInv
@@ -1306,7 +1306,7 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 	// Requesting more than the maximum inventory vector length within a short
 	// period of time yields a score above the default ban threshold.  Sustained
 	// bursts of small requests are not penalized as that would potentially ban
-	// peers performing the inintial chain sync.
+	// peers performing the initial chain sync.
 	//
 	// This incremental score decays each minute to half of its value.
 	delta := uint32(len(msg.InvList) * banThreshold / wire.MaxInvPerMsg)
@@ -1318,8 +1318,13 @@ func (rp *RemotePeer) receivedGetData(ctx context.Context, msg *wire.MsgGetData)
 	}
 
 	// Ignore if the user is not interested in getdata messages.
-	if rp.lp.messageIsMasked(MaskGetData) {
-		rp.lp.receivedGetData <- newInMsg(rp, msg)
+	if !rp.lp.messageIsMasked(MaskGetData) {
+		return
+	}
+
+	select {
+	case rp.lp.receivedGetData <- newInMsg(rp, msg):
+	case <-ctx.Done():
 	}
 }
 
