@@ -3103,7 +3103,7 @@ func (s *Store) MakeInputSource(dbtx walletdb.ReadTx, account uint32, minConf,
 			var err error
 			if minConf != 0 && target != 0 && randTries < numUnspent/2 {
 				randTries++
-				k, v = s.randomUTXO(dbtx, skip)
+				k, _ = s.randomUTXO(dbtx, skip)
 				if k != nil {
 					seen[string(k)] = struct{}{}
 				}
