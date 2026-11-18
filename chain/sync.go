@@ -24,6 +24,7 @@ import (
 	"github.com/decred/dcrd/blockchain/stake/v5"
 	"github.com/decred/dcrd/chaincfg/chainhash"
 	"github.com/decred/dcrd/crypto/blake256"
+	"github.com/decred/dcrd/gcs/v4"
 	"github.com/decred/dcrd/mixing/mixpool"
 	"github.com/decred/dcrd/wire"
 	"github.com/jrick/wsrpc/v2"
@@ -223,6 +224,11 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		return err
 	}
 
+	birthday, err := s.wallet.BirthState(ctx)
+	if err != nil {
+		return err
+	}
+
 	startedSynced := s.walletSynced.Load()
 
 	cnet := s.wallet.ChainParams().Net
@@ -253,17 +259,25 @@ func (s *Syncer) getHeaders(ctx context.Context) error {
 		var g errgroup.Group
 		for i := range headers {
 			g.Go(func() error {
+				var err error
 				header := headers[i]
 				hash := header.BlockHash()
-				filter, proofIndex, proof, err := s.rpc.CFilterV2(ctx, &hash)
-				if err != nil {
-					return err
-				}
+				var filter *gcs.FilterV2
+				if birthday == nil || birthday.AfterBirthday(header) {
+					var (
+						proofIndex uint32
+						proof      []chainhash.Hash
+					)
+					filter, proofIndex, proof, err = s.rpc.CFilterV2(ctx, &hash)
+					if err != nil {
+						return err
+					}
 
-				err = validate.CFilterV2HeaderCommitment(cnet, header,
-					filter, proofIndex, proof)
-				if err != nil {
-					return err
+					err = validate.CFilterV2HeaderCommitment(cnet, header,
+						filter, proofIndex, proof)
+					if err != nil {
+						return err
+					}
 				}
 
 				nodes[i] = wallet.NewBlockNode(header, &hash, filter, nil)
