@@ -504,7 +504,7 @@ func (s accountBranchChildUpdates) UpdateDB(ctx context.Context, w *Wallet, mayb
 // nextAddress returns the next address of an account branch.
 func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 	updates *accountBranchChildUpdates, maybeDBTX walletdb.ReadWriteTx,
-	accountName string, account, branch uint32,
+	account, branch uint32,
 	callOpts ...NextAddressCallOption) (a stdaddr.Address, rerr error) {
 
 	if updates != nil && maybeDBTX != nil {
@@ -634,6 +634,18 @@ func (w *Wallet) nextAddress(ctx context.Context, op errors.Op,
 		} else {
 			return nil, errors.E(op, errors.Bug, "no method to update DB with addresses")
 		}
+
+		var accountName string
+		if maybeDBTX != nil {
+			addrmgrNs := maybeDBTX.ReadBucket(waddrmgrNamespaceKey)
+			accountName, err = w.manager.AccountName(addrmgrNs, account)
+		} else {
+			accountName, err = w.AccountName(ctx, account)
+		}
+		if err != nil {
+			return nil, errors.E(op, err)
+		}
+
 		alb.cursor++
 		addr := &xpubAddress{
 			AddressPubKeyHashEcdsaSecp256k1V0: apkh,
@@ -753,10 +765,8 @@ func (w *Wallet) NewExternalAddress(ctx context.Context, account uint32, callOpt
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
 		return nil, err
 	}
-
-	accountName, _ := w.AccountName(ctx, account)
 	return w.nextAddress(ctx, op, nil, nil,
-		accountName, account, udb.ExternalBranch, callOpts...)
+		account, udb.ExternalBranch, callOpts...)
 }
 
 // NewInternalAddress returns an internal address.
@@ -767,10 +777,8 @@ func (w *Wallet) NewInternalAddress(ctx context.Context, account uint32, callOpt
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
 		return nil, err
 	}
-
-	accountName, _ := w.AccountName(ctx, account)
 	return w.nextAddress(ctx, op, nil, nil,
-		accountName, account, udb.InternalBranch, callOpts...)
+		account, udb.InternalBranch, callOpts...)
 }
 
 // notVotingAcct errors if an account is a special voting type. This account
@@ -795,7 +803,7 @@ func (w *Wallet) notVotingAcct(ctx context.Context, op errors.Op, account uint32
 }
 
 func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *accountBranchChildUpdates,
-	maybeDBTX walletdb.ReadWriteTx, accountName string, account uint32, gap gapPolicy) (stdaddr.Address, error) {
+	maybeDBTX walletdb.ReadWriteTx, account uint32, gap gapPolicy) (stdaddr.Address, error) {
 
 	// Imported voting accounts must not be used for change.
 	if err := w.notVotingAcct(ctx, op, account); err != nil {
@@ -809,7 +817,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *ac
 	if account == udb.ImportedAddrAccount {
 		account = udb.DefaultAccountNum
 	}
-	return w.nextAddress(ctx, op, updates, maybeDBTX, accountName, account, udb.InternalBranch, withGapPolicy(gap))
+	return w.nextAddress(ctx, op, updates, maybeDBTX, account, udb.InternalBranch, withGapPolicy(gap))
 }
 
 // NewChangeAddress returns an internal address.  This is identical to
@@ -818,8 +826,7 @@ func (w *Wallet) newChangeAddress(ctx context.Context, op errors.Op, updates *ac
 // policy.
 func (w *Wallet) NewChangeAddress(ctx context.Context, account uint32) (stdaddr.Address, error) {
 	const op errors.Op = "wallet.NewChangeAddress"
-	accountName, _ := w.AccountName(ctx, account)
-	return w.newChangeAddress(ctx, op, nil, nil, accountName, account, gapPolicyWrap)
+	return w.newChangeAddress(ctx, op, nil, nil, account, gapPolicyWrap)
 }
 
 // BIP0044BranchNextIndexes returns the next external and internal branch child
@@ -951,9 +958,8 @@ type p2PKHChangeSource struct {
 }
 
 func (src *p2PKHChangeSource) Script() ([]byte, uint16, error) {
-	const accountName = "" // not returned, so can be faked.
 	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
-		src.dbtx, accountName, src.account, src.gapPolicy)
+		src.dbtx, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -979,9 +985,8 @@ type p2PKHTreasuryChangeSource struct {
 // Script returns the treasury change script and is required for change source
 // interface.
 func (src *p2PKHTreasuryChangeSource) Script() ([]byte, uint16, error) {
-	const accountName = "" // not returned, so can be faked.
 	changeAddress, err := src.wallet.newChangeAddress(src.ctx, "", src.updates,
-		src.dbtx, accountName, src.account, src.gapPolicy)
+		src.dbtx, src.account, src.gapPolicy)
 	if err != nil {
 		return nil, 0, err
 	}
