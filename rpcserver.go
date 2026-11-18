@@ -374,9 +374,10 @@ func startRPCServers(ctx context.Context, walletLoader *loader.Loader) (*grpc.Se
 			MixAccount:          cfg.mixedAccount,
 			MixBranch:           cfg.mixedBranch,
 			MixChangeAccount:    cfg.ChangeAccount,
+			TicketSplitAccount:  cfg.TicketSplitAccount,
+			VotingAccount:       cfg.TBOpts.VotingAccount,
 			VSPHost:             cfg.VSPOpts.URL,
 			VSPPubKey:           cfg.VSPOpts.PubKey,
-			TicketSplitAccount:  cfg.TicketSplitAccount,
 			Dial:                cfg.dial,
 			Loggers:             rpcLoggers{},
 		}
